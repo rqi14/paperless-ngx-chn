@@ -1,5 +1,6 @@
 name: ci14
-
+on:
+  workflow_dispatch:
 jobs:
   docker:
     runs-on: ubuntu-latest
