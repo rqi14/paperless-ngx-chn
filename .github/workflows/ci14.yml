@@ -26,4 +26,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: paperless-ngx-chn:latest
+          tags: rqi14/paperless-ngx-chn:latest
