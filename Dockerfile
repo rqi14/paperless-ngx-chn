@@ -91,6 +91,10 @@ ARG RUNTIME_PACKAGES="\
   tesseract-ocr-fra \
   tesseract-ocr-ita \
   tesseract-ocr-spa \
+  tesseract-ocr-chi-sim \
+  tesseract-ocr-chi-tra \
+  tesseract-ocr-chi-sim-vert \
+  tesseract-ocr-chi-tra-vert \
   unpaper \
   pngquant \
   # pikepdf / qpdf
