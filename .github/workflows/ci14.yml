@@ -1,10 +1,5 @@
 name: ci14
 
-on:
-  push:
-    branches:
-      - 'master'
-
 jobs:
   docker:
     runs-on: ubuntu-latest
