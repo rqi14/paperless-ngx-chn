@@ -16,7 +16,7 @@ import { AbstractInputComponent } from '../abstract-input'
       multi: true,
     },
   ],
-  selector: 'app-input-select',
+  selector: 'pngx-input-select',
   templateUrl: './select.component.html',
   styleUrls: ['./select.component.scss'],
 })
@@ -88,6 +88,12 @@ export class SelectComponent extends AbstractInputComponent<number> {
   @Input()
   showFilter: boolean = false
 
+  @Input()
+  notFoundText: string = $localize`No items found`
+
+  @Input()
+  disableCreateNew: boolean = false
+
   @Output()
   createNew = new EventEmitter<string>()
 
@@ -99,7 +105,7 @@ export class SelectComponent extends AbstractInputComponent<number> {
   private _lastSearchTerm: string
 
   get allowCreateNew(): boolean {
-    return this.createNew.observers.length > 0
+    return !this.disableCreateNew && this.createNew.observers.length > 0
   }
 
   get isPrivate(): boolean {
@@ -116,7 +122,7 @@ export class SelectComponent extends AbstractInputComponent<number> {
     }
   }
 
-  addItem(name: string) {
+  addItem(name: string = null) {
     if (name) this.createNew.next(name)
     else this.createNew.next(this._lastSearchTerm)
     this.clearLastSearchTerm()

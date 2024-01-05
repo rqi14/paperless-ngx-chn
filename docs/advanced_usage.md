@@ -107,7 +107,7 @@ document is consumed using a couple of simple hooks.
 Just write a script, put it somewhere that Paperless can read & execute,
 and then put the path to that script in `paperless.conf` or
 `docker-compose.env` with the variable name of either
-[`PAPERLESS_PRE_CONSUME_SCRIPT`](/configuration#PAPERLESS_PRE_CONSUME_SCRIPT) or [`PAPERLESS_POST_CONSUME_SCRIPT`](/configuration#PAPERLESS_POST_CONSUME_SCRIPT).
+[`PAPERLESS_PRE_CONSUME_SCRIPT`](configuration.md#PAPERLESS_PRE_CONSUME_SCRIPT) or [`PAPERLESS_POST_CONSUME_SCRIPT`](configuration.md#PAPERLESS_POST_CONSUME_SCRIPT).
 
 !!! info
 
@@ -127,6 +127,7 @@ script can access the following relevant environment variables set:
 | ----------------------- | ------------------------------------------------------------ |
 | `DOCUMENT_SOURCE_PATH`  | Original path of the consumed document                       |
 | `DOCUMENT_WORKING_PATH` | Path to a copy of the original that consumption will work on |
+| `TASK_ID`               | UUID of the task used to process the new document (if any)   |
 
 !!! note
 
@@ -169,21 +170,22 @@ Executed after the consumer has successfully processed a document and
 has moved it into paperless. It receives the following environment
 variables:
 
-| Environment Variable         | Description                                   |
-| ---------------------------- | --------------------------------------------- |
-| `DOCUMENT_ID`                | Database primary key of the document          |
-| `DOCUMENT_FILE_NAME`         | Formatted filename, not including paths       |
-| `DOCUMENT_CREATED`           | Date & time when document created             |
-| `DOCUMENT_MODIFIED`          | Date & time when document was last modified   |
-| `DOCUMENT_ADDED`             | Date & time when document was added           |
-| `DOCUMENT_SOURCE_PATH`       | Path to the original document file            |
-| `DOCUMENT_ARCHIVE_PATH`      | Path to the generate archive file (if any)    |
-| `DOCUMENT_THUMBNAIL_PATH`    | Path to the generated thumbnail               |
-| `DOCUMENT_DOWNLOAD_URL`      | URL for document download                     |
-| `DOCUMENT_THUMBNAIL_URL`     | URL for the document thumbnail                |
-| `DOCUMENT_CORRESPONDENT`     | Assigned correspondent (if any)               |
-| `DOCUMENT_TAGS`              | Comma separated list of tags applied (if any) |
-| `DOCUMENT_ORIGINAL_FILENAME` | Filename of original document                 |
+| Environment Variable         | Description                                    |
+| ---------------------------- | ---------------------------------------------- |
+| `DOCUMENT_ID`                | Database primary key of the document           |
+| `DOCUMENT_FILE_NAME`         | Formatted filename, not including paths        |
+| `DOCUMENT_CREATED`           | Date & time when document created              |
+| `DOCUMENT_MODIFIED`          | Date & time when document was last modified    |
+| `DOCUMENT_ADDED`             | Date & time when document was added            |
+| `DOCUMENT_SOURCE_PATH`       | Path to the original document file             |
+| `DOCUMENT_ARCHIVE_PATH`      | Path to the generate archive file (if any)     |
+| `DOCUMENT_THUMBNAIL_PATH`    | Path to the generated thumbnail                |
+| `DOCUMENT_DOWNLOAD_URL`      | URL for document download                      |
+| `DOCUMENT_THUMBNAIL_URL`     | URL for the document thumbnail                 |
+| `DOCUMENT_CORRESPONDENT`     | Assigned correspondent (if any)                |
+| `DOCUMENT_TAGS`              | Comma separated list of tags applied (if any)  |
+| `DOCUMENT_ORIGINAL_FILENAME` | Filename of original document                  |
+| `TASK_ID`                    | Task UUID used to import the document (if any) |
 
 The script can be in any language, A simple shell script example:
 
@@ -234,8 +236,8 @@ webserver:
 
 Troubleshooting:
 
-- Monitor the docker-compose log
-  `cd ~/paperless-ngx; docker-compose logs -f`
+- Monitor the Docker Compose log
+  `cd ~/paperless-ngx; docker compose logs -f`
 - Check your script's permission e.g. in case of permission error
   `sudo chmod 755 post-consumption-example.sh`
 - Pipe your scripts's output to a log file e.g.
@@ -249,7 +251,7 @@ document. You will end up getting files like `0000123.pdf` in your media
 directory. This isn't necessarily a bad thing, because you normally
 don't have to access these files manually. However, if you wish to name
 your files differently, you can do that by adjusting the
-[`PAPERLESS_FILENAME_FORMAT`](/configuration#PAPERLESS_FILENAME_FORMAT) configuration option. Paperless adds the
+[`PAPERLESS_FILENAME_FORMAT`](configuration.md#PAPERLESS_FILENAME_FORMAT) configuration option. Paperless adds the
 correct file extension e.g. `.pdf`, `.jpg` automatically.
 
 This variable allows you to configure the filename (folders are allowed)
@@ -342,7 +344,7 @@ value.
     Paperless checks the filename of a document whenever it is saved.
     Therefore, you need to update the filenames of your documents and move
     them after altering this setting by invoking the
-    [`document renamer`](/administration#renamer).
+    [`document renamer`](administration.md#renamer).
 
 !!! warning
 
@@ -377,7 +379,7 @@ When a single storage layout is not sufficient for your use case,
 storage paths come to the rescue. Storage paths allow you to configure
 more precisely where each document is stored in the file system.
 
-- Each storage path is a [`PAPERLESS_FILENAME_FORMAT`](/configuration#PAPERLESS_FILENAME_FORMAT) and
+- Each storage path is a [`PAPERLESS_FILENAME_FORMAT`](configuration.md#PAPERLESS_FILENAME_FORMAT) and
   follows the rules described above
 - Each document is assigned a storage path using the matching
   algorithms described above, but can be overwritten at any time
@@ -417,7 +419,7 @@ Insurances/                             # Insurances
 !!! tip
 
     Defining a storage path is optional. If no storage path is defined for a
-    document, the global [`PAPERLESS_FILENAME_FORMAT`](/configuration#PAPERLESS_FILENAME_FORMAT) is applied.
+    document, the global [`PAPERLESS_FILENAME_FORMAT`](configuration.md#PAPERLESS_FILENAME_FORMAT) is applied.
 
 ## Celery Monitoring {#celery-monitoring}
 
@@ -508,7 +510,7 @@ existing tables) with:
 
 ## Barcodes {#barcodes}
 
-Paperless is able to utilize barcodes for automatically preforming some tasks.
+Paperless is able to utilize barcodes for automatically performing some tasks.
 
 At this time, the library utilized for detection of barcodes supports the following types:
 
@@ -526,7 +528,7 @@ At this time, the library utilized for detection of barcodes supports the follow
 You may check for updates on the [zbar library homepage](https://github.com/mchehab/zbar).
 For usage in Paperless, the type of barcode does not matter, only the contents of it.
 
-For how to enable barcode usage, see [the configuration](/configuration#barcodes).
+For how to enable barcode usage, see [the configuration](configuration.md#barcodes).
 The two settings may be enabled independently, but do have interactions as explained
 below.
 
@@ -552,7 +554,7 @@ one which holds data to keep in the document.
 
     If your scanner supports double-sided scanning natively, you do not need this feature.
 
-This feature is turned off by default, see [configuration](/configuration#collate) on how to turn it on.
+This feature is turned off by default, see [configuration](configuration.md#collate) on how to turn it on.
 
 ### Summary
 
@@ -564,7 +566,7 @@ collating two separate scans into one document, reordering the pages as necessar
 
 Suppose you have a double-sided document with 6 pages (3 sheets of paper). First,
 put the stack into your ADF as normal, ensuring that page 1 is scanned first. Your ADF
-will now scan pages 1, 3, and 5. Then you (or your the scanner, if it supports it) upload
+will now scan pages 1, 3, and 5. Then you (or your scanner, if it supports it) upload
 the scan into the correct sub-directory of the consume folder (`double-sided` by default;
 keep in mind that Paperless will _not_ automatically create the directory for you.)
 Paperless will then process the scan and move it into an internal staging area.
@@ -592,7 +594,7 @@ followed by the even pages.
 
 It's important that the scan files get consumed in the correct order, and one at a time.
 You therefore need to make sure that Paperless is running while you upload the files into
-the directory; and if you're using [polling](/configuration#polling), make sure that
+the directory; and if you're using [polling](configuration.md#polling), make sure that
 `CONSUMER_POLLING` is set to a value lower than it takes for the second scan to appear,
 like 5-10 or even lower.
 
@@ -604,7 +606,7 @@ scan a completely new "odd numbered pages" one. The old staging file will get di
 
 ### Interaction with "subdirs as tags"
 
-The collation feature can be used together with the [subdirs as tags](/configuration#consume_config)
+The collation feature can be used together with the [subdirs as tags](configuration.md#consume_config)
 feature (but this is not a requirement). Just create a correctly named double-sided subdir
 in the hierachy and upload your scans there. For example, both `double-sided/foo/bar` as
 well as `foo/bar/double-sided` will cause the collated document to be treated as if it

@@ -53,7 +53,7 @@ database engine. Available options are `postgresql` and
 
     !!! warning
 
-        Using MariaDB comes with some caveats. See [MySQL Caveats](/advanced_usage#mysql-caveats).
+        Using MariaDB comes with some caveats. See [MySQL Caveats](advanced_usage.md#mysql-caveats).
 
 #### [`PAPERLESS_DBHOST=<hostname>`](#PAPERLESS_DBHOST) {#PAPERLESS_DBHOST}
 
@@ -181,7 +181,7 @@ configure their endpoints, and enable the feature.
     Defaults to "<http://localhost:3000>".
 
 If you run paperless on docker, you can add those services to the
-docker-compose file (see the provided
+Docker Compose file (see the provided
 [`docker-compose.sqlite-tika.yml`](https://github.com/paperless-ngx/paperless-ngx/blob/main/docker/compose/docker-compose.sqlite-tika.yml)
 file for reference).
 
@@ -221,6 +221,8 @@ directory.
     inside docker, ensure that this path is within a permanent volume
     (such as "../media/trash") so it won't get lost on upgrades.
 
+    Note that the directory must exist prior to using this setting.
+
     Defaults to empty (i.e. really delete documents).
 
 #### [`PAPERLESS_MEDIA_ROOT=<path>`](#PAPERLESS_MEDIA_ROOT) {#PAPERLESS_MEDIA_ROOT}
@@ -246,7 +248,7 @@ files created using "collectstatic" manager command are stored.
 #### [`PAPERLESS_FILENAME_FORMAT=<format>`](#PAPERLESS_FILENAME_FORMAT) {#PAPERLESS_FILENAME_FORMAT}
 
 : Changes the filenames paperless uses to store documents in the media
-directory. See [File name handling](/advanced_usage#file-name-handling) for details.
+directory. See [File name handling](advanced_usage.md#file-name-handling) for details.
 
     Default is none, which disables this feature.
 
@@ -255,7 +257,7 @@ directory. See [File name handling](/advanced_usage#file-name-handling) for deta
 : Tells paperless to replace placeholders in
 `PAPERLESS_FILENAME_FORMAT` that would resolve to
 'none' to be omitted from the resulting filename. This also holds
-true for directory names. See [File name handling](/advanced_usage#file-name-handling) for
+true for directory names. See [File name handling](advanced_usage.md#file-name-handling) for
 details.
 
     Defaults to `false` which disables this feature.
@@ -501,7 +503,7 @@ HTTP header/value expected by Django, eg `'["HTTP_X_FORWARDED_PROTO", "https"]'`
     Settings this value has security implications.  Read the Django documentation
     and be sure you understand its usage before setting it.
 
-#### [`PAPERLESS_EMAIL_CERTIFICATE_FILE=<path>`](#PAPERLESS_EMAIL_CERTIFICATE_FILE) {#PAPERLESS_EMAIL_CERTIFICATE_FILE}
+#### [`PAPERLESS_EMAIL_CERTIFICATE_LOCATION=<path>`](#PAPERLESS_EMAIL_CERTIFICATE_LOCATION) {#PAPERLESS_EMAIL_CERTIFICATE_LOCATION}
 
 : Configures an additional SSL certificate file containing a [certificate](https://docs.python.org/3/library/ssl.html#certificates)
 or certificate chain which should be trusted for validating SSL connections against mail providers.
@@ -702,6 +704,20 @@ but could result in missing text content.
         this value if you are certain your documents are not malicious and
         you need the text which was not OCRed
 
+#### [`PAPERLESS_OCR_COLOR_CONVERSION_STRATEGY=<RGB>`](#PAPERLESS_OCR_COLOR_CONVERSION_STRATEGY) {#PAPERLESS_OCR_COLOR_CONVERSION_STRATEGY}
+
+: Controls the Ghostscript color conversion strategy when creating the archive file. This setting
+will only be utilized if the output is a version of PDF/A.
+
+    Valid options are CMYK, Gray, LeaveColorUnchanged, RGB or UseDeviceIndependentColor.
+
+    You can find more on the settings [here](https://ghostscript.readthedocs.io/en/latest/VectorDevices.html#color-conversion-and-management) in the Ghostscript documentation.
+
+    !!! warning
+
+        Utilizing some of the options may result in errors when creating archive
+        files from PDFs.
+
 #### [`PAPERLESS_OCR_USER_ARGS=<json>`](#PAPERLESS_OCR_USER_ARGS) {#PAPERLESS_OCR_USER_ARGS}
 
 : OCRmyPDF offers many more options. Use this parameter to specify any
@@ -717,7 +733,7 @@ they use underscores instead of dashes.
         Paperless has been tested to work with the OCR options provided
         above. There are many options that are incompatible with each other,
         so specifying invalid options may prevent paperless from consuming
-        any documents.
+        any documents.  Use with caution!
 
     Specify arguments as a JSON dictionary. Keep note of lower case
     booleans and double quoted parameter names and strings. Examples:
@@ -933,7 +949,7 @@ or hidden folders some tools use to store data.
 script if you like before beginning consumption. This script will be provided
 data for it to work with via the environment.
 
-    For more information, take a look at [pre-consumption script](/advanced_usage#pre-consume-script).
+    For more information, take a look at [pre-consumption script](advanced_usage.md#pre-consume-script).
 
     The default is blank, which means nothing will be executed.
 
@@ -943,7 +959,7 @@ data for it to work with via the environment.
 script if you like. This script will be provided
 data for it to work with via the environment.
 
-    For more information, take a look at [Post-consumption script](/advanced_usage#post-consume-script).
+    For more information, take a look at [Post-consumption script](advanced_usage.md#post-consume-script).
 
     The default is blank, which means nothing will be executed.
 
@@ -1068,7 +1084,7 @@ file, which are separated by one or multiple barcode pages.
     The original document will be removed and the separated pages will
     be saved as pdf.
 
-    See additional information in the [advanced usage documentation](/advanced_usage#barcodes)
+    See additional information in the [advanced usage documentation](advanced_usage.md#barcodes)
 
     Defaults to false.
 
@@ -1096,7 +1112,8 @@ setting the ASN (archive serial number) if a properly formatted
 barcode is detected.
 
     The barcode must consist of a (configurable) prefix and the ASN
-    to be set, for instance `ASN00123`.
+    to be set, for instance `ASN00123`. The content after the prefix
+    is cleaned of non-numeric characters.
 
     This option is compatible with barcode page separation, since
     pages will be split up before reading the ASN.
@@ -1135,6 +1152,16 @@ combination with PAPERLESS_CONSUMER_BARCODE_UPSCALE bigger than 1.0.
 
     Defaults to "300"
 
+## Audit Trail
+
+#### [`PAPERLESS_AUDIT_LOG_ENABLED=<bool>`](#PAPERLESS_AUDIT_LOG_ENABLED) {#PAPERLESS_AUDIT_LOG_ENABLED}
+
+: Enables an audit trail for documents, document types, correspondents, and tags. Log entries can be viewed in the Django backend only.
+
+    !!! warning
+
+        Once enabled cannot be disabled
+
 ## Collate Double-Sided Documents {#collate}
 
 #### [`PAPERLESS_CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED=<bool>`](#PAPERLESS_CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED) {#PAPERLESS_CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED}
@@ -1149,7 +1176,7 @@ document.
     `PAPERLESS_CONSUMER_RECURSIVE` must be enabled for this to work.
 
     For more information, read the [corresponding section in the advanced
-    documentation](/advanced_usage#collate).
+    documentation](advanced_usage.md#collate).
 
     Defaults to false.
 
@@ -1283,13 +1310,17 @@ specified as "chi-tra".
 
     Defaults to none, which does not install any additional languages.
 
+    !!! warning
+
+         This option must not be used in rootless containers.
+
 #### [`PAPERLESS_ENABLE_FLOWER=<defined>`](#PAPERLESS_ENABLE_FLOWER) {#PAPERLESS_ENABLE_FLOWER}
 
 : If this environment variable is defined, the Celery monitoring tool
 [Flower](https://flower.readthedocs.io/en/latest/index.html) will be
 started by the container.
 
-    You can read more about this in the [advanced documentation](/advanced_usage#celery-monitoring).
+    You can read more about this in the [advanced documentation](advanced_usage.md#celery-monitoring).
 
 ## Update Checking {#update-checking}
 
@@ -1301,3 +1332,36 @@ started by the container.
     v1.9.2. A one-time migration is performed for users who have this
     setting set. This setting is always ignored if the corresponding
     frontend setting has been set.
+
+## Email sending
+
+Setting an SMTP server for the backend will allow you to reset your
+password. All of these options come from their similarly-named [Django settings](https://docs.djangoproject.com/en/4.2/ref/settings/#email-host)
+
+#### [`PAPERLESS_EMAIL_HOST=<str>`](#PAPERLESS_EMAIL_HOST) {#PAPERLESS_EMAIL_HOST}
+
+: Defaults to 'localhost'.
+
+#### [`PAPERLESS_EMAIL_PORT=<int>`](#PAPERLESS_EMAIL_PORT) {#PAPERLESS_EMAIL_PORT}
+
+: Defaults to port 25.
+
+#### [`PAPERLESS_EMAIL_HOST_USER=<str>`](#PAPERLESS_EMAIL_HOST_USER) {#PAPERLESS_EMAIL_HOST_USER}
+
+: Defaults to ''.
+
+#### [`PAPERLESS_EMAIL_FROM=<str>`](#PAPERLESS_EMAIL_FROM) {#PAPERLESS_EMAIL_FROM}
+
+: Defaults to PAPERLESS_EMAIL_HOST_USER if not set.
+
+#### [`PAPERLESS_EMAIL_HOST_PASSWORD=<str>`](#PAPERLESS_EMAIL_HOST_PASSWORD) {#PAPERLESS_EMAIL_HOST_PASSWORD}
+
+: Defaults to ''.
+
+#### [`PAPERLESS_EMAIL_USE_TLS=<bool>`](#PAPERLESS_EMAIL_USE_TLS) {#PAPERLESS_EMAIL_USE_TLS}
+
+: Defaults to false.
+
+#### [`PAPERLESS_EMAIL_USE_SSL=<bool>`](#PAPERLESS_EMAIL_USE_SSL) {#PAPERLESS_EMAIL_USE_SSL}
+
+: Defaults to false.

@@ -1,10 +1,9 @@
 import logging
+import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict
 from typing import Final
-from typing import List
 from typing import Optional
 
 from django.conf import settings
@@ -15,6 +14,8 @@ from pikepdf import Pdf
 from PIL import Image
 
 from documents.converters import convert_from_tiff_to_pdf
+from documents.data_models import ConsumableDocument
+from documents.data_models import DocumentMetadataOverrides
 from documents.data_models import DocumentSource
 from documents.utils import copy_basic_file_stats
 from documents.utils import copy_file_with_basic_stats
@@ -53,7 +54,8 @@ class BarcodeReader:
         self.file: Final[Path] = filepath
         self.mime: Final[str] = mime_type
         self.pdf_file: Path = self.file
-        self.barcodes: List[Barcode] = []
+        self.barcodes: list[Barcode] = []
+        self._tiff_conversion_done = False
         self.temp_dir: Optional[tempfile.TemporaryDirectory] = None
 
         if settings.CONSUMER_BARCODE_TIFF_SUPPORT:
@@ -102,6 +104,9 @@ class BarcodeReader:
             # remove the prefix and remove whitespace
             asn_text = asn_text[len(settings.CONSUMER_ASN_BARCODE_PREFIX) :].strip()
 
+            # remove non-numeric parts of the remaining string
+            asn_text = re.sub(r"\D", "", asn_text)
+
             # now, try parsing the ASN number
             try:
                 asn = int(asn_text)
@@ -111,7 +116,7 @@ class BarcodeReader:
         return asn
 
     @staticmethod
-    def read_barcodes_zxing(image: Image) -> List[str]:
+    def read_barcodes_zxing(image: Image) -> list[str]:
         barcodes = []
 
         import zxingcpp
@@ -127,7 +132,7 @@ class BarcodeReader:
         return barcodes
 
     @staticmethod
-    def read_barcodes_pyzbar(image: Image) -> List[str]:
+    def read_barcodes_pyzbar(image: Image) -> list[str]:
         barcodes = []
 
         from pyzbar import pyzbar
@@ -148,12 +153,14 @@ class BarcodeReader:
 
     def convert_from_tiff_to_pdf(self):
         """
-        May convert a TIFF image into a PDF, if the input is a TIFF
+        May convert a TIFF image into a PDF, if the input is a TIFF and
+        the TIFF has not been made into a PDF
         """
         # Nothing to do, pdf_file is already assigned correctly
-        if self.mime != "image/tiff":
+        if self.mime != "image/tiff" or self._tiff_conversion_done:
             return
 
+        self._tiff_conversion_done = True
         self.pdf_file = convert_from_tiff_to_pdf(self.file, Path(self.temp_dir.name))
 
     def detect(self) -> None:
@@ -164,6 +171,9 @@ class BarcodeReader:
         # Bail if barcodes already exist
         if self.barcodes:
             return
+
+        # No op if not a TIFF
+        self.convert_from_tiff_to_pdf()
 
         # Choose the library for reading
         if settings.CONSUMER_BARCODE_SCANNER == "PYZBAR":
@@ -209,7 +219,7 @@ class BarcodeReader:
                 f"Exception during barcode scanning: {e}",
             )
 
-    def get_separation_pages(self) -> Dict[int, bool]:
+    def get_separation_pages(self) -> dict[int, bool]:
         """
         Search the parsed barcodes for separators and returns a dict of page
         numbers, which separate the file into new files, together with the
@@ -228,7 +238,7 @@ class BarcodeReader:
             **{bc.page: True for bc in self.barcodes if bc.is_asn and bc.page != 0},
         }
 
-    def separate_pages(self, pages_to_split_on: Dict[int, bool]) -> List[Path]:
+    def separate_pages(self, pages_to_split_on: dict[int, bool]) -> list[Path]:
         """
         Separate the provided pdf file on the pages_to_split_on.
         The pages which are defined by the keys in page_numbers
@@ -238,12 +248,12 @@ class BarcodeReader:
         """
 
         document_paths = []
-        fname = self.file.with_suffix("").name
+        fname = self.file.stem
         with Pdf.open(self.pdf_file) as input_pdf:
             # Start with an empty document
-            current_document: List[Page] = []
+            current_document: list[Page] = []
             # A list of documents, ie a list of lists of pages
-            documents: List[List[Page]] = [current_document]
+            documents: list[list[Page]] = [current_document]
 
             for idx, page in enumerate(input_pdf.pages):
                 # Keep building the new PDF as long as it is not a
@@ -288,7 +298,7 @@ class BarcodeReader:
     def separate(
         self,
         source: DocumentSource,
-        override_name: Optional[str] = None,
+        overrides: DocumentMetadataOverrides,
     ) -> bool:
         """
         Separates the document, based on barcodes and configuration, creating new
@@ -314,27 +324,23 @@ class BarcodeReader:
             logger.warning("No pages to split on!")
             return False
 
-        # Create the split documents
-        doc_paths = self.separate_pages(separator_pages)
+        tmp_dir = Path(tempfile.mkdtemp(prefix="paperless-barcode-split-")).resolve()
 
-        # Save the new documents to correct folder
-        if source != DocumentSource.ConsumeFolder:
-            # The given file is somewhere in SCRATCH_DIR,
-            # and new documents must be moved to the CONSUMPTION_DIR
-            # for the consumer to notice them
-            save_to_dir = settings.CONSUMPTION_DIR
-        else:
-            # The given file is somewhere in CONSUMPTION_DIR,
-            # and may be some levels down for recursive tagging
-            # so use the file's parent to preserve any metadata
-            save_to_dir = self.file.parent
+        from documents import tasks
 
-        for idx, document_path in enumerate(doc_paths):
-            if override_name is not None:
-                newname = f"{idx}_{override_name}"
-                dest = save_to_dir / newname
-            else:
-                dest = save_to_dir
-            logger.info(f"Saving {document_path} to {dest}")
-            copy_file_with_basic_stats(document_path, dest)
+        # Create the split document tasks
+        for new_document in self.separate_pages(separator_pages):
+            copy_file_with_basic_stats(new_document, tmp_dir / new_document.name)
+
+            tasks.consume_file.delay(
+                ConsumableDocument(
+                    # Same source, for templates
+                    source=source,
+                    # Can't use same folder or the consume might grab it again
+                    original_file=(tmp_dir / new_document.name).resolve(),
+                ),
+                # All the same metadata
+                overrides,
+            )
+        logger.info("Barcode splitting complete!")
         return True

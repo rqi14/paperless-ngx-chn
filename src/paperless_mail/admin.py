@@ -68,7 +68,8 @@ class MailRuleAdmin(GuardedModelAdmin):
                     "filter_to",
                     "filter_subject",
                     "filter_body",
-                    "filter_attachment_filename",
+                    "filter_attachment_filename_include",
+                    "filter_attachment_filename_exclude",
                     "maximum_age",
                     "consumption_scope",
                     "attachment_type",
@@ -117,6 +118,10 @@ class MailRuleAdmin(GuardedModelAdmin):
     sortable_by = []
 
     ordering = ["order"]
+
+    raw_id_fields = ("assign_correspondent", "assign_document_type")
+
+    filter_horizontal = ("assign_tags",)
 
 
 class ProcessedMailAdmin(admin.ModelAdmin):

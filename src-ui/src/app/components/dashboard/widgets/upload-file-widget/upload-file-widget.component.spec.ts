@@ -1,5 +1,10 @@
 import { HttpClientTestingModule } from '@angular/common/http/testing'
-import { ComponentFixture, TestBed } from '@angular/core/testing'
+import {
+  ComponentFixture,
+  TestBed,
+  fakeAsync,
+  tick,
+} from '@angular/core/testing'
 import { By } from '@angular/platform-browser'
 import { RouterTestingModule } from '@angular/router/testing'
 import {
@@ -8,7 +13,6 @@ import {
   NgbAlert,
   NgbCollapse,
 } from '@ng-bootstrap/ng-bootstrap'
-import { NgxFileDropModule } from 'ngx-file-drop'
 import { routes } from 'src/app/app-routing.module'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
@@ -21,6 +25,25 @@ import { PermissionsService } from 'src/app/services/permissions.service'
 import { UploadDocumentsService } from 'src/app/services/upload-documents.service'
 import { WidgetFrameComponent } from '../widget-frame/widget-frame.component'
 import { UploadFileWidgetComponent } from './upload-file-widget.component'
+import { DragDropModule } from '@angular/cdk/drag-drop'
+
+const FAILED_STATUSES = [new FileStatus()]
+const WORKING_STATUSES = [new FileStatus(), new FileStatus()]
+const STARTED_STATUSES = [new FileStatus(), new FileStatus(), new FileStatus()]
+const SUCCESS_STATUSES = [
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+]
+const DEFAULT_STATUSES = [
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+  new FileStatus(),
+]
 
 describe('UploadFileWidgetComponent', () => {
   let component: UploadFileWidgetComponent
@@ -48,8 +71,8 @@ describe('UploadFileWidgetComponent', () => {
         HttpClientTestingModule,
         NgbModule,
         RouterTestingModule.withRoutes(routes),
-        NgxFileDropModule,
         NgbAlertModule,
+        DragDropModule,
       ],
     }).compileComponents()
 
@@ -61,13 +84,21 @@ describe('UploadFileWidgetComponent', () => {
     fixture.detectChanges()
   })
 
-  it('should support drop files', () => {
+  it('should support browse files', () => {
+    const fileInput = fixture.debugElement.query(By.css('input'))
+    const clickSpy = jest.spyOn(fileInput.nativeElement, 'click')
+    fixture.debugElement
+      .query(By.css('button'))
+      .nativeElement.dispatchEvent(new Event('click'))
+    expect(clickSpy).toHaveBeenCalled()
+  })
+
+  it('should upload files', () => {
     const uploadSpy = jest.spyOn(uploadDocumentsService, 'uploadFiles')
-    component.dropped([])
+    fixture.debugElement
+      .query(By.css('input'))
+      .nativeElement.dispatchEvent(new Event('change'))
     expect(uploadSpy).toHaveBeenCalled()
-    // coverage
-    component.fileLeave(null)
-    component.fileOver(null)
   })
 
   it('should generate stats summary', () => {
@@ -114,11 +145,15 @@ describe('UploadFileWidgetComponent', () => {
     expect(dismissSpy).toHaveBeenCalled()
   })
 
-  it('should allow dismissing all alerts', () => {
-    const dismissSpy = jest.spyOn(consumerStatusService, 'dismissCompleted')
+  it('should allow dismissing all alerts', fakeAsync(() => {
+    mockConsumerStatuses(consumerStatusService)
+    fixture.detectChanges()
+    const dismissSpy = jest.spyOn(consumerStatusService, 'dismiss')
     component.dismissCompleted()
-    expect(dismissSpy).toHaveBeenCalled()
-  })
+    tick(1000)
+    fixture.detectChanges()
+    expect(dismissSpy).toHaveBeenCalledTimes(6)
+  }))
 })
 
 function mockConsumerStatuses(consumerStatusService) {
@@ -133,41 +168,22 @@ function mockConsumerStatuses(consumerStatusService) {
     .mockImplementation((phase) => {
       switch (phase) {
         case FileStatusPhase.FAILED:
-          return [new FileStatus()]
+          return FAILED_STATUSES
         case FileStatusPhase.WORKING:
-          return [new FileStatus(), new FileStatus()]
+          return WORKING_STATUSES
         case FileStatusPhase.STARTED:
-          return [new FileStatus(), new FileStatus(), new FileStatus()]
+          return STARTED_STATUSES
         case FileStatusPhase.SUCCESS:
-          return [
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-          ]
+          return SUCCESS_STATUSES
         case FileStatusPhase.UPLOADING:
           return [partialUpload1, partialUpload2]
         default:
-          return [
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-            new FileStatus(),
-          ]
+          return DEFAULT_STATUSES
       }
     })
   jest
     .spyOn(consumerStatusService, 'getConsumerStatusNotCompleted')
     .mockImplementation(() => {
-      return [
-        new FileStatus(),
-        new FileStatus(),
-        new FileStatus(),
-        new FileStatus(),
-        new FileStatus(),
-        new FileStatus(),
-      ]
+      return DEFAULT_STATUSES
     })
 }

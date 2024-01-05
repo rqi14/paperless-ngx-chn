@@ -4,9 +4,9 @@ import { TestBed } from '@angular/core/testing'
 import { environment } from 'src/environments/environment'
 import { commonAbstractPaperlessServiceTests } from './abstract-paperless-service.spec'
 import { MailRuleService } from './mail-rule.service'
-import { MailFilterAttachmentType } from 'src/app/data/paperless-mail-rule'
-import { MailMetadataTitleOption } from 'src/app/data/paperless-mail-rule'
-import { MailAction } from 'src/app/data/paperless-mail-rule'
+import { MailFilterAttachmentType } from 'src/app/data/mail-rule'
+import { MailMetadataTitleOption } from 'src/app/data/mail-rule'
+import { MailAction } from 'src/app/data/mail-rule'
 
 let httpTestingController: HttpTestingController
 let service: MailRuleService
@@ -23,11 +23,13 @@ const mail_rules = [
     filter_to: null,
     filter_subject: null,
     filter_body: null,
-    filter_attachment_filename: null,
+    filter_attachment_filename_include: null,
+    filter_attachment_filename_exclude: null,
     maximum_age: 30,
     attachment_type: MailFilterAttachmentType.Everything,
     action: MailAction.MarkRead,
     assign_title_from: MailMetadataTitleOption.FromSubject,
+    assign_owner_from_rule: true,
   },
   {
     name: 'Mail Rule 2',
@@ -39,11 +41,13 @@ const mail_rules = [
     filter_to: null,
     filter_subject: null,
     filter_body: null,
-    filter_attachment_filename: null,
+    filter_attachment_filename_include: null,
+    filter_attachment_filename_exclude: null,
     maximum_age: 30,
     attachment_type: MailFilterAttachmentType.Everything,
     action: MailAction.Delete,
     assign_title_from: MailMetadataTitleOption.FromSubject,
+    assign_owner_from_rule: true,
   },
   {
     name: 'Mail Rule 3',
@@ -55,11 +59,13 @@ const mail_rules = [
     filter_to: null,
     filter_subject: null,
     filter_body: null,
-    filter_attachment_filename: null,
+    filter_attachment_filename_include: null,
+    filter_attachment_filename_exclude: null,
     maximum_age: 30,
     attachment_type: MailFilterAttachmentType.Everything,
     action: MailAction.Flag,
     assign_title_from: MailMetadataTitleOption.FromSubject,
+    assign_owner_from_rule: false,
   },
 ]
 

@@ -82,6 +82,7 @@ class MailRule(document_models.ModelWithOwner):
     class TitleSource(models.IntegerChoices):
         FROM_SUBJECT = 1, _("Use subject as title")
         FROM_FILENAME = 2, _("Use attachment filename as title")
+        NONE = 3, _("Do not assign title from rule")
 
     class CorrespondentSource(models.IntegerChoices):
         FROM_NOTHING = 1, _("Do not assign a correspondent")
@@ -138,13 +139,25 @@ class MailRule(document_models.ModelWithOwner):
         blank=True,
     )
 
-    filter_attachment_filename = models.CharField(
-        _("filter attachment filename"),
+    filter_attachment_filename_include = models.CharField(
+        _("filter attachment filename inclusive"),
         max_length=256,
         null=True,
         blank=True,
         help_text=_(
             "Only consume documents which entirely match this "
+            "filename if specified. Wildcards such as *.pdf or "
+            "*invoice* are allowed. Case insensitive.",
+        ),
+    )
+
+    filter_attachment_filename_exclude = models.CharField(
+        _("filter attachment filename exclusive"),
+        max_length=256,
+        null=True,
+        blank=True,
+        help_text=_(
+            "Do not consume documents which entirely match this "
             "filename if specified. Wildcards such as *.pdf or "
             "*invoice* are allowed. Case insensitive.",
         ),
@@ -223,6 +236,11 @@ class MailRule(document_models.ModelWithOwner):
         blank=True,
         on_delete=models.SET_NULL,
         verbose_name=_("assign this correspondent"),
+    )
+
+    assign_owner_from_rule = models.BooleanField(
+        _("Assign the rule owner to documents"),
+        default=True,
     )
 
     def __str__(self):

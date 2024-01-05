@@ -1,5 +1,4 @@
 import { ObjectWithId } from './object-with-id'
-import { PaperlessUser } from './paperless-user'
 
 export interface PermissionsObject {
   view: {
@@ -18,4 +17,6 @@ export interface ObjectWithPermissions extends ObjectWithId {
   permissions?: PermissionsObject
 
   user_can_change?: boolean
+
+  is_shared_by_requester?: boolean
 }

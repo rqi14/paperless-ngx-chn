@@ -6,14 +6,18 @@ from django.urls import path
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import RedirectView
 from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
 
 from documents.views import AcknowledgeTasksView
 from documents.views import BulkDownloadView
+from documents.views import BulkEditObjectPermissionsView
 from documents.views import BulkEditView
+from documents.views import ConsumptionTemplateViewSet
 from documents.views import CorrespondentViewSet
+from documents.views import CustomFieldViewSet
 from documents.views import DocumentTypeViewSet
 from documents.views import IndexView
 from documents.views import LogViewSet
@@ -22,6 +26,8 @@ from documents.views import RemoteVersionView
 from documents.views import SavedViewViewSet
 from documents.views import SearchAutoCompleteView
 from documents.views import SelectionDataView
+from documents.views import SharedLinkView
+from documents.views import ShareLinkViewSet
 from documents.views import StatisticsView
 from documents.views import StoragePathViewSet
 from documents.views import TagViewSet
@@ -30,7 +36,9 @@ from documents.views import UiSettingsView
 from documents.views import UnifiedSearchViewSet
 from paperless.consumers import StatusConsumer
 from paperless.views import FaviconView
+from paperless.views import GenerateAuthTokenView
 from paperless.views import GroupViewSet
+from paperless.views import ProfileView
 from paperless.views import UserViewSet
 from paperless_mail.views import MailAccountTestView
 from paperless_mail.views import MailAccountViewSet
@@ -49,6 +57,9 @@ api_router.register(r"users", UserViewSet, basename="users")
 api_router.register(r"groups", GroupViewSet, basename="groups")
 api_router.register(r"mail_accounts", MailAccountViewSet)
 api_router.register(r"mail_rules", MailRuleViewSet)
+api_router.register(r"share_links", ShareLinkViewSet)
+api_router.register(r"consumption_templates", ConsumptionTemplateViewSet)
+api_router.register(r"custom_fields", CustomFieldViewSet)
 
 
 urlpatterns = [
@@ -106,10 +117,22 @@ urlpatterns = [
                     name="mail_accounts_test",
                 ),
                 path("token/", views.obtain_auth_token),
+                re_path(
+                    "^bulk_edit_object_perms/",
+                    BulkEditObjectPermissionsView.as_view(),
+                    name="bulk_edit_object_permissions",
+                ),
+                path("profile/generate_auth_token/", GenerateAuthTokenView.as_view()),
+                re_path(
+                    "^profile/",
+                    ProfileView.as_view(),
+                    name="profile_view",
+                ),
                 *api_router.urls,
             ],
         ),
     ),
+    re_path(r"share/(?P<slug>\w+)/?$", SharedLinkView.as_view()),
     re_path(r"^favicon.ico$", FaviconView.as_view(), name="favicon"),
     re_path(r"admin/", admin.site.urls),
     re_path(
@@ -155,8 +178,12 @@ urlpatterns = [
     # TODO: with localization, this is even worse! :/
     # login, logout
     path("accounts/", include("django.contrib.auth.urls")),
-    # Root of the Frontent
-    re_path(r".*", login_required(IndexView.as_view()), name="base"),
+    # Root of the Frontend
+    re_path(
+        r".*",
+        login_required(ensure_csrf_cookie(IndexView.as_view())),
+        name="base",
+    ),
 ]
 
 

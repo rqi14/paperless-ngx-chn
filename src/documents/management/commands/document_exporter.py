@@ -5,8 +5,6 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import List
-from typing import Set
 
 import tqdm
 from django.conf import settings
@@ -25,7 +23,10 @@ from guardian.models import UserObjectPermission
 
 from documents.file_handling import delete_empty_directories
 from documents.file_handling import generate_filename
+from documents.models import ConsumptionTemplate
 from documents.models import Correspondent
+from documents.models import CustomField
+from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Note
@@ -45,13 +46,10 @@ from paperless_mail.models import MailRule
 
 
 class Command(BaseCommand):
-    help = """
-        Decrypt and rename all files in our collection into a given target
-        directory.  And include a manifest file containing document data for
-        easy import.
-    """.replace(
-        "    ",
-        "",
+    help = (
+        "Decrypt and rename all files in our collection into a given target "
+        "directory.  And include a manifest file containing document data for "
+        "easy import."
     )
 
     def add_arguments(self, parser):
@@ -62,9 +60,11 @@ class Command(BaseCommand):
             "--compare-checksums",
             default=False,
             action="store_true",
-            help="Compare file checksums when determining whether to export "
-            "a file or not. If not specified, file size and time "
-            "modified is used instead.",
+            help=(
+                "Compare file checksums when determining whether to export "
+                "a file or not. If not specified, file size and time "
+                "modified is used instead."
+            ),
         )
 
         parser.add_argument(
@@ -72,9 +72,11 @@ class Command(BaseCommand):
             "--delete",
             default=False,
             action="store_true",
-            help="After exporting, delete files in the export directory that "
-            "do not belong to the current export, such as files from "
-            "deleted documents.",
+            help=(
+                "After exporting, delete files in the export directory that "
+                "do not belong to the current export, such as files from "
+                "deleted documents."
+            ),
         )
 
         parser.add_argument(
@@ -82,8 +84,10 @@ class Command(BaseCommand):
             "--use-filename-format",
             default=False,
             action="store_true",
-            help="Use PAPERLESS_FILENAME_FORMAT for storing files in the "
-            "export directory, if configured.",
+            help=(
+                "Use PAPERLESS_FILENAME_FORMAT for storing files in the "
+                "export directory, if configured."
+            ),
         )
 
         parser.add_argument(
@@ -107,8 +111,10 @@ class Command(BaseCommand):
             "--use-folder-prefix",
             default=False,
             action="store_true",
-            help="Export files in dedicated folders according to their nature: "
-            "archive, originals or thumbnails",
+            help=(
+                "Export files in dedicated folders according to their nature: "
+                "archive, originals or thumbnails"
+            ),
         )
 
         parser.add_argument(
@@ -128,6 +134,13 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            "-zn",
+            "--zip-name",
+            default=f"export-{timezone.localdate().isoformat()}",
+            help="Sets the export zip file name",
+        )
+
+        parser.add_argument(
             "--no-progress-bar",
             default=False,
             action="store_true",
@@ -138,8 +151,8 @@ class Command(BaseCommand):
         BaseCommand.__init__(self, *args, **kwargs)
         self.target: Path = None
         self.split_manifest = False
-        self.files_in_export_dir: Set[Path] = set()
-        self.exported_files: List[Path] = []
+        self.files_in_export_dir: set[Path] = set()
+        self.exported_files: list[Path] = []
         self.compare_checksums = False
         self.use_filename_format = False
         self.use_folder_prefix = False
@@ -149,13 +162,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.target = Path(options["target"]).resolve()
-        self.split_manifest = options["split_manifest"]
-        self.compare_checksums = options["compare_checksums"]
-        self.use_filename_format = options["use_filename_format"]
-        self.use_folder_prefix = options["use_folder_prefix"]
-        self.delete = options["delete"]
-        self.no_archive = options["no_archive"]
-        self.no_thumbnail = options["no_thumbnail"]
+        self.split_manifest: bool = options["split_manifest"]
+        self.compare_checksums: bool = options["compare_checksums"]
+        self.use_filename_format: bool = options["use_filename_format"]
+        self.use_folder_prefix: bool = options["use_folder_prefix"]
+        self.delete: bool = options["delete"]
+        self.no_archive: bool = options["no_archive"]
+        self.no_thumbnail: bool = options["no_thumbnail"]
         zip_export: bool = options["zip"]
 
         # If zipping, save the original target for later and
@@ -191,7 +204,7 @@ class Command(BaseCommand):
                     shutil.make_archive(
                         os.path.join(
                             original_target,
-                            f"export-{timezone.localdate().isoformat()}",
+                            options["zip_name"],
                         ),
                         format="zip",
                         root_dir=temp_dir.name,
@@ -224,18 +237,6 @@ class Command(BaseCommand):
             manifest += json.loads(
                 serializers.serialize("json", StoragePath.objects.all()),
             )
-
-            notes = json.loads(
-                serializers.serialize("json", Note.objects.all()),
-            )
-            if not self.split_manifest:
-                manifest += notes
-
-            documents = Document.objects.order_by("id")
-            document_map = {d.pk: d for d in documents}
-            document_manifest = json.loads(serializers.serialize("json", documents))
-            if not self.split_manifest:
-                manifest += document_manifest
 
             manifest += json.loads(
                 serializers.serialize("json", MailAccount.objects.all()),
@@ -281,6 +282,33 @@ class Command(BaseCommand):
             manifest += json.loads(
                 serializers.serialize("json", GroupObjectPermission.objects.all()),
             )
+
+            manifest += json.loads(
+                serializers.serialize("json", ConsumptionTemplate.objects.all()),
+            )
+
+            manifest += json.loads(
+                serializers.serialize("json", CustomField.objects.all()),
+            )
+
+            # These are treated specially and included in the per-document manifest
+            # if that setting is enabled.  Otherwise, they are just exported to the bulk
+            # manifest
+            documents = Document.objects.order_by("id")
+            document_map: dict[int, Document] = {d.pk: d for d in documents}
+            document_manifest = json.loads(serializers.serialize("json", documents))
+
+            notes = json.loads(
+                serializers.serialize("json", Note.objects.all()),
+            )
+
+            custom_field_instances = json.loads(
+                serializers.serialize("json", CustomFieldInstance.objects.all()),
+            )
+            if not self.split_manifest:
+                manifest += document_manifest
+                manifest += notes
+                manifest += custom_field_instances
 
         # 3. Export files from each document
         for index, document_dict in tqdm.tqdm(
@@ -386,20 +414,37 @@ class Command(BaseCommand):
                         notes,
                     ),
                 )
-                manifest_name.write_text(json.dumps(content, indent=2))
+                content += list(
+                    filter(
+                        lambda d: d["fields"]["document"] == document_dict["pk"],
+                        custom_field_instances,
+                    ),
+                )
+                manifest_name.write_text(
+                    json.dumps(content, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
                 if manifest_name in self.files_in_export_dir:
                     self.files_in_export_dir.remove(manifest_name)
 
         # 4.1 write manifest to target folder
         manifest_path = (self.target / Path("manifest.json")).resolve()
-        manifest_path.write_text(json.dumps(manifest, indent=2))
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
         if manifest_path in self.files_in_export_dir:
             self.files_in_export_dir.remove(manifest_path)
 
         # 4.2 write version information to target folder
         version_path = (self.target / Path("version.json")).resolve()
         version_path.write_text(
-            json.dumps({"version": version.__full_version_str__}, indent=2),
+            json.dumps(
+                {"version": version.__full_version_str__},
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
         )
         if version_path in self.files_in_export_dir:
             self.files_in_export_dir.remove(version_path)

@@ -377,7 +377,7 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             filter_to="someone@somewhere.com",
             filter_subject="subject",
             filter_body="body",
-            filter_attachment_filename="file.pdf",
+            filter_attachment_filename_include="file.pdf",
             maximum_age=30,
             action=MailRule.MailAction.MARK_READ,
             assign_title_from=MailRule.TitleSource.FROM_SUBJECT,
@@ -400,8 +400,8 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
         self.assertEqual(returned_rule1["filter_subject"], rule1.filter_subject)
         self.assertEqual(returned_rule1["filter_body"], rule1.filter_body)
         self.assertEqual(
-            returned_rule1["filter_attachment_filename"],
-            rule1.filter_attachment_filename,
+            returned_rule1["filter_attachment_filename_include"],
+            rule1.filter_attachment_filename_include,
         )
         self.assertEqual(returned_rule1["maximum_age"], rule1.maximum_age)
         self.assertEqual(returned_rule1["action"], rule1.action)
@@ -453,7 +453,7 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             "filter_to": "aperson@aplace.com",
             "filter_subject": "subject",
             "filter_body": "body",
-            "filter_attachment_filename": "file.pdf",
+            "filter_attachment_filename_include": "file.pdf",
             "maximum_age": 30,
             "action": MailRule.MailAction.MARK_READ,
             "assign_title_from": MailRule.TitleSource.FROM_SUBJECT,
@@ -464,6 +464,7 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             "assign_tags": [tag.pk],
             "assign_correspondent": correspondent.pk,
             "assign_document_type": document_type.pk,
+            "assign_owner_from_rule": True,
         }
 
         response = self.client.post(
@@ -487,8 +488,8 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
         self.assertEqual(returned_rule1["filter_subject"], rule1["filter_subject"])
         self.assertEqual(returned_rule1["filter_body"], rule1["filter_body"])
         self.assertEqual(
-            returned_rule1["filter_attachment_filename"],
-            rule1["filter_attachment_filename"],
+            returned_rule1["filter_attachment_filename_include"],
+            rule1["filter_attachment_filename_include"],
         )
         self.assertEqual(returned_rule1["maximum_age"], rule1["maximum_age"])
         self.assertEqual(returned_rule1["action"], rule1["action"])
@@ -512,6 +513,10 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             rule1["assign_document_type"],
         )
         self.assertEqual(returned_rule1["assign_tags"], rule1["assign_tags"])
+        self.assertEqual(
+            returned_rule1["assign_owner_from_rule"],
+            rule1["assign_owner_from_rule"],
+        )
 
     def test_delete_mail_rule(self):
         """
@@ -540,7 +545,7 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             filter_from="from@example.com",
             filter_subject="subject",
             filter_body="body",
-            filter_attachment_filename="file.pdf",
+            filter_attachment_filename_include="file.pdf",
             maximum_age=30,
             action=MailRule.MailAction.MARK_READ,
             assign_title_from=MailRule.TitleSource.FROM_SUBJECT,
@@ -584,7 +589,7 @@ class TestAPIMailRules(DirectoriesMixin, APITestCase):
             filter_from="from@example.com",
             filter_subject="subject",
             filter_body="body",
-            filter_attachment_filename="file.pdf",
+            filter_attachment_filename_include="file.pdf",
             maximum_age=30,
             action=MailRule.MailAction.MARK_READ,
             assign_title_from=MailRule.TitleSource.FROM_SUBJECT,

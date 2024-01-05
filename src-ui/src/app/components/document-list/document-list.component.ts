@@ -15,9 +15,9 @@ import {
   isFullTextFilterRule,
 } from 'src/app/utils/filter-rules'
 import { FILTER_FULLTEXT_MORELIKE } from 'src/app/data/filter-rule-type'
-import { PaperlessDocument } from 'src/app/data/paperless-document'
-import { PaperlessSavedView } from 'src/app/data/paperless-saved-view'
-import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
+import { Document } from 'src/app/data/document'
+import { SavedView } from 'src/app/data/saved-view'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import {
   SortableDirective,
   SortEvent,
@@ -37,7 +37,7 @@ import { FilterEditorComponent } from './filter-editor/filter-editor.component'
 import { SaveViewConfigDialogComponent } from './save-view-config-dialog/save-view-config-dialog.component'
 
 @Component({
-  selector: 'app-document-list',
+  selector: 'pngx-document-list',
   templateUrl: './document-list.component.html',
   styleUrls: ['./document-list.component.scss'],
 })
@@ -67,7 +67,7 @@ export class DocumentListComponent
   displayMode = 'smallCards' // largeCards, smallCards, details
 
   unmodifiedFilterRules: FilterRule[] = []
-  private unmodifiedSavedView: PaperlessSavedView
+  private unmodifiedSavedView: SavedView
 
   private unsubscribeNotifier: Subject<any> = new Subject()
 
@@ -185,14 +185,14 @@ export class DocumentListComponent
   }
 
   ngOnDestroy() {
-    // unsubscribes all
+    this.list.cancelPending()
     this.unsubscribeNotifier.next(this)
     this.unsubscribeNotifier.complete()
   }
 
   saveViewConfig() {
     if (this.list.activeSavedViewId != null) {
-      let savedView: PaperlessSavedView = {
+      let savedView: SavedView = {
         id: this.list.activeSavedViewId,
         filter_rules: this.list.filterRules,
         sort_field: this.list.sortField,
@@ -229,7 +229,7 @@ export class DocumentListComponent
     modal.componentInstance.defaultName = this.filterEditor.generateFilterName()
     modal.componentInstance.saveClicked.pipe(first()).subscribe((formValue) => {
       modal.componentInstance.buttonsEnabled = false
-      let savedView: PaperlessSavedView = {
+      let savedView: SavedView = {
         name: formValue.name,
         show_on_dashboard: formValue.showOnDashboard,
         show_in_sidebar: formValue.showInSideBar,
@@ -260,11 +260,11 @@ export class DocumentListComponent
     })
   }
 
-  openDocumentDetail(document: PaperlessDocument) {
+  openDocumentDetail(document: Document) {
     this.router.navigate(['documents', document.id])
   }
 
-  toggleSelected(document: PaperlessDocument, event: MouseEvent): void {
+  toggleSelected(document: Document, event: MouseEvent): void {
     if (!event.shiftKey) this.list.toggleSelected(document)
     else this.list.selectRangeTo(document)
   }
@@ -295,7 +295,7 @@ export class DocumentListComponent
     ])
   }
 
-  trackByDocumentId(index, item: PaperlessDocument) {
+  trackByDocumentId(index, item: Document) {
     return item.id
   }
 

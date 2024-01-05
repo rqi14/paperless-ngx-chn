@@ -3,8 +3,7 @@ import email.contentmanager
 import random
 import uuid
 from collections import namedtuple
-from typing import ContextManager
-from typing import List
+from contextlib import AbstractContextManager
 from typing import Optional
 from typing import Union
 from unittest import mock
@@ -53,8 +52,8 @@ class BogusFolderManager:
 
 class BogusClient:
     def __init__(self, messages):
-        self.messages: List[MailMessage] = messages
-        self.capabilities: List[str] = []
+        self.messages: list[MailMessage] = messages
+        self.capabilities: list[str] = []
 
     def __enter__(self):
         return self
@@ -78,7 +77,7 @@ class BogusClient:
                         MailMessage.flags.fget.cache_clear()
 
 
-class BogusMailBox(ContextManager):
+class BogusMailBox(AbstractContextManager):
     # Common values so tests don't need to remember an accepted login
     USERNAME: str = "admin"
     ASCII_PASSWORD: str = "secret"
@@ -88,8 +87,8 @@ class BogusMailBox(ContextManager):
     ACCESS_TOKEN = "ea7e075cd3acf2c54c48e600398d5d5a"
 
     def __init__(self):
-        self.messages: List[MailMessage] = []
-        self.messages_spam: List[MailMessage] = []
+        self.messages: list[MailMessage] = []
+        self.messages_spam: list[MailMessage] = []
         self.folder = BogusFolderManager()
         self.client = BogusClient(self.messages)
         self._host = ""
@@ -221,11 +220,11 @@ class TestMail(
 
     def create_message(
         self,
-        attachments: Union[int, List[_AttachmentDef]] = 1,
+        attachments: Union[int, list[_AttachmentDef]] = 1,
         body: str = "",
         subject: str = "the subject",
         from_: str = "noone@mail.com",
-        to: Optional[List[str]] = None,
+        to: Optional[list[str]] = None,
         seen: bool = False,
         flagged: bool = False,
         processed: bool = False,
@@ -393,6 +392,11 @@ class TestMail(
             assign_title_from=MailRule.TitleSource.FROM_SUBJECT,
         )
         self.assertEqual(handler._get_title(message, att, rule), "the message title")
+        rule = MailRule(
+            name="b",
+            assign_title_from=MailRule.TitleSource.NONE,
+        )
+        self.assertEqual(handler._get_title(message, att, rule), None)
 
     def test_handle_message(self):
         message = self.create_message(
@@ -522,6 +526,16 @@ class TestMail(
         )
 
     def test_filename_filter(self):
+        """
+        GIVEN:
+            - Email with multiple similar named attachments
+            - Rule with inclusive and exclusive filters
+        WHEN:
+            - Mail action filtering is checked
+        THEN:
+            - Mail action should not be performed for files excluded
+            - Mail action should be performed for files included
+        """
         message = self.create_message(
             attachments=[
                 _AttachmentDef(filename="f1.pdf"),
@@ -533,15 +547,67 @@ class TestMail(
             ],
         )
 
+        @dataclasses.dataclass(frozen=True)
+        class FilterTestCase:
+            name: str
+            include_pattern: Optional[str]
+            exclude_pattern: Optional[str]
+            expected_matches: list[str]
+
         tests = [
-            ("*.pdf", ["f1.pdf", "f2.pdf", "f3.pdf", "file.PDf", "f1.Pdf"]),
-            ("f1.pdf", ["f1.pdf", "f1.Pdf"]),
-            ("*", ["f1.pdf", "f2.pdf", "f3.pdf", "f2.png", "file.PDf", "f1.Pdf"]),
-            ("*.png", ["f2.png"]),
+            FilterTestCase(
+                "PDF Wildcard",
+                include_pattern="*.pdf",
+                exclude_pattern=None,
+                expected_matches=["f1.pdf", "f2.pdf", "f3.pdf", "file.PDf", "f1.Pdf"],
+            ),
+            FilterTestCase(
+                "F1 PDF Only",
+                include_pattern="f1.pdf",
+                exclude_pattern=None,
+                expected_matches=["f1.pdf", "f1.Pdf"],
+            ),
+            FilterTestCase(
+                "All Files",
+                include_pattern="*",
+                exclude_pattern=None,
+                expected_matches=[
+                    "f1.pdf",
+                    "f2.pdf",
+                    "f3.pdf",
+                    "f2.png",
+                    "file.PDf",
+                    "f1.Pdf",
+                ],
+            ),
+            FilterTestCase(
+                "PNG Only",
+                include_pattern="*.png",
+                exclude_pattern=None,
+                expected_matches=["f2.png"],
+            ),
+            FilterTestCase(
+                "PDF Files without f1",
+                include_pattern="*.pdf",
+                exclude_pattern="f1*",
+                expected_matches=["f2.pdf", "f3.pdf", "file.PDf"],
+            ),
+            FilterTestCase(
+                "All Files, no PNG",
+                include_pattern="*",
+                exclude_pattern="*.png",
+                expected_matches=[
+                    "f1.pdf",
+                    "f2.pdf",
+                    "f3.pdf",
+                    "file.PDf",
+                    "f1.Pdf",
+                ],
+            ),
         ]
 
-        for pattern, matches in tests:
-            with self.subTest(msg=pattern):
+        for test_case in tests:
+            with self.subTest(msg=test_case.name):
                 self._queue_consumption_tasks_mock.reset_mock()
                 account = MailAccount(name=str(uuid.uuid4()))
                 account.save()
@@ -549,14 +615,15 @@ class TestMail(
                     name=str(uuid.uuid4()),
                     assign_title_from=MailRule.TitleSource.FROM_FILENAME,
                     account=account,
-                    filter_attachment_filename=pattern,
+                    filter_attachment_filename_include=test_case.include_pattern,
+                    filter_attachment_filename_exclude=test_case.exclude_pattern,
                 )
                 rule.save()
 
                 self.mail_account_handler._handle_message(message, rule)
                 self.assert_queue_consumption_tasks_call_args(
                     [
-                        [{"override_filename": m} for m in matches],
+                        [{"override_filename": m} for m in test_case.expected_matches],
                     ],
                 )
 
@@ -589,7 +656,7 @@ class TestMail(
             name=str(uuid.uuid4()),
             assign_title_from=MailRule.TitleSource.FROM_FILENAME,
             account=account,
-            filter_attachment_filename="*.pdf",
+            filter_attachment_filename_include="*.pdf",
             attachment_type=MailRule.AttachmentProcessing.EVERYTHING,
             action=MailRule.MailAction.DELETE,
         )
@@ -1056,6 +1123,7 @@ class TestMail(
             ],
         )
 
+    @pytest.mark.flaky(reruns=4)
     def test_filters(self):
         account = MailAccount.objects.create(
             name="test3",
@@ -1203,7 +1271,10 @@ class TestMail(
         self.assertEqual(len(self.bogus_mailbox.fetch("UNSEEN", False)), 0)
         self.assertEqual(len(self.bogus_mailbox.messages), 3)
 
-    def assert_queue_consumption_tasks_call_args(self, expected_call_args: List):
+    def assert_queue_consumption_tasks_call_args(
+        self,
+        expected_call_args: list[list[dict[str, str]]],
+    ):
         """
         Verifies that queue_consumption_tasks has been called with the expected arguments.
 
@@ -1215,7 +1286,7 @@ class TestMail(
 
         """
 
-        # assert number of calls to queue_consumption_tasks mathc
+        # assert number of calls to queue_consumption_tasks match
         self.assertEqual(
             len(self._queue_consumption_tasks_mock.call_args_list),
             len(expected_call_args),

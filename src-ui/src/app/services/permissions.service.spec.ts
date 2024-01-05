@@ -4,27 +4,27 @@ import {
   PermissionType,
   PermissionsService,
 } from './permissions.service'
-import { PaperlessDocument } from '../data/paperless-document'
+import { Document } from '../data/document'
 
 describe('PermissionsService', () => {
   let permissionsService: PermissionsService
 
-  const docUnowned: PaperlessDocument = {
+  const docUnowned: Document = {
     title: 'Doc title',
     owner: null,
   }
 
-  const docOwned: PaperlessDocument = {
+  const docOwned: Document = {
     title: 'Doc title 2',
     owner: 1,
   }
 
-  const docNotOwned: PaperlessDocument = {
+  const docNotOwned: Document = {
     title: 'Doc title 3',
     owner: 2,
   }
 
-  const docUserViewGranted: PaperlessDocument = {
+  const docUserViewGranted: Document = {
     title: 'Doc title 4',
     owner: 2,
     permissions: {
@@ -39,7 +39,7 @@ describe('PermissionsService', () => {
     },
   }
 
-  const docUserEditGranted: PaperlessDocument = {
+  const docUserEditGranted: Document = {
     title: 'Doc title 5',
     owner: 2,
     permissions: {
@@ -54,7 +54,7 @@ describe('PermissionsService', () => {
     },
   }
 
-  const docGroupViewGranted: PaperlessDocument = {
+  const docGroupViewGranted: Document = {
     title: 'Doc title 4',
     owner: 2,
     permissions: {
@@ -69,7 +69,7 @@ describe('PermissionsService', () => {
     },
   }
 
-  const docGroupEditGranted: PaperlessDocument = {
+  const docGroupEditGranted: Document = {
     title: 'Doc title 5',
     owner: 2,
     permissions: {
@@ -248,6 +248,18 @@ describe('PermissionsService', () => {
         'view_log',
         'view_comment',
         'change_frontendsettings',
+        'add_sharelink',
+        'view_sharelink',
+        'change_sharelink',
+        'delete_sharelink',
+        'add_consumptiontemplate',
+        'view_consumptiontemplate',
+        'change_consumptiontemplate',
+        'delete_consumptiontemplate',
+        'add_customfield',
+        'view_customfield',
+        'change_customfield',
+        'delete_customfield',
       ],
       {
         username: 'testuser',

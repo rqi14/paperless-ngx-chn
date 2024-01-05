@@ -7,6 +7,7 @@ from pathlib import Path
 import tqdm
 from django.conf import settings
 from django.contrib.auth.models import Permission
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import FieldDoesNotExist
 from django.core.management import call_command
@@ -40,12 +41,9 @@ def disable_signal(sig, receiver, sender):
 
 
 class Command(BaseCommand):
-    help = """
-        Using a manifest.json file, load the data from there, and import the
-        documents it refers to.
-    """.replace(
-        "    ",
-        "",
+    help = (
+        "Using a manifest.json file, load the data from there, and import the "
+        "documents it refers to."
     )
 
     def add_arguments(self, parser):
@@ -63,16 +61,51 @@ class Command(BaseCommand):
         self.manifest = None
         self.version = None
 
-    def handle(self, *args, **options):
-        logging.getLogger().handlers[0].level = logging.ERROR
-
-        self.source = Path(options["source"]).resolve()
+    def pre_check(self) -> None:
+        """
+        Runs some initial checks against the source directory, including looking for
+        common mistakes like having files still and users other than expected
+        """
 
         if not self.source.exists():
             raise CommandError("That path doesn't exist")
 
         if not os.access(self.source, os.R_OK):
             raise CommandError("That path doesn't appear to be readable")
+
+        for document_dir in [settings.ORIGINALS_DIR, settings.ARCHIVE_DIR]:
+            if document_dir.exists() and document_dir.is_dir():
+                for entry in document_dir.glob("**/*"):
+                    if entry.is_dir():
+                        continue
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"Found file {entry.relative_to(document_dir)}, this might indicate a non-empty installation",
+                        ),
+                    )
+                    break
+        if (
+            User.objects.exclude(username__in=["consumer", "AnonymousUser"]).count()
+            != 0
+        ):
+            self.stdout.write(
+                self.style.WARNING(
+                    "Found existing user(s), this might indicate a non-empty installation",
+                ),
+            )
+        if Document.objects.count() != 0:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Found existing documents(s), this might indicate a non-empty installation",
+                ),
+            )
+
+    def handle(self, *args, **options):
+        logging.getLogger().handlers[0].level = logging.ERROR
+
+        self.source = Path(options["source"]).resolve()
+
+        self.pre_check()
 
         manifest_paths = []
 
@@ -121,10 +154,10 @@ class Command(BaseCommand):
             # Fill up the database with whatever is in the manifest
             try:
                 with transaction.atomic():
+                    # delete these since pk can change, re-created from import
+                    ContentType.objects.all().delete()
+                    Permission.objects.all().delete()
                     for manifest_path in manifest_paths:
-                        # delete these since pk can change, re-created from import
-                        ContentType.objects.all().delete()
-                        Permission.objects.all().delete()
                         call_command("loaddata", manifest_path)
             except (FieldDoesNotExist, DeserializationError, IntegrityError) as e:
                 self.stdout.write(self.style.ERROR("Database import failed"))
@@ -182,8 +215,8 @@ class Command(BaseCommand):
             doc_path = self.source / doc_file
             if not doc_path.exists():
                 raise CommandError(
-                    'The manifest file refers to "{}" which does not '
-                    "appear to be in the source directory.".format(doc_file),
+                    f'The manifest file refers to "{doc_file}" which does not '
+                    "appear to be in the source directory.",
                 )
             try:
                 with doc_path.open(mode="rb") as infile:
