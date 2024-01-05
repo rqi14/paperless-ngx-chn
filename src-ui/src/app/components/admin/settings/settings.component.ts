@@ -21,10 +21,10 @@ import {
   takeUntil,
   tap,
 } from 'rxjs'
-import { PaperlessGroup } from 'src/app/data/paperless-group'
-import { PaperlessSavedView } from 'src/app/data/paperless-saved-view'
-import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
-import { PaperlessUser } from 'src/app/data/paperless-user'
+import { Group } from 'src/app/data/group'
+import { SavedView } from 'src/app/data/saved-view'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { User } from 'src/app/data/user'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import {
   PermissionsService,
@@ -46,6 +46,12 @@ enum SettingsNavIDs {
   Permissions = 2,
   Notifications = 3,
   SavedViews = 4,
+}
+
+const systemLanguage = { code: '', name: $localize`Use system language` }
+const systemDateFormat = {
+  code: '',
+  name: $localize`Use date format of display language`,
 }
 
 @Component({
@@ -92,7 +98,7 @@ export class SettingsComponent
     savedViews: this.savedViewGroup,
   })
 
-  savedViews: PaperlessSavedView[]
+  savedViews: SavedView[]
 
   store: BehaviorSubject<any>
   storeSub: Subscription
@@ -101,8 +107,8 @@ export class SettingsComponent
   unsubscribeNotifier: Subject<any> = new Subject()
   savePending: boolean = false
 
-  users: PaperlessUser[]
-  groups: PaperlessGroup[]
+  users: User[]
+  groups: Group[]
 
   get computedDateLocale(): string {
     return (
@@ -194,6 +200,9 @@ export class SettingsComponent
         if (navIDKey) {
           this.activeNavID = SettingsNavIDs[navIDKey]
         }
+        if (this.activeNavID === SettingsNavIDs.SavedViews) {
+          this.settings.organizingSidebarSavedViews = true
+        }
       }
     })
   }
@@ -275,10 +284,14 @@ export class SettingsComponent
       this.router
         .navigate(['settings', foundNavIDkey.toLowerCase()])
         .then((navigated) => {
+          this.settings.organizingSidebarSavedViews = false
           if (!navigated && this.isDirty) {
             this.activeNavID = navChangeEvent.activeId
           } else if (navigated && this.isDirty) {
             this.initialize()
+          }
+          if (this.activeNavID === SettingsNavIDs.SavedViews) {
+            this.settings.organizingSidebarSavedViews = true
           }
         })
   }
@@ -352,9 +365,10 @@ export class SettingsComponent
   ngOnDestroy() {
     if (this.isDirty) this.settings.updateAppearanceSettings() // in case user changed appearance but didnt save
     this.storeSub && this.storeSub.unsubscribe()
+    this.settings.organizingSidebarSavedViews = false
   }
 
-  deleteSavedView(savedView: PaperlessSavedView) {
+  deleteSavedView(savedView: SavedView) {
     this.savedViewService.delete(savedView).subscribe(() => {
       this.savedViewGroup.removeControl(savedView.id.toString())
       this.savedViews.splice(this.savedViews.indexOf(savedView), 1)
@@ -408,7 +422,7 @@ export class SettingsComponent
     )
     this.settings.set(
       SETTINGS_KEYS.THEME_COLOR,
-      this.settingsForm.value.themeColor.toString()
+      this.settingsForm.value.themeColor
     )
     this.settings.set(
       SETTINGS_KEYS.USE_NATIVE_PDF_VIEWER,
@@ -481,7 +495,6 @@ export class SettingsComponent
           this.documentListViewService.updatePageSize()
           this.settings.updateAppearanceSettings()
           let savedToast: Toast = {
-            title: $localize`Settings saved`,
             content: $localize`Settings were saved successfully.`,
             delay: 5000,
           }
@@ -505,15 +518,11 @@ export class SettingsComponent
   }
 
   get displayLanguageOptions(): LanguageOption[] {
-    return [{ code: '', name: $localize`Use system language` }].concat(
-      this.settings.getLanguageOptions()
-    )
+    return [systemLanguage].concat(this.settings.getLanguageOptions())
   }
 
   get dateLocaleOptions(): LanguageOption[] {
-    return [
-      { code: '', name: $localize`Use date format of display language` },
-    ].concat(this.settings.getDateLocaleOptions())
+    return [systemDateFormat].concat(this.settings.getDateLocaleOptions())
   }
 
   get today() {
@@ -522,7 +531,7 @@ export class SettingsComponent
 
   saveSettings() {
     // only patch views that have actually changed
-    const changed: PaperlessSavedView[] = []
+    const changed: SavedView[] = []
     Object.values(this.savedViewGroup.controls)
       .filter((g: FormGroup) => !g.pristine)
       .forEach((group: FormGroup) => {

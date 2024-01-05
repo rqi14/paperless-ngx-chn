@@ -20,6 +20,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from multiselectfield import MultiSelectField
 
+if settings.AUDIT_LOG_ENABLED:
+    from auditlog.registry import auditlog
+
 from documents.data_models import DocumentSource
 from documents.parsers import get_default_file_extension
 
@@ -452,6 +455,8 @@ class SavedViewFilterRule(models.Model):
         (33, _("has owner in")),
         (34, _("does not have owner")),
         (35, _("does not have owner in")),
+        (36, _("has custom field value")),
+        (37, _("is shared by me")),
     ]
 
     saved_view = models.ForeignKey(
@@ -740,18 +745,177 @@ class ShareLink(models.Model):
         return f"Share Link for {self.document.title}"
 
 
-class ConsumptionTemplate(models.Model):
+class CustomField(models.Model):
+    """
+    Defines the name and type of a custom field
+    """
+
+    class FieldDataType(models.TextChoices):
+        STRING = ("string", _("String"))
+        URL = ("url", _("URL"))
+        DATE = ("date", _("Date"))
+        BOOL = ("boolean"), _("Boolean")
+        INT = ("integer", _("Integer"))
+        FLOAT = ("float", _("Float"))
+        MONETARY = ("monetary", _("Monetary"))
+        DOCUMENTLINK = ("documentlink", _("Document Link"))
+
+    created = models.DateTimeField(
+        _("created"),
+        default=timezone.now,
+        db_index=True,
+        editable=False,
+    )
+
+    name = models.CharField(max_length=128)
+
+    data_type = models.CharField(
+        _("data type"),
+        max_length=50,
+        choices=FieldDataType.choices,
+        editable=False,
+    )
+
+    class Meta:
+        ordering = ("created",)
+        verbose_name = _("custom field")
+        verbose_name_plural = _("custom fields")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name"],
+                name="%(app_label)s_%(class)s_unique_name",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} : {self.data_type}"
+
+
+class CustomFieldInstance(models.Model):
+    """
+    A single instance of a field, attached to a CustomField for the name and type
+    and attached to a single Document to be metadata for it
+    """
+
+    created = models.DateTimeField(
+        _("created"),
+        default=timezone.now,
+        db_index=True,
+        editable=False,
+    )
+
+    document = models.ForeignKey(
+        Document,
+        blank=False,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="custom_fields",
+        editable=False,
+    )
+
+    field = models.ForeignKey(
+        CustomField,
+        blank=False,
+        null=False,
+        on_delete=models.CASCADE,
+        related_name="fields",
+        editable=False,
+    )
+
+    # Actual data storage
+    value_text = models.CharField(max_length=128, null=True)
+
+    value_bool = models.BooleanField(null=True)
+
+    value_url = models.URLField(null=True)
+
+    value_date = models.DateField(null=True)
+
+    value_int = models.IntegerField(null=True)
+
+    value_float = models.FloatField(null=True)
+
+    value_monetary = models.DecimalField(null=True, decimal_places=2, max_digits=12)
+
+    value_document_ids = models.JSONField(null=True)
+
+    class Meta:
+        ordering = ("created",)
+        verbose_name = _("custom field instance")
+        verbose_name_plural = _("custom field instances")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "field"],
+                name="%(app_label)s_%(class)s_unique_document_field",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return str(self.field.name) + f" : {self.value}"
+
+    @property
+    def value(self):
+        """
+        Based on the data type, access the actual value the instance stores
+        A little shorthand/quick way to get what is actually here
+        """
+        if self.field.data_type == CustomField.FieldDataType.STRING:
+            return self.value_text
+        elif self.field.data_type == CustomField.FieldDataType.URL:
+            return self.value_url
+        elif self.field.data_type == CustomField.FieldDataType.DATE:
+            return self.value_date
+        elif self.field.data_type == CustomField.FieldDataType.BOOL:
+            return self.value_bool
+        elif self.field.data_type == CustomField.FieldDataType.INT:
+            return self.value_int
+        elif self.field.data_type == CustomField.FieldDataType.FLOAT:
+            return self.value_float
+        elif self.field.data_type == CustomField.FieldDataType.MONETARY:
+            return self.value_monetary
+        elif self.field.data_type == CustomField.FieldDataType.DOCUMENTLINK:
+            return self.value_document_ids
+        raise NotImplementedError(self.field.data_type)
+
+
+if settings.AUDIT_LOG_ENABLED:
+    auditlog.register(Document, m2m_fields={"tags"})
+    auditlog.register(Correspondent)
+    auditlog.register(Tag)
+    auditlog.register(DocumentType)
+    auditlog.register(Note)
+    auditlog.register(CustomField)
+    auditlog.register(CustomFieldInstance)
+
+
+class WorkflowTrigger(models.Model):
+    class WorkflowTriggerMatching(models.IntegerChoices):
+        # No auto matching
+        NONE = MatchingModel.MATCH_NONE, _("None")
+        ANY = MatchingModel.MATCH_ANY, _("Any word")
+        ALL = MatchingModel.MATCH_ALL, _("All words")
+        LITERAL = MatchingModel.MATCH_LITERAL, _("Exact match")
+        REGEX = MatchingModel.MATCH_REGEX, _("Regular expression")
+        FUZZY = MatchingModel.MATCH_FUZZY, _("Fuzzy word")
+
+    class WorkflowTriggerType(models.IntegerChoices):
+        CONSUMPTION = 1, _("Consumption Started")
+        DOCUMENT_ADDED = 2, _("Document Added")
+        DOCUMENT_UPDATED = 3, _("Document Updated")
+
     class DocumentSourceChoices(models.IntegerChoices):
         CONSUME_FOLDER = DocumentSource.ConsumeFolder.value, _("Consume Folder")
         API_UPLOAD = DocumentSource.ApiUpload.value, _("Api Upload")
         MAIL_FETCH = DocumentSource.MailFetch.value, _("Mail Fetch")
 
-    name = models.CharField(_("name"), max_length=256, unique=True)
-
-    order = models.IntegerField(_("order"), default=0)
+    type = models.PositiveIntegerField(
+        _("Workflow Trigger Type"),
+        choices=WorkflowTriggerType.choices,
+        default=WorkflowTriggerType.CONSUMPTION,
+    )
 
     sources = MultiSelectField(
-        max_length=3,
+        max_length=5,
         choices=DocumentSourceChoices.choices,
         default=f"{DocumentSource.ConsumeFolder},{DocumentSource.ApiUpload},{DocumentSource.MailFetch}",
     )
@@ -786,6 +950,56 @@ class ConsumptionTemplate(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         verbose_name=_("filter documents from this mail rule"),
+    )
+
+    match = models.CharField(_("match"), max_length=256, blank=True)
+
+    matching_algorithm = models.PositiveIntegerField(
+        _("matching algorithm"),
+        choices=WorkflowTriggerMatching.choices,
+        default=WorkflowTriggerMatching.NONE,
+    )
+
+    is_insensitive = models.BooleanField(_("is insensitive"), default=True)
+
+    filter_has_tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        verbose_name=_("has these tag(s)"),
+    )
+
+    filter_has_document_type = models.ForeignKey(
+        DocumentType,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name=_("has this document type"),
+    )
+
+    filter_has_correspondent = models.ForeignKey(
+        Correspondent,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name=_("has this correspondent"),
+    )
+
+    class Meta:
+        verbose_name = _("workflow trigger")
+        verbose_name_plural = _("workflow triggers")
+
+    def __str__(self):
+        return f"WorkflowTrigger {self.pk}"
+
+
+class WorkflowAction(models.Model):
+    class WorkflowActionType(models.IntegerChoices):
+        ASSIGNMENT = 1, _("Assignment")
+
+    type = models.PositiveIntegerField(
+        _("Workflow Action Type"),
+        choices=WorkflowActionType.choices,
+        default=WorkflowActionType.ASSIGNMENT,
     )
 
     assign_title = models.CharField(
@@ -866,9 +1080,41 @@ class ConsumptionTemplate(models.Model):
         verbose_name=_("grant change permissions to these groups"),
     )
 
+    assign_custom_fields = models.ManyToManyField(
+        CustomField,
+        blank=True,
+        related_name="+",
+        verbose_name=_("assign these custom fields"),
+    )
+
     class Meta:
-        verbose_name = _("consumption template")
-        verbose_name_plural = _("consumption templates")
+        verbose_name = _("workflow action")
+        verbose_name_plural = _("workflow actions")
 
     def __str__(self):
-        return f"{self.name}"
+        return f"WorkflowAction {self.pk}"
+
+
+class Workflow(models.Model):
+    name = models.CharField(_("name"), max_length=256, unique=True)
+
+    order = models.IntegerField(_("order"), default=0)
+
+    triggers = models.ManyToManyField(
+        WorkflowTrigger,
+        related_name="workflows",
+        blank=False,
+        verbose_name=_("triggers"),
+    )
+
+    actions = models.ManyToManyField(
+        WorkflowAction,
+        related_name="workflows",
+        blank=False,
+        verbose_name=_("actions"),
+    )
+
+    enabled = models.BooleanField(_("enabled"), default=True)
+
+    def __str__(self):
+        return f"Workflow: {self.name}"

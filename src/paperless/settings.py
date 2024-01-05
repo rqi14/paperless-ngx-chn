@@ -7,6 +7,7 @@ import re
 import tempfile
 from os import PathLike
 from pathlib import Path
+from platform import machine
 from typing import Final
 from typing import Optional
 from typing import Union
@@ -56,6 +57,15 @@ def __get_int(key: str, default: int) -> int:
     return int(os.getenv(key, default))
 
 
+def __get_optional_int(key: str) -> Optional[int]:
+    """
+    Returns None if the environment key is not present, otherwise an integer
+    """
+    if key in os.environ:
+        return __get_int(key, -1)  # pragma: no cover
+    return None
+
+
 def __get_float(key: str, default: float) -> float:
     """
     Return an integer value based on the environment variable or a default
@@ -65,18 +75,24 @@ def __get_float(key: str, default: float) -> float:
 
 def __get_path(
     key: str,
-    default: Optional[Union[PathLike, str]] = None,
-) -> Optional[Path]:
+    default: Union[PathLike, str],
+) -> Path:
     """
     Return a normalized, absolute path based on the environment variable or a default,
-    if provided.  If not set and no default, returns None
+    if provided
     """
     if key in os.environ:
         return Path(os.environ[key]).resolve()
-    elif default is not None:
-        return Path(default).resolve()
-    else:
-        return None
+    return Path(default).resolve()
+
+
+def __get_optional_path(key: str) -> Optional[Path]:
+    """
+    Returns None if the environment key is not present, otherwise a fully resolved Path
+    """
+    if key in os.environ:
+        return __get_path(key, "")
+    return None
 
 
 def __get_list(
@@ -296,8 +312,8 @@ if DEBUG:
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.BasicAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
     "DEFAULT_VERSION": "1",
@@ -326,7 +342,7 @@ MIDDLEWARE = [
 ]
 
 # Optional to enable compression
-if __get_boolean("PAPERLESS_ENABLE_COMPRESSION", "yes"):  # pragma: nocover
+if __get_boolean("PAPERLESS_ENABLE_COMPRESSION", "yes"):  # pragma: no cover
     MIDDLEWARE.insert(0, "compression_middleware.middleware.CompressionMiddleware")
 
 ROOT_URLCONF = "paperless.urls"
@@ -341,6 +357,17 @@ ASGI_APPLICATION = "paperless.asgi.application"
 
 STATIC_URL = os.getenv("PAPERLESS_STATIC_URL", BASE_URL + "static/")
 WHITENOISE_STATIC_PREFIX = "/static/"
+
+if machine().lower() == "aarch64":  # pragma: no cover
+    _static_backend = "django.contrib.staticfiles.storage.StaticFilesStorage"
+else:
+    _static_backend = "whitenoise.storage.CompressedStaticFilesStorage"
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": _static_backend,
+    },
+}
 
 _CELERY_REDIS_URL, _CHANNELS_REDIS_URL = _parse_redis_url(
     os.getenv("PAPERLESS_REDIS", None),
@@ -457,7 +484,7 @@ SECRET_KEY = os.getenv(
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",  # noqa: E501
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
@@ -483,7 +510,7 @@ CSRF_COOKIE_NAME = f"{COOKIE_PREFIX}csrftoken"
 SESSION_COOKIE_NAME = f"{COOKIE_PREFIX}sessionid"
 LANGUAGE_COOKIE_NAME = f"{COOKIE_PREFIX}django_language"
 
-EMAIL_CERTIFICATE_FILE = __get_path("PAPERLESS_EMAIL_CERTIFICATE_FILE")
+EMAIL_CERTIFICATE_FILE = __get_optional_path("PAPERLESS_EMAIL_CERTIFICATE_LOCATION")
 
 
 ###############################################################################
@@ -575,6 +602,7 @@ LANGUAGES = [
     ("ar-ar", _("Arabic")),
     ("af-za", _("Afrikaans")),
     ("be-by", _("Belarusian")),
+    ("bg-bg", _("Bulgarian")),
     ("ca-es", _("Catalan")),
     ("cs-cz", _("Czech")),
     ("da-dk", _("Danish")),
@@ -584,6 +612,7 @@ LANGUAGES = [
     ("es-es", _("Spanish")),
     ("fi-fi", _("Finnish")),
     ("fr-fr", _("French")),
+    ("hu-hu", _("Hungarian")),
     ("it-it", _("Italian")),
     ("lb-lu", _("Luxembourgish")),
     ("no-no", _("Norwegian")),
@@ -762,7 +791,7 @@ CONSUMER_IGNORE_PATTERNS = list(
     json.loads(
         os.getenv(
             "PAPERLESS_CONSUMER_IGNORE_PATTERNS",
-            '[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*"]',  # noqa: E501
+            '[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*"]',
         ),
     ),
 )
@@ -782,11 +811,10 @@ CONSUMER_BARCODE_STRING: Final[str] = os.getenv(
     "PATCHT",
 )
 
-consumer_barcode_scanner_tmp: Final[str] = os.getenv(
+CONSUMER_BARCODE_SCANNER: Final[str] = os.getenv(
     "PAPERLESS_CONSUMER_BARCODE_SCANNER",
     "PYZBAR",
-)
-CONSUMER_BARCODE_SCANNER = consumer_barcode_scanner_tmp.upper()
+).upper()
 
 CONSUMER_ENABLE_ASN_BARCODE: Final[bool] = __get_boolean(
     "PAPERLESS_CONSUMER_ENABLE_ASN_BARCODE",
@@ -797,15 +825,12 @@ CONSUMER_ASN_BARCODE_PREFIX: Final[str] = os.getenv(
     "ASN",
 )
 
-
-CONSUMER_BARCODE_UPSCALE: Final[float] = float(
-    os.getenv("PAPERLESS_CONSUMER_BARCODE_UPSCALE", 0.0),
+CONSUMER_BARCODE_UPSCALE: Final[float] = __get_float(
+    "PAPERLESS_CONSUMER_BARCODE_UPSCALE",
+    0.0,
 )
 
-
-CONSUMER_BARCODE_DPI: Final[str] = int(
-    os.getenv("PAPERLESS_CONSUMER_BARCODE_DPI", 300),
-)
+CONSUMER_BARCODE_DPI: Final[int] = __get_int("PAPERLESS_CONSUMER_BARCODE_DPI", 300)
 
 CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED: Final[bool] = __get_boolean(
     "PAPERLESS_CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED",
@@ -820,7 +845,7 @@ CONSUMER_COLLATE_DOUBLE_SIDED_TIFF_SUPPORT: Final[bool] = __get_boolean(
     "PAPERLESS_CONSUMER_COLLATE_DOUBLE_SIDED_TIFF_SUPPORT",
 )
 
-OCR_PAGES = int(os.getenv("PAPERLESS_OCR_PAGES", 0))
+OCR_PAGES = __get_optional_int("PAPERLESS_OCR_PAGES")
 
 # The default language that tesseract will attempt to use when parsing
 # documents.  It should be a 3-letter language code consistent with ISO 639.
@@ -834,23 +859,29 @@ OCR_MODE = os.getenv("PAPERLESS_OCR_MODE", "skip")
 
 OCR_SKIP_ARCHIVE_FILE = os.getenv("PAPERLESS_OCR_SKIP_ARCHIVE_FILE", "never")
 
-OCR_IMAGE_DPI = os.getenv("PAPERLESS_OCR_IMAGE_DPI")
+OCR_IMAGE_DPI = __get_optional_int("PAPERLESS_OCR_IMAGE_DPI")
 
 OCR_CLEAN = os.getenv("PAPERLESS_OCR_CLEAN", "clean")
 
-OCR_DESKEW = __get_boolean("PAPERLESS_OCR_DESKEW", "true")
+OCR_DESKEW: Final[bool] = __get_boolean("PAPERLESS_OCR_DESKEW", "true")
 
-OCR_ROTATE_PAGES = __get_boolean("PAPERLESS_OCR_ROTATE_PAGES", "true")
+OCR_ROTATE_PAGES: Final[bool] = __get_boolean("PAPERLESS_OCR_ROTATE_PAGES", "true")
 
-OCR_ROTATE_PAGES_THRESHOLD = float(
-    os.getenv("PAPERLESS_OCR_ROTATE_PAGES_THRESHOLD", 12.0),
+OCR_ROTATE_PAGES_THRESHOLD: Final[float] = __get_float(
+    "PAPERLESS_OCR_ROTATE_PAGES_THRESHOLD",
+    12.0,
 )
 
-OCR_MAX_IMAGE_PIXELS: Optional[int] = None
-if os.environ.get("PAPERLESS_OCR_MAX_IMAGE_PIXELS") is not None:
-    OCR_MAX_IMAGE_PIXELS: int = int(os.environ.get("PAPERLESS_OCR_MAX_IMAGE_PIXELS"))
+OCR_MAX_IMAGE_PIXELS: Final[Optional[int]] = __get_optional_int(
+    "PAPERLESS_OCR_MAX_IMAGE_PIXELS",
+)
 
-OCR_USER_ARGS = os.getenv("PAPERLESS_OCR_USER_ARGS", "{}")
+OCR_COLOR_CONVERSION_STRATEGY = os.getenv(
+    "PAPERLESS_OCR_COLOR_CONVERSION_STRATEGY",
+    "RGB",
+)
+
+OCR_USER_ARGS = os.getenv("PAPERLESS_OCR_USER_ARGS")
 
 # GNUPG needs a home directory for some reason
 GNUPG_HOME = os.getenv("HOME", "/tmp")
@@ -920,6 +951,11 @@ TIKA_GOTENBERG_ENDPOINT = os.getenv(
 
 if TIKA_ENABLED:
     INSTALLED_APPS.append("paperless_tika.apps.PaperlessTikaConfig")
+
+AUDIT_LOG_ENABLED = __get_boolean("PAPERLESS_AUDIT_LOG_ENABLED", "NO")
+if AUDIT_LOG_ENABLED:
+    INSTALLED_APPS.append("auditlog")
+    MIDDLEWARE.append("auditlog.middleware.AuditlogMiddleware")
 
 
 def _parse_ignore_dates(
@@ -1012,6 +1048,7 @@ EMAIL_HOST: Final[str] = os.getenv("PAPERLESS_EMAIL_HOST", "localhost")
 EMAIL_PORT: Final[int] = int(os.getenv("PAPERLESS_EMAIL_PORT", 25))
 EMAIL_HOST_USER: Final[str] = os.getenv("PAPERLESS_EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD: Final[str] = os.getenv("PAPERLESS_EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL: Final[str] = os.getenv("PAPERLESS_EMAIL_FROM", EMAIL_HOST_USER)
 EMAIL_USE_TLS: Final[bool] = __get_boolean("PAPERLESS_EMAIL_USE_TLS")
 EMAIL_USE_SSL: Final[bool] = __get_boolean("PAPERLESS_EMAIL_USE_SSL")
 EMAIL_SUBJECT_PREFIX: Final[str] = "[Paperless-ngx] "

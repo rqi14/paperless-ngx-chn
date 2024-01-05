@@ -9,17 +9,17 @@ import {
   fakeAsync,
   tick,
 } from '@angular/core/testing'
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap'
+import { NgbModal, NgbModalModule, NgbModule } from '@ng-bootstrap/ng-bootstrap'
 import { BrowserModule } from '@angular/platform-browser'
 import { RouterTestingModule } from '@angular/router/testing'
 import { SettingsService } from 'src/app/services/settings.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { PermissionsService } from 'src/app/services/permissions.service'
-import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { RemoteVersionService } from 'src/app/services/rest/remote-version.service'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { of } from 'rxjs'
+import { of, throwError } from 'rxjs'
 import { ToastService } from 'src/app/services/toast.service'
 import { environment } from 'src/environments/environment'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
@@ -30,7 +30,48 @@ import { DocumentListViewService } from 'src/app/services/document-list-view.ser
 import { FILTER_FULLTEXT_QUERY } from 'src/app/data/filter-rule-type'
 import { routes } from 'src/app/app-routing.module'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop'
+import { SavedView } from 'src/app/data/saved-view'
+import { ProfileEditDialogComponent } from '../common/profile-edit-dialog/profile-edit-dialog.component'
 
+const saved_views = [
+  {
+    name: 'Saved View 0',
+    id: 0,
+    show_on_dashboard: true,
+    show_in_sidebar: true,
+    sort_field: 'name',
+    sort_reverse: true,
+    filter_rules: [],
+  },
+  {
+    name: 'Saved View 1',
+    id: 1,
+    show_on_dashboard: false,
+    show_in_sidebar: false,
+    sort_field: 'name',
+    sort_reverse: true,
+    filter_rules: [],
+  },
+  {
+    name: 'Saved View 2',
+    id: 2,
+    show_on_dashboard: true,
+    show_in_sidebar: true,
+    sort_field: 'name',
+    sort_reverse: true,
+    filter_rules: [],
+  },
+  {
+    name: 'Saved View 3',
+    id: 3,
+    show_on_dashboard: true,
+    show_in_sidebar: true,
+    sort_field: 'name',
+    sort_reverse: true,
+    filter_rules: [],
+  },
+]
 const document = { id: 2, title: 'Hello world' }
 
 describe('AppFrameComponent', () => {
@@ -46,6 +87,7 @@ describe('AppFrameComponent', () => {
   let documentListViewService: DocumentListViewService
   let router: Router
   let savedViewSpy
+  let modalService: NgbModal
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -57,16 +99,31 @@ describe('AppFrameComponent', () => {
         NgbModule,
         FormsModule,
         ReactiveFormsModule,
+        DragDropModule,
+        NgbModalModule,
       ],
       providers: [
         SettingsService,
-        SavedViewService,
+        {
+          provide: SavedViewService,
+          useValue: {
+            initialize: () => {},
+            listAll: () =>
+              of({
+                all: [saved_views.map((v) => v.id)],
+                count: saved_views.length,
+                results: saved_views,
+              }),
+            sidebarViews: saved_views.filter((v) => v.show_in_sidebar),
+          },
+        },
         PermissionsService,
         RemoteVersionService,
         IfPermissionsDirective,
         ToastService,
         OpenDocumentsService,
         SearchService,
+        NgbModal,
         {
           provide: ActivatedRoute,
           useValue: {
@@ -95,6 +152,7 @@ describe('AppFrameComponent', () => {
     openDocumentsService = TestBed.inject(OpenDocumentsService)
     searchService = TestBed.inject(SearchService)
     documentListViewService = TestBed.inject(DocumentListViewService)
+    modalService = TestBed.inject(NgbModal)
     router = TestBed.inject(Router)
 
     jest
@@ -240,6 +298,21 @@ describe('AppFrameComponent', () => {
     expect(autocompleteSpy).toHaveBeenCalled()
   }))
 
+  it('should handle autocomplete backend failure gracefully', fakeAsync(() => {
+    const serviceAutocompleteSpy = jest.spyOn(searchService, 'autocomplete')
+    serviceAutocompleteSpy.mockReturnValue(
+      throwError(() => new Error('autcomplete failed'))
+    )
+    // serviceAutocompleteSpy.mockReturnValue(of([' world']))
+    let result
+    component.searchAutoComplete(of('hello')).subscribe((res) => {
+      result = res
+    })
+    tick(250)
+    expect(serviceAutocompleteSpy).toHaveBeenCalled()
+    expect(result).toEqual([])
+  }))
+
   it('should support reset search field', () => {
     const resetSpy = jest.spyOn(component, 'resetSearchField')
     const input = (fixture.nativeElement as HTMLDivElement).querySelector(
@@ -268,5 +341,54 @@ describe('AppFrameComponent', () => {
         value: str.trim(),
       },
     ])
+  })
+
+  it('should disable global dropzone on start drag + drop, re-enable after', () => {
+    expect(settingsService.globalDropzoneEnabled).toBeTruthy()
+    component.onDragStart(null)
+    expect(settingsService.globalDropzoneEnabled).toBeFalsy()
+    component.onDragEnd(null)
+    expect(settingsService.globalDropzoneEnabled).toBeTruthy()
+  })
+
+  it('should update saved view sorting on drag + drop, show info', () => {
+    const settingsSpy = jest.spyOn(settingsService, 'updateSidebarViewsSort')
+    const toastSpy = jest.spyOn(toastService, 'showInfo')
+    jest.spyOn(settingsService, 'storeSettings').mockReturnValue(of(true))
+    component.onDrop({ previousIndex: 0, currentIndex: 1 } as CdkDragDrop<
+      SavedView[]
+    >)
+    expect(settingsSpy).toHaveBeenCalledWith([
+      saved_views[2],
+      saved_views[0],
+      saved_views[3],
+    ])
+    expect(toastSpy).toHaveBeenCalled()
+  })
+
+  it('should update saved view sorting on drag + drop, show error', () => {
+    jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_SORT_ORDER) return []
+    })
+    fixture.destroy()
+    fixture = TestBed.createComponent(AppFrameComponent)
+    component = fixture.componentInstance
+    fixture.detectChanges()
+    const toastSpy = jest.spyOn(toastService, 'showError')
+    jest
+      .spyOn(settingsService, 'storeSettings')
+      .mockReturnValue(throwError(() => new Error('unable to save')))
+    component.onDrop({ previousIndex: 0, currentIndex: 2 } as CdkDragDrop<
+      SavedView[]
+    >)
+    expect(toastSpy).toHaveBeenCalled()
+  })
+
+  it('should support edit profile', () => {
+    const modalSpy = jest.spyOn(modalService, 'open')
+    component.editProfile()
+    expect(modalSpy).toHaveBeenCalledWith(ProfileEditDialogComponent, {
+      backdrop: 'static',
+    })
   })
 })

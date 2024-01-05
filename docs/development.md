@@ -9,7 +9,7 @@ following way:
 - `main` always represents the latest release and will only see
   changes when a new release is made.
 - `dev` contains the code that will be in the next release.
-- `feature-X` contain bigger changes that will be in some release, but
+- `feature-X` contains bigger changes that will be in some release, but
   not necessarily the next one.
 
 When making functional changes to Paperless-ngx, _always_ make your changes
@@ -61,7 +61,7 @@ first-time setup.
       Every command is executed directly from the root folder of the project unless specified otherwise.
 
 1.  Install prerequisites + pipenv as mentioned in
-    [Bare metal route](/setup#bare_metal).
+    [Bare metal route](setup.md#bare_metal).
 
 2.  Copy `paperless.conf.example` to `paperless.conf` and enable debug
     mode within the file via `PAPERLESS_DEBUG=true`.
@@ -277,26 +277,16 @@ Adding new languages requires adding the translated files in the
     }
     ```
 
-2.  Add the language to the available options in
+2.  Add the language to the `LANGUAGE_OPTIONS` array in
     `src-ui/src/app/services/settings.service.ts`:
 
-    ```typescript
-    getLanguageOptions(): LanguageOption[] {
-        return [
-            {code: "en-us", name: $localize`English (US)`, englishName: "English (US)", dateInputFormat: "mm/dd/yyyy"},
-            {code: "en-gb", name: $localize`English (GB)`, englishName: "English (GB)", dateInputFormat: "dd/mm/yyyy"},
-            {code: "de", name: $localize`German`, englishName: "German", dateInputFormat: "dd.mm.yyyy"},
-            {code: "nl", name: $localize`Dutch`, englishName: "Dutch", dateInputFormat: "dd-mm-yyyy"},
-            {code: "fr", name: $localize`French`, englishName: "French", dateInputFormat: "dd/mm/yyyy"},
-            {code: "pt-br", name: $localize`Portuguese (Brazil)`, englishName: "Portuguese (Brazil)", dateInputFormat: "dd/mm/yyyy"}
-            // Add your new language here
-        ]
-    }
     ```
 
     `dateInputFormat` is a special string that defines the behavior of
     the date input fields and absolutely needs to contain "dd", "mm"
     and "yyyy".
+
+    ```
 
 3.  Import and register the Angular data for this locale in
     `src-ui/src/app/app.module.ts`:

@@ -235,8 +235,10 @@ class DocumentConsumeDelayMixin:
         """
         Iterates over all calls to the async task and returns the arguments
         """
+        # Must be at least 1 call
+        self.consume_file_mock.assert_called()
 
-        for args, _ in self.consume_file_mock.call_args_list:
+        for args, kwargs in self.consume_file_mock.call_args_list:
             input_doc, overrides = args
 
             yield (input_doc, overrides)
@@ -244,7 +246,7 @@ class DocumentConsumeDelayMixin:
     def get_specific_consume_delay_call_args(
         self,
         index: int,
-    ) -> Iterator[tuple[ConsumableDocument, DocumentMetadataOverrides]]:
+    ) -> tuple[ConsumableDocument, DocumentMetadataOverrides]:
         """
         Returns the arguments of a specific call to the async task
         """
@@ -263,6 +265,7 @@ class TestMigrations(TransactionTestCase):
         return apps.get_containing_app_config(type(self).__module__).name
 
     migrate_from = None
+    dependencies = None
     migrate_to = None
     auto_migrate = True
 
@@ -275,6 +278,8 @@ class TestMigrations(TransactionTestCase):
             type(self).__name__,
         )
         self.migrate_from = [(self.app, self.migrate_from)]
+        if self.dependencies is not None:
+            self.migrate_from.extend(self.dependencies)
         self.migrate_to = [(self.app, self.migrate_to)]
         executor = MigrationExecutor(connection)
         old_apps = executor.loader.project_state(self.migrate_from).apps
@@ -299,3 +304,9 @@ class TestMigrations(TransactionTestCase):
 
     def setUpBeforeMigration(self, apps):
         pass
+
+
+class SampleDirMixin:
+    SAMPLE_DIR = Path(__file__).parent / "samples"
+
+    BARCODE_SAMPLE_DIR = SAMPLE_DIR / "barcodes"

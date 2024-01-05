@@ -26,13 +26,13 @@ from documents.tasks import consume_file
 try:
     from inotifyrecursive import INotify
     from inotifyrecursive import flags
-except ImportError:  # pragma: nocover
+except ImportError:  # pragma: no cover
     INotify = flags = None
 
 logger = logging.getLogger("paperless.management.consumer")
 
 
-def _tags_from_path(filepath) -> set[Tag]:
+def _tags_from_path(filepath) -> list[int]:
     """
     Walk up the directory tree from filepath to CONSUMPTION_DIR
     and get or create Tag IDs for every directory.
@@ -47,7 +47,7 @@ def _tags_from_path(filepath) -> set[Tag]:
             Tag.objects.get_or_create(name__iexact=part, defaults={"name": part})[0].pk,
         )
 
-    return tag_ids
+    return list(tag_ids)
 
 
 def _is_ignored(filepath: str) -> bool:
@@ -289,7 +289,7 @@ class Command(BaseCommand):
             logger.debug(f"Configuring timeout to {timeout}ms")
 
         inotify = INotify()
-        inotify_flags = flags.CLOSE_WRITE | flags.MOVED_TO
+        inotify_flags = flags.CLOSE_WRITE | flags.MOVED_TO | flags.MODIFY
         if recursive:
             descriptor = inotify.add_watch_recursive(directory, inotify_flags)
         else:
@@ -306,7 +306,10 @@ class Command(BaseCommand):
                 for event in inotify.read(timeout=timeout):
                     path = inotify.get_path(event.wd) if recursive else directory
                     filepath = os.path.join(path, event.name)
-                    notified_files[filepath] = monotonic()
+                    if flags.MODIFY in flags.from_mask(event.mask):
+                        notified_files.pop(filepath, None)
+                    else:
+                        notified_files[filepath] = monotonic()
 
                 # Check the files against the timeout
                 still_waiting = {}

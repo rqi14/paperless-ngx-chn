@@ -1,7 +1,10 @@
+from django.conf import settings
 from django.contrib import admin
 from guardian.admin import GuardedModelAdmin
 
 from documents.models import Correspondent
+from documents.models import CustomField
+from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Note
@@ -12,6 +15,10 @@ from documents.models import ShareLink
 from documents.models import StoragePath
 from documents.models import Tag
 
+if settings.AUDIT_LOG_ENABLED:
+    from auditlog.admin import LogEntryAdmin
+    from auditlog.models import LogEntry
+
 
 class CorrespondentAdmin(GuardedModelAdmin):
     list_display = ("name", "match", "matching_algorithm")
@@ -21,8 +28,9 @@ class CorrespondentAdmin(GuardedModelAdmin):
 
 class TagAdmin(GuardedModelAdmin):
     list_display = ("name", "color", "match", "matching_algorithm")
-    list_filter = ("color", "matching_algorithm")
+    list_filter = ("matching_algorithm",)
     list_editable = ("color", "match", "matching_algorithm")
+    search_fields = ("color", "name")
 
 
 class DocumentTypeAdmin(GuardedModelAdmin):
@@ -100,6 +108,9 @@ class SavedViewAdmin(GuardedModelAdmin):
 
     inlines = [RuleInline]
 
+    def get_queryset(self, request):  # pragma: no cover
+        return super().get_queryset(request).select_related("owner")
+
 
 class StoragePathInline(admin.TabularInline):
     model = StoragePath
@@ -113,8 +124,8 @@ class StoragePathAdmin(GuardedModelAdmin):
 
 class TaskAdmin(admin.ModelAdmin):
     list_display = ("task_id", "task_file_name", "task_name", "date_done", "status")
-    list_filter = ("status", "date_done", "task_file_name", "task_name")
-    search_fields = ("task_name", "task_id", "status")
+    list_filter = ("status", "date_done", "task_name")
+    search_fields = ("task_name", "task_id", "status", "task_file_name")
     readonly_fields = (
         "task_id",
         "task_file_name",
@@ -131,12 +142,47 @@ class NotesAdmin(GuardedModelAdmin):
     list_display = ("user", "created", "note", "document")
     list_filter = ("created", "user")
     list_display_links = ("created",)
+    raw_id_fields = ("document",)
+    search_fields = ("document__title",)
+
+    def get_queryset(self, request):  # pragma: no cover
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("user", "document__correspondent")
+        )
 
 
 class ShareLinksAdmin(GuardedModelAdmin):
     list_display = ("created", "expiration", "document")
     list_filter = ("created", "expiration", "owner")
     list_display_links = ("created",)
+    raw_id_fields = ("document",)
+
+    def get_queryset(self, request):  # pragma: no cover
+        return super().get_queryset(request).select_related("document__correspondent")
+
+
+class CustomFieldsAdmin(GuardedModelAdmin):
+    fields = ("name", "created", "data_type")
+    readonly_fields = ("created", "data_type")
+    list_display = ("name", "created", "data_type")
+    list_filter = ("created", "data_type")
+
+
+class CustomFieldInstancesAdmin(GuardedModelAdmin):
+    fields = ("field", "document", "created", "value")
+    readonly_fields = ("field", "document", "created", "value")
+    list_display = ("field", "document", "value", "created")
+    search_fields = ("document__title",)
+    list_filter = ("created", "field")
+
+    def get_queryset(self, request):  # pragma: no cover
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("field", "document__correspondent")
+        )
 
 
 admin.site.register(Correspondent, CorrespondentAdmin)
@@ -148,3 +194,14 @@ admin.site.register(StoragePath, StoragePathAdmin)
 admin.site.register(PaperlessTask, TaskAdmin)
 admin.site.register(Note, NotesAdmin)
 admin.site.register(ShareLink, ShareLinksAdmin)
+admin.site.register(CustomField, CustomFieldsAdmin)
+admin.site.register(CustomFieldInstance, CustomFieldInstancesAdmin)
+
+if settings.AUDIT_LOG_ENABLED:
+
+    class LogEntryAUDIT(LogEntryAdmin):
+        def has_delete_permission(self, request, obj=None):
+            return False
+
+    admin.site.unregister(LogEntry)
+    admin.site.register(LogEntry, LogEntryAUDIT)

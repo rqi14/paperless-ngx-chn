@@ -36,7 +36,12 @@ from documents.models import Tag
 from documents.parsers import DocumentParser
 from documents.parsers import get_parser_class_for_mime_type
 from documents.sanity_checker import SanityCheckFailedException
+from documents.signals import document_updated
 
+if settings.AUDIT_LOG_ENABLED:
+    import json
+
+    from auditlog.models import LogEntry
 logger = logging.getLogger("paperless.tasks")
 
 
@@ -136,7 +141,7 @@ def consume_file(
         with BarcodeReader(input_doc.original_file, input_doc.mime_type) as reader:
             if settings.CONSUMER_ENABLE_BARCODES and reader.separate(
                 input_doc.source,
-                overrides.filename,
+                overrides,
             ):
                 # notify the sender, otherwise the progress bar
                 # in the UI stays stuck
@@ -153,7 +158,7 @@ def consume_file(
                 overrides.asn = reader.asn
                 logger.info(f"Found ASN in barcode: {overrides.asn}")
 
-    template_overrides = Consumer().get_template_overrides(
+    template_overrides = Consumer().get_workflow_overrides(
         input_doc=input_doc,
     )
 
@@ -175,6 +180,7 @@ def consume_file(
         override_view_groups=overrides.view_groups,
         override_change_users=overrides.change_users,
         override_change_groups=overrides.change_groups,
+        override_custom_field_ids=overrides.custom_field_ids,
         task_id=self.request.id,
     )
 
@@ -210,6 +216,11 @@ def bulk_update_documents(document_ids):
     ix = index.open_index()
 
     for doc in documents:
+        document_updated.send(
+            sender=None,
+            document=doc,
+            logging_group=uuid.uuid4(),
+        )
         post_save.send(Document, instance=doc, created=False)
 
     with AsyncWriter(ix) as writer:
@@ -258,11 +269,37 @@ def update_document_archive_file(document_id):
                     document,
                     archive_filename=True,
                 )
+                oldDocument = Document.objects.get(pk=document.pk)
                 Document.objects.filter(pk=document.pk).update(
                     archive_checksum=checksum,
                     content=parser.get_text(),
                     archive_filename=document.archive_filename,
                 )
+                newDocument = Document.objects.get(pk=document.pk)
+                if settings.AUDIT_LOG_ENABLED:
+                    LogEntry.objects.log_create(
+                        instance=oldDocument,
+                        changes=json.dumps(
+                            {
+                                "content": [oldDocument.content, newDocument.content],
+                                "archive_checksum": [
+                                    oldDocument.archive_checksum,
+                                    newDocument.archive_checksum,
+                                ],
+                                "archive_filename": [
+                                    oldDocument.archive_filename,
+                                    newDocument.archive_filename,
+                                ],
+                            },
+                        ),
+                        additional_data=json.dumps(
+                            {
+                                "reason": "Redo OCR called",
+                            },
+                        ),
+                        action=LogEntry.Action.UPDATE,
+                    )
+
                 with FileLock(settings.MEDIA_LOCK):
                     create_source_path_directory(document.archive_path)
                     shutil.move(parser.get_archive_path(), document.archive_path)

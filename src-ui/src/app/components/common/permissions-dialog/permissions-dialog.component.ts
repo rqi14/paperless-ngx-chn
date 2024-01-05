@@ -2,7 +2,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { FormControl, FormGroup } from '@angular/forms'
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
 import { ObjectWithPermissions } from 'src/app/data/object-with-permissions'
-import { PaperlessUser } from 'src/app/data/paperless-user'
+import { User } from 'src/app/data/user'
 import { UserService } from 'src/app/services/rest/user.service'
 
 @Component({
@@ -11,7 +11,7 @@ import { UserService } from 'src/app/services/rest/user.service'
   styleUrls: ['./permissions-dialog.component.scss'],
 })
 export class PermissionsDialogComponent {
-  users: PaperlessUser[]
+  users: User[]
   private o: ObjectWithPermissions = undefined
 
   constructor(
@@ -52,13 +52,23 @@ export class PermissionsDialogComponent {
   get permissions() {
     return {
       owner: this.form.get('permissions_form').value?.owner ?? null,
-      set_permissions:
-        this.form.get('permissions_form').value?.set_permissions ?? null,
+      set_permissions: this.form.get('permissions_form').value
+        ?.set_permissions ?? {
+        view: {
+          users: [],
+          groups: [],
+        },
+        change: {
+          users: [],
+          groups: [],
+        },
+      },
     }
   }
 
   @Input()
-  message = $localize`Note that permissions set here will override any existing permissions`
+  message =
+    $localize`Note that permissions set here will override any existing permissions`
 
   cancelClicked() {
     this.activeModal.close()

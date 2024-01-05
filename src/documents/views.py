@@ -76,8 +76,8 @@ from documents.matching import match_correspondents
 from documents.matching import match_document_types
 from documents.matching import match_storage_paths
 from documents.matching import match_tags
-from documents.models import ConsumptionTemplate
 from documents.models import Correspondent
+from documents.models import CustomField
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Note
@@ -86,6 +86,9 @@ from documents.models import SavedView
 from documents.models import ShareLink
 from documents.models import StoragePath
 from documents.models import Tag
+from documents.models import Workflow
+from documents.models import WorkflowAction
+from documents.models import WorkflowTrigger
 from documents.parsers import get_parser_class_for_mime_type
 from documents.parsers import parse_date_generator
 from documents.permissions import PaperlessAdminPermissions
@@ -97,8 +100,8 @@ from documents.serialisers import AcknowledgeTasksViewSerializer
 from documents.serialisers import BulkDownloadSerializer
 from documents.serialisers import BulkEditObjectPermissionsSerializer
 from documents.serialisers import BulkEditSerializer
-from documents.serialisers import ConsumptionTemplateSerializer
 from documents.serialisers import CorrespondentSerializer
+from documents.serialisers import CustomFieldSerializer
 from documents.serialisers import DocumentListSerializer
 from documents.serialisers import DocumentSerializer
 from documents.serialisers import DocumentTypeSerializer
@@ -110,10 +113,17 @@ from documents.serialisers import TagSerializer
 from documents.serialisers import TagSerializerVersion1
 from documents.serialisers import TasksViewSerializer
 from documents.serialisers import UiSettingsViewSerializer
+from documents.serialisers import WorkflowActionSerializer
+from documents.serialisers import WorkflowSerializer
+from documents.serialisers import WorkflowTriggerSerializer
+from documents.signals import document_updated
 from documents.tasks import consume_file
 from paperless import version
 from paperless.db import GnuPG
 from paperless.views import StandardPagination
+
+if settings.AUDIT_LOG_ENABLED:
+    from auditlog.models import LogEntry
 
 logger = logging.getLogger("paperless.api")
 
@@ -153,10 +163,10 @@ class IndexView(TemplateView):
         context["main_js"] = f"frontend/{self.get_frontend_language()}/main.js"
         context[
             "webmanifest"
-        ] = f"frontend/{self.get_frontend_language()}/manifest.webmanifest"  # noqa: E501
+        ] = f"frontend/{self.get_frontend_language()}/manifest.webmanifest"
         context[
             "apple_touch_icon"
-        ] = f"frontend/{self.get_frontend_language()}/apple-touch-icon.png"  # noqa: E501
+        ] = f"frontend/{self.get_frontend_language()}/apple-touch-icon.png"
         return context
 
 
@@ -177,10 +187,14 @@ class PassUserMixin(CreateModelMixin):
 class CorrespondentViewSet(ModelViewSet, PassUserMixin):
     model = Correspondent
 
-    queryset = Correspondent.objects.annotate(
-        document_count=Count("documents"),
-        last_correspondence=Max("documents__created"),
-    ).order_by(Lower("name"))
+    queryset = (
+        Correspondent.objects.annotate(
+            document_count=Count("documents"),
+            last_correspondence=Max("documents__created"),
+        )
+        .select_related("owner")
+        .order_by(Lower("name"))
+    )
 
     serializer_class = CorrespondentSerializer
     pagination_class = StandardPagination
@@ -203,8 +217,12 @@ class CorrespondentViewSet(ModelViewSet, PassUserMixin):
 class TagViewSet(ModelViewSet, PassUserMixin):
     model = Tag
 
-    queryset = Tag.objects.annotate(document_count=Count("documents")).order_by(
-        Lower("name"),
+    queryset = (
+        Tag.objects.annotate(document_count=Count("documents"))
+        .select_related("owner")
+        .order_by(
+            Lower("name"),
+        )
     )
 
     def get_serializer_class(self, *args, **kwargs):
@@ -227,9 +245,13 @@ class TagViewSet(ModelViewSet, PassUserMixin):
 class DocumentTypeViewSet(ModelViewSet, PassUserMixin):
     model = DocumentType
 
-    queryset = DocumentType.objects.annotate(
-        document_count=Count("documents"),
-    ).order_by(Lower("name"))
+    queryset = (
+        DocumentType.objects.annotate(
+            document_count=Count("documents"),
+        )
+        .select_related("owner")
+        .order_by(Lower("name"))
+    )
 
     serializer_class = DocumentTypeSerializer
     pagination_class = StandardPagination
@@ -278,7 +300,12 @@ class DocumentViewSet(
     )
 
     def get_queryset(self):
-        return Document.objects.distinct().annotate(num_notes=Count("notes"))
+        return (
+            Document.objects.distinct()
+            .annotate(num_notes=Count("notes"))
+            .select_related("correspondent", "storage_path", "document_type", "owner")
+            .prefetch_related("tags", "custom_fields", "notes")
+        )
 
     def get_serializer(self, *args, **kwargs):
         fields_param = self.request.query_params.get("fields", None)
@@ -298,6 +325,12 @@ class DocumentViewSet(
         from documents import index
 
         index.add_or_update_document(self.get_object())
+
+        document_updated.send(
+            sender=self.__class__,
+            document=self.get_object(),
+        )
+
         return response
 
     def destroy(self, request, *args, **kwargs):
@@ -494,7 +527,7 @@ class DocumentViewSet(
                 "view_document",
                 doc,
             ):
-                return HttpResponseForbidden("Insufficient permissions to view")
+                return HttpResponseForbidden("Insufficient permissions to view notes")
         except Document.DoesNotExist:
             raise Http404
 
@@ -504,7 +537,7 @@ class DocumentViewSet(
             except Exception as e:
                 logger.warning(f"An error occurred retrieving notes: {e!s}")
                 return Response(
-                    {"error": "Error retreiving notes, check logs for more detail."},
+                    {"error": "Error retrieving notes, check logs for more detail."},
                 )
         elif request.method == "POST":
             try:
@@ -513,7 +546,9 @@ class DocumentViewSet(
                     "change_document",
                     doc,
                 ):
-                    return HttpResponseForbidden("Insufficient permissions to create")
+                    return HttpResponseForbidden(
+                        "Insufficient permissions to create notes",
+                    )
 
                 c = Note.objects.create(
                     document=doc,
@@ -521,6 +556,21 @@ class DocumentViewSet(
                     user=currentUser,
                 )
                 c.save()
+                # If audit log is enabled make an entry in the log
+                # about this note change
+                if settings.AUDIT_LOG_ENABLED:
+                    LogEntry.objects.log_create(
+                        instance=doc,
+                        changes=json.dumps(
+                            {
+                                "Note Added": ["None", c.id],
+                            },
+                        ),
+                        action=LogEntry.Action.UPDATE,
+                    )
+
+                doc.modified = timezone.now()
+                doc.save()
 
                 from documents import index
 
@@ -540,14 +590,28 @@ class DocumentViewSet(
                 "change_document",
                 doc,
             ):
-                return HttpResponseForbidden("Insufficient permissions to delete")
+                return HttpResponseForbidden("Insufficient permissions to delete notes")
 
             note = Note.objects.get(id=int(request.GET.get("id")))
+            if settings.AUDIT_LOG_ENABLED:
+                LogEntry.objects.log_create(
+                    instance=doc,
+                    changes=json.dumps(
+                        {
+                            "Note Deleted": [note.id, "None"],
+                        },
+                    ),
+                    action=LogEntry.Action.UPDATE,
+                )
+
             note.delete()
+
+            doc.modified = timezone.now()
+            doc.save()
 
             from documents import index
 
-            index.add_or_update_document(self.get_object())
+            index.add_or_update_document(doc)
 
             return Response(self.getNotes(doc))
 
@@ -567,7 +631,9 @@ class DocumentViewSet(
                 "change_document",
                 doc,
             ):
-                return HttpResponseForbidden("Insufficient permissions")
+                return HttpResponseForbidden(
+                    "Insufficient permissions to add share link",
+                )
         except Document.DoesNotExist:
             raise Http404
 
@@ -589,9 +655,18 @@ class DocumentViewSet(
 
 class SearchResultSerializer(DocumentSerializer, PassUserMixin):
     def to_representation(self, instance):
-        doc = Document.objects.get(id=instance["id"])
+        doc = (
+            Document.objects.select_related(
+                "correspondent",
+                "storage_path",
+                "document_type",
+                "owner",
+            )
+            .prefetch_related("tags", "custom_fields", "notes")
+            .get(id=instance["id"])
+        )
         notes = ",".join(
-            [str(c.note) for c in Note.objects.filter(document=instance["id"])],
+            [str(c.note) for c in doc.notes.all()],
         )
         r = super().to_representation(doc)
         r["__search_hit__"] = {
@@ -661,6 +736,19 @@ class UnifiedSearchViewSet(DocumentViewSet):
         else:
             return super().list(request)
 
+    @action(detail=False, methods=["GET"], name="Get Next ASN")
+    def next_asn(self, request, *args, **kwargs):
+        return Response(
+            (
+                Document.objects.filter(archive_serial_number__gte=0)
+                .order_by("archive_serial_number")
+                .last()
+                .archive_serial_number
+                or 0
+            )
+            + 1,
+        )
+
 
 class LogViewSet(ViewSet):
     permission_classes = (IsAuthenticated, PaperlessAdminPermissions)
@@ -701,7 +789,11 @@ class SavedViewViewSet(ModelViewSet, PassUserMixin):
 
     def get_queryset(self):
         user = self.request.user
-        return SavedView.objects.filter(owner=user)
+        return (
+            SavedView.objects.filter(owner=user)
+            .select_related("owner")
+            .prefetch_related("filter_rules")
+        )
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -758,6 +850,7 @@ class PostDocumentView(GenericAPIView):
         doc_name, doc_data = serializer.validated_data.get("document")
         correspondent_id = serializer.validated_data.get("correspondent")
         document_type_id = serializer.validated_data.get("document_type")
+        storage_path_id = serializer.validated_data.get("storage_path")
         tag_ids = serializer.validated_data.get("tags")
         title = serializer.validated_data.get("title")
         created = serializer.validated_data.get("created")
@@ -784,6 +877,7 @@ class PostDocumentView(GenericAPIView):
             title=title,
             correspondent_id=correspondent_id,
             document_type_id=document_type_id,
+            storage_path_id=storage_path_id,
             tag_ids=tag_ids,
             created=created,
             asn=archive_serial_number,
@@ -956,7 +1050,7 @@ class StatisticsView(APIView):
             .annotate(mime_type_count=Count("mime_type"))
             .order_by("-mime_type_count")
             if documents_total > 0
-            else 0
+            else []
         )
 
         character_count = (
@@ -1026,52 +1120,15 @@ class BulkDownloadView(GenericAPIView):
             return response
 
 
-class RemoteVersionView(GenericAPIView):
-    def get(self, request, format=None):
-        remote_version = "0.0.0"
-        is_greater_than_current = False
-        current_version = packaging_version.parse(version.__full_version_str__)
-        try:
-            req = urllib.request.Request(
-                "https://api.github.com/repos/paperless-ngx/"
-                "paperless-ngx/releases/latest",
-            )
-            # Ensure a JSON response
-            req.add_header("Accept", "application/json")
-
-            with urllib.request.urlopen(req) as response:
-                remote = response.read().decode("utf-8")
-            try:
-                remote_json = json.loads(remote)
-                remote_version = remote_json["tag_name"]
-                # Basically PEP 616 but that only went in 3.9
-                if remote_version.startswith("ngx-"):
-                    remote_version = remote_version[len("ngx-") :]
-            except ValueError:
-                logger.debug("An error occurred parsing remote version json")
-        except urllib.error.URLError:
-            logger.debug("An error occurred checking for available updates")
-
-        is_greater_than_current = (
-            packaging_version.parse(
-                remote_version,
-            )
-            > current_version
-        )
-
-        return Response(
-            {
-                "version": remote_version,
-                "update_available": is_greater_than_current,
-            },
-        )
-
-
 class StoragePathViewSet(ModelViewSet, PassUserMixin):
     model = StoragePath
 
-    queryset = StoragePath.objects.annotate(document_count=Count("documents")).order_by(
-        Lower("name"),
+    queryset = (
+        StoragePath.objects.annotate(document_count=Count("documents"))
+        .select_related("owner")
+        .order_by(
+            Lower("name"),
+        )
     )
 
     serializer_class = StoragePathSerializer
@@ -1137,6 +1194,47 @@ class UiSettingsView(GenericAPIView):
         return Response(
             {
                 "success": True,
+            },
+        )
+
+
+class RemoteVersionView(GenericAPIView):
+    def get(self, request, format=None):
+        remote_version = "0.0.0"
+        is_greater_than_current = False
+        current_version = packaging_version.parse(version.__full_version_str__)
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/paperless-ngx/"
+                "paperless-ngx/releases/latest",
+            )
+            # Ensure a JSON response
+            req.add_header("Accept", "application/json")
+
+            with urllib.request.urlopen(req) as response:
+                remote = response.read().decode("utf8")
+            try:
+                remote_json = json.loads(remote)
+                remote_version = remote_json["tag_name"]
+                # Basically PEP 616 but that only went in 3.9
+                if remote_version.startswith("ngx-"):
+                    remote_version = remote_version[len("ngx-") :]
+            except ValueError:
+                logger.debug("An error occurred parsing remote version json")
+        except urllib.error.URLError:
+            logger.debug("An error occurred checking for available updates")
+
+        is_greater_than_current = (
+            packaging_version.parse(
+                remote_version,
+            )
+            > current_version
+        )
+
+        return Response(
+            {
+                "version": remote_version,
+                "update_available": is_greater_than_current,
             },
         )
 
@@ -1288,12 +1386,59 @@ class BulkEditObjectPermissionsView(GenericAPIView, PassUserMixin):
             )
 
 
-class ConsumptionTemplateViewSet(ModelViewSet):
+class WorkflowTriggerViewSet(ModelViewSet):
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
 
-    serializer_class = ConsumptionTemplateSerializer
+    serializer_class = WorkflowTriggerSerializer
     pagination_class = StandardPagination
 
-    model = ConsumptionTemplate
+    model = WorkflowTrigger
 
-    queryset = ConsumptionTemplate.objects.all().order_by("order")
+    queryset = WorkflowTrigger.objects.all()
+
+
+class WorkflowActionViewSet(ModelViewSet):
+    permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
+
+    serializer_class = WorkflowActionSerializer
+    pagination_class = StandardPagination
+
+    model = WorkflowAction
+
+    queryset = WorkflowAction.objects.all().prefetch_related(
+        "assign_tags",
+        "assign_view_users",
+        "assign_view_groups",
+        "assign_change_users",
+        "assign_change_groups",
+        "assign_custom_fields",
+    )
+
+
+class WorkflowViewSet(ModelViewSet):
+    permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
+
+    serializer_class = WorkflowSerializer
+    pagination_class = StandardPagination
+
+    model = Workflow
+
+    queryset = (
+        Workflow.objects.all()
+        .order_by("order")
+        .prefetch_related(
+            "triggers",
+            "actions",
+        )
+    )
+
+
+class CustomFieldViewSet(ModelViewSet):
+    permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
+
+    serializer_class = CustomFieldSerializer
+    pagination_class = StandardPagination
+
+    model = CustomField
+
+    queryset = CustomField.objects.all().order_by("-created")

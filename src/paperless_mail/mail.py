@@ -8,6 +8,8 @@ import traceback
 from datetime import date
 from datetime import timedelta
 from fnmatch import fnmatch
+from pathlib import Path
+from typing import Optional
 from typing import Union
 
 import magic
@@ -21,6 +23,7 @@ from django.utils.timezone import is_naive
 from django.utils.timezone import make_aware
 from imap_tools import AND
 from imap_tools import NOT
+from imap_tools import MailAttachment
 from imap_tools import MailBox
 from imap_tools import MailboxFolderSelectError
 from imap_tools import MailBoxUnencrypted
@@ -89,7 +92,7 @@ class BaseMailAction:
         M: MailBox,
         message_uid: str,
         parameter: str,
-    ):  # pragma: nocover
+    ):  # pragma: no cover
         """
         Perform mail action on the given mail uid in the mailbox.
         """
@@ -168,7 +171,7 @@ class TagMailAction(BaseMailAction):
                 return AND(NOT(gmail_label=self.keyword), no_keyword=self.keyword)
             else:
                 return {"no_keyword": self.keyword}
-        else:  # pragma: nocover
+        else:  # pragma: no cover
             raise ValueError("This should never happen.")
 
     def post_consume(self, M: MailBox, message_uid: str, parameter: str):
@@ -358,7 +361,7 @@ def get_rule_action(rule: MailRule, supports_gmail_labels: bool) -> BaseMailActi
     elif rule.action == MailRule.MailAction.TAG:
         return TagMailAction(rule.action_parameter, supports_gmail_labels)
     else:
-        raise NotImplementedError("Unknown action.")  # pragma: nocover
+        raise NotImplementedError("Unknown action.")  # pragma: no cover
 
 
 def make_criterias(rule: MailRule, supports_gmail_labels: bool):
@@ -394,7 +397,7 @@ def get_mailbox(server, port, security) -> MailBox:
     Returns the correct MailBox instance for the given configuration.
     """
     ssl_context = ssl.create_default_context()
-    if settings.EMAIL_CERTIFICATE_FILE is not None:  # pragma: nocover
+    if settings.EMAIL_CERTIFICATE_FILE is not None:  # pragma: no cover
         ssl_context.load_verify_locations(cafile=settings.EMAIL_CERTIFICATE_FILE)
 
     if security == MailAccount.ImapSecurity.NONE:
@@ -404,7 +407,7 @@ def get_mailbox(server, port, security) -> MailBox:
     elif security == MailAccount.ImapSecurity.SSL:
         mailbox = MailBox(server, port, ssl_context=ssl_context)
     else:
-        raise NotImplementedError("Unknown IMAP security")  # pragma: nocover
+        raise NotImplementedError("Unknown IMAP security")  # pragma: no cover
     return mailbox
 
 
@@ -422,14 +425,19 @@ class MailAccountHandler(LoggingMixin):
 
     logging_name = "paperless_mail"
 
-    def _correspondent_from_name(self, name):
+    def _correspondent_from_name(self, name: str) -> Optional[Correspondent]:
         try:
             return Correspondent.objects.get_or_create(name=name)[0]
         except DatabaseError as e:
             self.log.error(f"Error while retrieving correspondent {name}: {e}")
             return None
 
-    def _get_title(self, message, att, rule):
+    def _get_title(
+        self,
+        message: MailMessage,
+        att: MailAttachment,
+        rule: MailRule,
+    ) -> Optional[str]:
         if rule.assign_title_from == MailRule.TitleSource.FROM_SUBJECT:
             return message.subject
 
@@ -442,9 +450,13 @@ class MailAccountHandler(LoggingMixin):
         else:
             raise NotImplementedError(
                 "Unknown title selector.",
-            )  # pragma: nocover
+            )  # pragma: no cover
 
-    def _get_correspondent(self, message: MailMessage, rule):
+    def _get_correspondent(
+        self,
+        message: MailMessage,
+        rule: MailRule,
+    ) -> Optional[Correspondent]:
         c_from = rule.assign_correspondent_from
 
         if c_from == MailRule.CorrespondentSource.FROM_NOTHING:
@@ -466,7 +478,7 @@ class MailAccountHandler(LoggingMixin):
         else:
             raise NotImplementedError(
                 "Unknown correspondent selector",
-            )  # pragma: nocover
+            )  # pragma: no cover
 
     def handle_mail_account(self, account: MailAccount):
         """
@@ -606,8 +618,7 @@ class MailAccountHandler(LoggingMixin):
             f"{len(message.attachments)} attachment(s)",
         )
 
-        correspondent = self._get_correspondent(message, rule)
-        tag_ids = [tag.id for tag in rule.assign_tags.all()]
+        tag_ids: list[int] = [tag.id for tag in rule.assign_tags.all()]
         doc_type = rule.assign_document_type
 
         if (
@@ -617,7 +628,6 @@ class MailAccountHandler(LoggingMixin):
             processed_elements += self._process_eml(
                 message,
                 rule,
-                correspondent,
                 tag_ids,
                 doc_type,
             )
@@ -629,7 +639,6 @@ class MailAccountHandler(LoggingMixin):
             processed_elements += self._process_attachments(
                 message,
                 rule,
-                correspondent,
                 tag_ids,
                 doc_type,
             )
@@ -640,7 +649,6 @@ class MailAccountHandler(LoggingMixin):
         self,
         message: MailMessage,
         rule: MailRule,
-        correspondent,
         tag_ids,
         doc_type,
     ):
@@ -661,13 +669,32 @@ class MailAccountHandler(LoggingMixin):
                 )
                 continue
 
-            if rule.filter_attachment_filename and not fnmatch(
+            if rule.filter_attachment_filename_include and not fnmatch(
                 att.filename.lower(),
-                rule.filter_attachment_filename.lower(),
+                rule.filter_attachment_filename_include.lower(),
             ):
                 # Force the filename and pattern to the lowercase
                 # as this is system dependent otherwise
+                self.log.debug(
+                    f"Rule {rule}: "
+                    f"Skipping attachment {att.filename} "
+                    f"does not match pattern {rule.filter_attachment_filename_include}",
+                )
                 continue
+            elif rule.filter_attachment_filename_exclude and fnmatch(
+                att.filename.lower(),
+                rule.filter_attachment_filename_exclude.lower(),
+            ):
+                # Force the filename and pattern to the lowercase
+                # as this is system dependent otherwise
+                self.log.debug(
+                    f"Rule {rule}: "
+                    f"Skipping attachment {att.filename} "
+                    f"does match pattern {rule.filter_attachment_filename_exclude}",
+                )
+                continue
+
+            correspondent = self._get_correspondent(message, rule)
 
             title = self._get_title(message, att, rule)
 
@@ -676,19 +703,29 @@ class MailAccountHandler(LoggingMixin):
             mime_type = magic.from_buffer(att.payload, mime=True)
 
             if is_mime_type_supported(mime_type):
-                os.makedirs(settings.SCRATCH_DIR, exist_ok=True)
-                _, temp_filename = tempfile.mkstemp(
-                    prefix="paperless-mail-",
-                    dir=settings.SCRATCH_DIR,
-                )
-                with open(temp_filename, "wb") as f:
-                    f.write(att.payload)
-
                 self.log.info(
                     f"Rule {rule}: "
                     f"Consuming attachment {att.filename} from mail "
                     f"{message.subject} from {message.from_}",
                 )
+
+                os.makedirs(settings.SCRATCH_DIR, exist_ok=True)
+
+                temp_dir = Path(
+                    tempfile.mkdtemp(
+                        prefix="paperless-mail-",
+                        dir=settings.SCRATCH_DIR,
+                    ),
+                )
+
+                attachment_name = pathvalidate.sanitize_filename(att.filename)
+                if attachment_name:
+                    temp_filename = temp_dir / attachment_name
+                else:  # pragma: no cover
+                    # Some cases may have no name (generally inline)
+                    temp_filename = temp_dir / "no-name-attachment"
+
+                temp_filename.write_bytes(att.payload)
 
                 input_doc = ConsumableDocument(
                     source=DocumentSource.MailFetch,
@@ -750,7 +787,6 @@ class MailAccountHandler(LoggingMixin):
         self,
         message: MailMessage,
         rule: MailRule,
-        correspondent,
         tag_ids,
         doc_type,
     ):
@@ -780,6 +816,8 @@ class MailAccountHandler(LoggingMixin):
                 message.obj._headers = new_headers
 
             f.write(message.obj.as_bytes())
+
+        correspondent = self._get_correspondent(message, rule)
 
         self.log.info(
             f"Rule {rule}: "

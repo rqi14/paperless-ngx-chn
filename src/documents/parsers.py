@@ -36,13 +36,13 @@ from documents.utils import copy_file_with_basic_stats
 # TODO: isnt there a date parsing library for this?
 
 DATE_REGEX = re.compile(
-    r"(\b|(?!=([_-])))([0-9]{1,2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{4}|[0-9]{2})(\b|(?=([_-])))|"  # noqa: E501
-    r"(\b|(?!=([_-])))([0-9]{4}|[0-9]{2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{1,2})(\b|(?=([_-])))|"  # noqa: E501
-    r"(\b|(?!=([_-])))([0-9]{1,2}[\. ]+[a-zA-Z]{3,9} ([0-9]{4}|[0-9]{2}))(\b|(?=([_-])))|"  # noqa: E501
+    r"(\b|(?!=([_-])))([0-9]{1,2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{4}|[0-9]{2})(\b|(?=([_-])))|"
+    r"(\b|(?!=([_-])))([0-9]{4}|[0-9]{2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{1,2})(\b|(?=([_-])))|"
+    r"(\b|(?!=([_-])))([0-9]{1,2}[\. ]+[a-zA-Z]{3,9} ([0-9]{4}|[0-9]{2}))(\b|(?=([_-])))|"
     r"(\b|(?!=([_-])))([^\W\d_]{3,9} [0-9]{1,2}, ([0-9]{4}))(\b|(?=([_-])))|"
     r"(\b|(?!=([_-])))([^\W\d_]{3,9} [0-9]{4})(\b|(?=([_-])))|"
-    r"(\b|(?!=([_-])))([0-9]{1,2}[^ ]{2}[\. ]+[^ ]{3,9}[ \.\/-][0-9]{4})(\b|(?=([_-])))|"  # noqa: E501
-    r"(\b|(?!=([_-])))(\b[0-9]{1,2}[ \.\/-][a-zA-Z]{3}[ \.\/-][0-9]{4})(\b|(?=([_-])))",  # noqa: E501
+    r"(\b|(?!=([_-])))([0-9]{1,2}[^ ]{2}[\. ]+[^ ]{3,9}[ \.\/-][0-9]{4})(\b|(?=([_-])))|"
+    r"(\b|(?!=([_-])))(\b[0-9]{1,2}[ \.\/-][a-zA-Z]{3}[ \.\/-][0-9]{4})(\b|(?=([_-])))",
 )
 
 
@@ -105,7 +105,7 @@ def get_supported_file_extensions() -> set[str]:
     return extensions
 
 
-def get_parser_class_for_mime_type(mime_type: str) -> Optional["DocumentParser"]:
+def get_parser_class_for_mime_type(mime_type: str) -> Optional[type["DocumentParser"]]:
     """
     Returns the best parser (by weight) for the given mimetype or
     None if no parser exists
@@ -125,8 +125,10 @@ def get_parser_class_for_mime_type(mime_type: str) -> Optional["DocumentParser"]
     if not options:
         return None
 
+    best_parser = sorted(options, key=lambda _: _["weight"], reverse=True)[0]
+
     # Return the parser with the highest weight.
-    return sorted(options, key=lambda _: _["weight"], reverse=True)[0]["parser"]
+    return best_parser["parser"]
 
 
 def run_convert(
@@ -318,6 +320,7 @@ class DocumentParser(LoggingMixin):
     def __init__(self, logging_group, progress_callback=None):
         super().__init__()
         self.logging_group = logging_group
+        self.settings = self.get_settings()
         os.makedirs(settings.SCRATCH_DIR, exist_ok=True)
         self.tempdir = tempfile.mkdtemp(prefix="paperless-", dir=settings.SCRATCH_DIR)
 
@@ -329,6 +332,12 @@ class DocumentParser(LoggingMixin):
     def progress(self, current_progress, max_progress):
         if self.progress_callback:
             self.progress_callback(current_progress, max_progress)
+
+    def get_settings(self):  # pragma: no cover
+        """
+        A parser must implement this
+        """
+        raise NotImplementedError
 
     def read_file_handle_unicode_errors(self, filepath: Path) -> str:
         """

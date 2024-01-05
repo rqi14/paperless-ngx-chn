@@ -46,8 +46,8 @@ elsewhere. Here are a couple notes about that.
 - By default, paperless uses the internal ID of each document as its
   filename. This might not be very convenient for export. However, you
   can adjust the way files are stored in paperless by
-  [configuring the filename format](/advanced_usage#file-name-handling).
-- [The exporter](/administration#exporter) is
+  [configuring the filename format](advanced_usage.md#file-name-handling).
+- [The exporter](administration.md#exporter) is
   another easy way to get your files out of paperless with reasonable
   file names.
 
@@ -78,16 +78,16 @@ has to do much less work to serve the data.
 !!! note
 
     You can adjust some of the settings so that paperless uses less
-    processing power. See [setup](/setup#less-powerful-devices) for details.
+    processing power. See [setup](setup.md#less-powerful-devices) for details.
 
 ## _How do I install paperless-ngx on Raspberry Pi?_
 
 **A:** Docker images are available for arm64 hardware, so just
-follow the [docker-compose instructions](https://docs.paperless-ngx.com/setup/#installation). Apart from more required disk
+follow the [Docker Compose instructions](https://docs.paperless-ngx.com/setup/#installation). Apart from more required disk
 space compared to a bare metal installation, docker comes with close to
 zero overhead, even on Raspberry Pi.
 
-If you decide to got with the bare metal route, be aware that some of
+If you decide to go with the bare metal route, be aware that some of
 the python requirements do not have precompiled packages for ARM /
 ARM64. Installation of these will require additional development
 libraries and compilation will take a long time.

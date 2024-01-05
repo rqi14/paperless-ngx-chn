@@ -3,10 +3,15 @@ import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { SettingsService } from 'src/app/services/settings.service'
 import { ComponentWithPermissions } from '../with-permissions/with-permissions.component'
 import { TourService } from 'ngx-ui-tour-ng-bootstrap'
-import { PaperlessSavedView } from 'src/app/data/paperless-saved-view'
-import { DndDropEvent } from 'ngx-drag-drop'
+import { SavedView } from 'src/app/data/saved-view'
 import { ToastService } from 'src/app/services/toast.service'
-import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import {
+  CdkDragDrop,
+  CdkDragEnd,
+  CdkDragStart,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop'
 
 @Component({
   selector: 'pngx-dashboard',
@@ -14,7 +19,7 @@ import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
   styleUrls: ['./dashboard.component.scss'],
 })
 export class DashboardComponent extends ComponentWithPermissions {
-  public dashboardViews: PaperlessSavedView[] = []
+  public dashboardViews: SavedView[] = []
   constructor(
     public settingsService: SettingsService,
     public savedViewService: SavedViewService,
@@ -24,22 +29,7 @@ export class DashboardComponent extends ComponentWithPermissions {
     super()
 
     this.savedViewService.listAll().subscribe(() => {
-      const sorted: number[] = this.settingsService.get(
-        SETTINGS_KEYS.DASHBOARD_VIEWS_SORT_ORDER
-      )
-      this.dashboardViews =
-        sorted?.length > 0
-          ? sorted
-              .map((id) =>
-                this.savedViewService.dashboardViews.find((v) => v.id === id)
-              )
-              .concat(
-                this.savedViewService.dashboardViews.filter(
-                  (v) => !sorted.includes(v.id)
-                )
-              )
-              .filter((v) => v)
-          : [...this.savedViewService.dashboardViews]
+      this.dashboardViews = this.savedViewService.dashboardViews
     })
   }
 
@@ -59,13 +49,21 @@ export class DashboardComponent extends ComponentWithPermissions {
     }
   }
 
-  onDragStart(event: DragEvent) {
+  onDragStart(event: CdkDragStart) {
     this.settingsService.globalDropzoneEnabled = false
   }
 
-  onDragged(v: PaperlessSavedView) {
-    const index = this.dashboardViews.indexOf(v)
-    this.dashboardViews.splice(index, 1)
+  onDragEnd(event: CdkDragEnd) {
+    this.settingsService.globalDropzoneEnabled = true
+  }
+
+  onDrop(event: CdkDragDrop<SavedView[]>) {
+    moveItemInArray(
+      this.dashboardViews,
+      event.previousIndex,
+      event.currentIndex
+    )
+
     this.settingsService
       .updateDashboardViewsSort(this.dashboardViews)
       .subscribe({
@@ -76,17 +74,5 @@ export class DashboardComponent extends ComponentWithPermissions {
           this.toastService.showError($localize`Error updating dashboard`, e)
         },
       })
-  }
-
-  onDragEnd(event: DragEvent) {
-    this.settingsService.globalDropzoneEnabled = true
-  }
-
-  onDrop(event: DndDropEvent) {
-    if (typeof event.index === 'undefined') {
-      event.index = this.dashboardViews.length
-    }
-
-    this.dashboardViews.splice(event.index, 0, event.data)
   }
 }

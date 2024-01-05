@@ -28,51 +28,64 @@ class DocumentMetadataOverrides:
     view_groups: Optional[list[int]] = None
     change_users: Optional[list[int]] = None
     change_groups: Optional[list[int]] = None
+    custom_field_ids: Optional[list[int]] = None
 
     def update(self, other: "DocumentMetadataOverrides") -> "DocumentMetadataOverrides":
         """
         Merges two DocumentMetadataOverrides objects such that object B's overrides
-        are only applied if the property is empty in object A or merged if multiple
-        are accepted.
+        are applied to object A or merged if multiple are accepted.
 
         The update is an in-place modification of self
         """
         # only if empty
-        if self.title is None:
+        if other.title is not None:
             self.title = other.title
-        if self.correspondent_id is None:
+        if other.correspondent_id is not None:
             self.correspondent_id = other.correspondent_id
-        if self.document_type_id is None:
+        if other.document_type_id is not None:
             self.document_type_id = other.document_type_id
-        if self.storage_path_id is None:
+        if other.storage_path_id is not None:
             self.storage_path_id = other.storage_path_id
-        if self.owner_id is None:
+        if other.owner_id is not None:
             self.owner_id = other.owner_id
+
         # merge
-        # TODO: Handle the case where other is also None
         if self.tag_ids is None:
             self.tag_ids = other.tag_ids
-        else:
+        elif other.tag_ids is not None:
             self.tag_ids.extend(other.tag_ids)
+            self.tag_ids = list(set(self.tag_ids))
+
         if self.view_users is None:
             self.view_users = other.view_users
-        else:
+        elif other.view_users is not None:
             self.view_users.extend(other.view_users)
+            self.view_users = list(set(self.view_users))
+
         if self.view_groups is None:
             self.view_groups = other.view_groups
-        else:
+        elif other.view_groups is not None:
             self.view_groups.extend(other.view_groups)
+            self.view_groups = list(set(self.view_groups))
+
         if self.change_users is None:
             self.change_users = other.change_users
-        else:
+        elif other.change_users is not None:
             self.change_users.extend(other.change_users)
+            self.change_users = list(set(self.change_users))
+
         if self.change_groups is None:
             self.change_groups = other.change_groups
-        else:
-            self.change_groups = [
-                *self.change_groups,
-                *other.change_groups,
-            ]
+        elif other.change_groups is not None:
+            self.change_groups.extend(other.change_groups)
+            self.change_groups = list(set(self.change_groups))
+
+        if self.custom_field_ids is None:
+            self.custom_field_ids = other.custom_field_ids
+        elif other.custom_field_ids is not None:
+            self.custom_field_ids.extend(other.custom_field_ids)
+            self.custom_field_ids = list(set(self.custom_field_ids))
+
         return self
 
 

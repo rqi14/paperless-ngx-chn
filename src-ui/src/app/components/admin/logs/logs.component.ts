@@ -27,6 +27,8 @@ export class LogsComponent implements OnInit, AfterViewChecked, OnDestroy {
 
   public isLoading: boolean = false
 
+  public autoRefreshInterval: any
+
   @ViewChild('logContainer') logContainer: ElementRef
 
   ngOnInit(): void {
@@ -41,6 +43,7 @@ export class LogsComponent implements OnInit, AfterViewChecked, OnDestroy {
           this.activeLog = this.logFiles[0]
           this.reloadLogs()
         }
+        this.toggleAutoRefresh()
       })
   }
 
@@ -51,6 +54,7 @@ export class LogsComponent implements OnInit, AfterViewChecked, OnDestroy {
   ngOnDestroy(): void {
     this.unsubscribeNotifier.next(true)
     this.unsubscribeNotifier.complete()
+    clearInterval(this.autoRefreshInterval)
   }
 
   reloadLogs() {
@@ -90,5 +94,16 @@ export class LogsComponent implements OnInit, AfterViewChecked, OnDestroy {
       left: 0,
       behavior: 'auto',
     })
+  }
+
+  toggleAutoRefresh(): void {
+    if (this.autoRefreshInterval) {
+      clearInterval(this.autoRefreshInterval)
+      this.autoRefreshInterval = null
+    } else {
+      this.autoRefreshInterval = setInterval(() => {
+        this.reloadLogs()
+      }, 5000)
+    }
   }
 }

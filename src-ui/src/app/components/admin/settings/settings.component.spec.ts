@@ -13,8 +13,8 @@ import {
 import { NgSelectModule } from '@ng-select/ng-select'
 import { of, throwError } from 'rxjs'
 import { routes } from 'src/app/app-routing.module'
-import { PaperlessSavedView } from 'src/app/data/paperless-saved-view'
-import { SETTINGS_KEYS } from 'src/app/data/paperless-uisettings'
+import { SavedView } from 'src/app/data/saved-view'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
@@ -138,7 +138,7 @@ describe('SettingsComponent', () => {
         of({
           all: savedViews.map((v) => v.id),
           count: savedViews.length,
-          results: (savedViews as PaperlessSavedView[]).concat([]),
+          results: (savedViews as SavedView[]).concat([]),
         })
       )
     }
@@ -180,9 +180,21 @@ describe('SettingsComponent', () => {
     activatedRoute.snapshot.fragment = '#notifications'
     const scrollSpy = jest.spyOn(viewportScroller, 'scrollToAnchor')
     component.ngOnInit()
-    expect(component.activeNavID).toEqual(3) // Users & Groups
+    expect(component.activeNavID).toEqual(3) // Notifications
     component.ngAfterViewInit()
     expect(scrollSpy).toHaveBeenCalledWith('#notifications')
+  })
+
+  it('should enable organizing of sidebar saved views even on direct navigation', () => {
+    completeSetup()
+    jest
+      .spyOn(activatedRoute, 'paramMap', 'get')
+      .mockReturnValue(of(convertToParamMap({ section: 'savedviews' })))
+    activatedRoute.snapshot.fragment = '#savedviews'
+    component.ngOnInit()
+    expect(component.activeNavID).toEqual(4) // Saved Views
+    component.ngAfterViewInit()
+    expect(settingsService.organizingSidebarSavedViews).toBeTruthy()
   })
 
   it('should support save saved views, show error', () => {
@@ -214,9 +226,7 @@ describe('SettingsComponent', () => {
     savedViewPatchSpy.mockClear()
 
     // succeed saved views
-    savedViewPatchSpy.mockReturnValueOnce(
-      of(savedViews as PaperlessSavedView[])
-    )
+    savedViewPatchSpy.mockReturnValueOnce(of(savedViews as SavedView[]))
     component.saveSettings()
     expect(toastErrorSpy).not.toHaveBeenCalled()
     expect(savedViewPatchSpy).toHaveBeenCalled()
@@ -323,7 +333,7 @@ describe('SettingsComponent', () => {
     const toastSpy = jest.spyOn(toastService, 'showInfo')
     const deleteSpy = jest.spyOn(savedViewService, 'delete')
     deleteSpy.mockReturnValue(of(true))
-    component.deleteSavedView(savedViews[0] as PaperlessSavedView)
+    component.deleteSavedView(savedViews[0] as SavedView)
     expect(deleteSpy).toHaveBeenCalled()
     expect(toastSpy).toHaveBeenCalledWith(
       `Saved view "${savedViews[0].name}" deleted.`

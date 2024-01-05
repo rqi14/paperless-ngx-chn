@@ -22,6 +22,7 @@ from documents.consumer import Consumer
 from documents.consumer import ConsumerError
 from documents.consumer import ConsumerFilePhase
 from documents.models import Correspondent
+from documents.models import CustomField
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import FileInfo
@@ -171,7 +172,15 @@ class TestFieldPermutations(TestCase):
             self.assertEqual(info.title, "anotherall")
 
 
-class DummyParser(DocumentParser):
+class _BaseTestParser(DocumentParser):
+    def get_settings(self):
+        """
+        This parser does not implement additional settings yet
+        """
+        return None
+
+
+class DummyParser(_BaseTestParser):
     def __init__(self, logging_group, scratch_dir, archive_path):
         super().__init__(logging_group, None)
         _, self.fake_thumb = tempfile.mkstemp(suffix=".webp", dir=scratch_dir)
@@ -184,7 +193,7 @@ class DummyParser(DocumentParser):
         self.text = "The Text"
 
 
-class CopyParser(DocumentParser):
+class CopyParser(_BaseTestParser):
     def get_thumbnail(self, document_path, mime_type, file_name=None):
         return self.fake_thumb
 
@@ -198,7 +207,7 @@ class CopyParser(DocumentParser):
         shutil.copy(document_path, self.archive_path)
 
 
-class FaultyParser(DocumentParser):
+class FaultyParser(_BaseTestParser):
     def __init__(self, logging_group, scratch_dir):
         super().__init__(logging_group)
         _, self.fake_thumb = tempfile.mkstemp(suffix=".webp", dir=scratch_dir)
@@ -210,7 +219,7 @@ class FaultyParser(DocumentParser):
         raise ParseError("Does not compute.")
 
 
-class FaultyGenericExceptionParser(DocumentParser):
+class FaultyGenericExceptionParser(_BaseTestParser):
     def __init__(self, logging_group, scratch_dir):
         super().__init__(logging_group)
         _, self.fake_thumb = tempfile.mkstemp(suffix=".webp", dir=scratch_dir)
@@ -456,6 +465,29 @@ class TestConsumer(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         self.assertIn(t1, document.tags.all())
         self.assertNotIn(t2, document.tags.all())
         self.assertIn(t3, document.tags.all())
+        self._assert_first_last_send_progress()
+
+    def testOverrideCustomFields(self):
+        cf1 = CustomField.objects.create(name="Custom Field 1", data_type="string")
+        cf2 = CustomField.objects.create(
+            name="Custom Field 2",
+            data_type="integer",
+        )
+        cf3 = CustomField.objects.create(
+            name="Custom Field 3",
+            data_type="url",
+        )
+        document = self.consumer.try_consume_file(
+            self.get_test_file(),
+            override_custom_field_ids=[cf1.id, cf3.id],
+        )
+
+        fields_used = [
+            field_instance.field for field_instance in document.custom_fields.all()
+        ]
+        self.assertIn(cf1, fields_used)
+        self.assertNotIn(cf2, fields_used)
+        self.assertIn(cf3, fields_used)
         self._assert_first_last_send_progress()
 
     def testOverrideAsn(self):

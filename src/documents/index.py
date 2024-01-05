@@ -3,6 +3,8 @@ import math
 import os
 from collections import Counter
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Optional
 
 from dateutil.parser import isoparse
 from django.conf import settings
@@ -25,11 +27,16 @@ from whoosh.index import open_dir
 from whoosh.qparser import MultifieldParser
 from whoosh.qparser import QueryParser
 from whoosh.qparser.dateparse import DateParserPlugin
+from whoosh.qparser.dateparse import English
+from whoosh.qparser.plugins import FieldsPlugin
 from whoosh.scoring import TF_IDF
 from whoosh.searching import ResultsPage
 from whoosh.searching import Searcher
+from whoosh.util.times import timespan
 from whoosh.writing import AsyncWriter
 
+# from documents.models import CustomMetadata
+from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import Note
 from documents.models import User
@@ -60,16 +67,19 @@ def get_schema():
         has_path=BOOLEAN(),
         notes=TEXT(),
         num_notes=NUMERIC(sortable=True, signed=False),
+        custom_fields=TEXT(),
+        custom_field_count=NUMERIC(sortable=True, signed=False),
         owner=TEXT(),
         owner_id=NUMERIC(),
         has_owner=BOOLEAN(),
         viewer_id=KEYWORD(commas=True),
         checksum=TEXT(),
         original_filename=TEXT(sortable=True),
+        is_shared=BOOLEAN(),
     )
 
 
-def open_index(recreate=False):
+def open_index(recreate=False) -> FileIndex:
     try:
         if exists_in(settings.INDEX_DIR) and not recreate:
             return open_dir(settings.INDEX_DIR, schema=get_schema())
@@ -82,7 +92,7 @@ def open_index(recreate=False):
 
 
 @contextmanager
-def open_index_writer(optimize=False):
+def open_index_writer(optimize=False) -> AsyncWriter:
     writer = AsyncWriter(open_index())
 
     try:
@@ -95,7 +105,7 @@ def open_index_writer(optimize=False):
 
 
 @contextmanager
-def open_index_searcher():
+def open_index_searcher() -> Searcher:
     searcher = open_index().searcher()
 
     try:
@@ -108,6 +118,9 @@ def update_document(writer: AsyncWriter, doc: Document):
     tags = ",".join([t.name for t in doc.tags.all()])
     tags_ids = ",".join([str(t.id) for t in doc.tags.all()])
     notes = ",".join([str(c.note) for c in Note.objects.filter(document=doc)])
+    custom_fields = ",".join(
+        [str(c) for c in CustomFieldInstance.objects.filter(document=doc)],
+    )
     asn = doc.archive_serial_number
     if asn is not None and (
         asn < Document.ARCHIVE_SERIAL_NUMBER_MIN
@@ -147,29 +160,32 @@ def update_document(writer: AsyncWriter, doc: Document):
         has_path=doc.storage_path is not None,
         notes=notes,
         num_notes=len(notes),
+        custom_fields=custom_fields,
+        custom_field_count=len(doc.custom_fields.all()),
         owner=doc.owner.username if doc.owner else None,
         owner_id=doc.owner.id if doc.owner else None,
         has_owner=doc.owner is not None,
         viewer_id=viewer_ids if viewer_ids else None,
         checksum=doc.checksum,
         original_filename=doc.original_filename,
+        is_shared=len(viewer_ids) > 0,
     )
 
 
-def remove_document(writer, doc):
+def remove_document(writer: AsyncWriter, doc: Document):
     remove_document_by_id(writer, doc.pk)
 
 
-def remove_document_by_id(writer, doc_id):
+def remove_document_by_id(writer: AsyncWriter, doc_id):
     writer.delete_by_term("id", doc_id)
 
 
-def add_or_update_document(document):
+def add_or_update_document(document: Document):
     with open_index_writer() as writer:
         update_document(writer, document)
 
 
-def remove_document_from_index(document):
+def remove_document_from_index(document: Document):
     with open_index_writer() as writer:
         remove_document(writer, document)
 
@@ -180,11 +196,13 @@ class DelayedQuery:
         "document_type": ("type", ["id", "id__in", "id__none", "isnull"]),
         "storage_path": ("path", ["id", "id__in", "id__none", "isnull"]),
         "owner": ("owner", ["id", "id__in", "id__none", "isnull"]),
+        "shared_by": ("shared_by", ["id"]),
         "tags": ("tag", ["id__all", "id__in", "id__none"]),
         "added": ("added", ["date__lt", "date__gt"]),
         "created": ("created", ["date__lt", "date__gt"]),
         "checksum": ("checksum", ["icontains", "istartswith"]),
         "original_filename": ("original_filename", ["icontains", "istartswith"]),
+        "custom_fields": ("custom_fields", ["icontains", "istartswith"]),
     }
 
     def _get_query(self):
@@ -218,7 +236,11 @@ class DelayedQuery:
                 continue
 
             if query_filter == "id":
-                criterias.append(query.Term(f"{field}_id", value))
+                if param == "shared_by":
+                    criterias.append(query.Term("is_shared", True))
+                    criterias.append(query.Term("owner_id", value))
+                else:
+                    criterias.append(query.Term(f"{field}_id", value))
             elif query_filter == "id__in":
                 in_filter = []
                 for object_id in value.split(","):
@@ -346,14 +368,43 @@ class DelayedQuery:
         return page
 
 
+class LocalDateParser(English):
+    def reverse_timezone_offset(self, d):
+        return (d.replace(tzinfo=timezone.get_current_timezone())).astimezone(
+            timezone.utc,
+        )
+
+    def date_from(self, *args, **kwargs):
+        d = super().date_from(*args, **kwargs)
+        if isinstance(d, timespan):
+            d.start = self.reverse_timezone_offset(d.start)
+            d.end = self.reverse_timezone_offset(d.end)
+        elif isinstance(d, datetime):
+            d = self.reverse_timezone_offset(d)
+        return d
+
+
 class DelayedFullTextQuery(DelayedQuery):
     def _get_query(self):
         q_str = self.query_params["query"]
         qp = MultifieldParser(
-            ["content", "title", "correspondent", "tag", "type", "notes"],
+            [
+                "content",
+                "title",
+                "correspondent",
+                "tag",
+                "type",
+                "notes",
+                "custom_fields",
+            ],
             self.searcher.ixreader.schema,
         )
-        qp.add_plugin(DateParserPlugin(basedate=timezone.now()))
+        qp.add_plugin(
+            DateParserPlugin(
+                basedate=timezone.now(),
+                dateparser=LocalDateParser(),
+            ),
+        )
         q = qp.parse(q_str)
 
         corrected = self.searcher.correct_query(q, q_str)
@@ -384,7 +435,12 @@ class DelayedMoreLikeThisQuery(DelayedQuery):
         return q, mask
 
 
-def autocomplete(ix: FileIndex, term: str, limit: int = 10, user: User = None):
+def autocomplete(
+    ix: FileIndex,
+    term: str,
+    limit: int = 10,
+    user: Optional[User] = None,
+):
     """
     Mimics whoosh.reading.IndexReader.most_distinctive_terms with permissions
     and without scoring
@@ -393,6 +449,9 @@ def autocomplete(ix: FileIndex, term: str, limit: int = 10, user: User = None):
 
     with ix.searcher(weighting=TF_IDF()) as s:
         qp = QueryParser("content", schema=ix.schema)
+        # Don't let searches with a query that happen to match a field override the
+        # content field query instead and return bogus, not text data
+        qp.remove_plugin_class(FieldsPlugin)
         q = qp.parse(f"{term.lower()}*")
         user_criterias = get_permissions_criterias(user)
 
@@ -412,7 +471,7 @@ def autocomplete(ix: FileIndex, term: str, limit: int = 10, user: User = None):
     return terms
 
 
-def get_permissions_criterias(user: User = None):
+def get_permissions_criterias(user: Optional[User] = None):
     user_criterias = [query.Term("has_owner", False)]
     if user is not None:
         if user.is_superuser:  # superusers see all docs

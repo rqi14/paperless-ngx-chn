@@ -1,7 +1,14 @@
+from django.contrib.contenttypes.models import ContentType
+from django.db.models import CharField
+from django.db.models import Count
+from django.db.models import OuterRef
 from django.db.models import Q
+from django.db.models.functions import Cast
 from django_filters.rest_framework import BooleanFilter
 from django_filters.rest_framework import Filter
 from django_filters.rest_framework import FilterSet
+from guardian.utils import get_group_obj_perms_model
+from guardian.utils import get_user_obj_perms_model
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 from documents.models import Correspondent
@@ -21,19 +28,38 @@ DATE_KWARGS = ["year", "month", "day", "date__gt", "gt", "date__lt", "lt"]
 class CorrespondentFilterSet(FilterSet):
     class Meta:
         model = Correspondent
-        fields = {"name": CHAR_KWARGS}
+        fields = {
+            "id": ID_KWARGS,
+            "name": CHAR_KWARGS,
+        }
 
 
 class TagFilterSet(FilterSet):
     class Meta:
         model = Tag
-        fields = {"name": CHAR_KWARGS}
+        fields = {
+            "id": ID_KWARGS,
+            "name": CHAR_KWARGS,
+        }
 
 
 class DocumentTypeFilterSet(FilterSet):
     class Meta:
         model = DocumentType
-        fields = {"name": CHAR_KWARGS}
+        fields = {
+            "id": ID_KWARGS,
+            "name": CHAR_KWARGS,
+        }
+
+
+class StoragePathFilterSet(FilterSet):
+    class Meta:
+        model = StoragePath
+        fields = {
+            "id": ID_KWARGS,
+            "name": CHAR_KWARGS,
+            "path": CHAR_KWARGS,
+        }
 
 
 class ObjectFilter(Filter):
@@ -82,6 +108,54 @@ class TitleContentFilter(Filter):
             return qs
 
 
+class SharedByUser(Filter):
+    def filter(self, qs, value):
+        ctype = ContentType.objects.get_for_model(self.model)
+        UserObjectPermission = get_user_obj_perms_model()
+        GroupObjectPermission = get_group_obj_perms_model()
+        return (
+            qs.filter(
+                owner_id=value,
+            )
+            .annotate(
+                num_shared_users=Count(
+                    UserObjectPermission.objects.filter(
+                        content_type=ctype,
+                        object_pk=Cast(OuterRef("pk"), CharField()),
+                    ).values("user_id"),
+                ),
+            )
+            .annotate(
+                num_shared_groups=Count(
+                    GroupObjectPermission.objects.filter(
+                        content_type=ctype,
+                        object_pk=Cast(OuterRef("pk"), CharField()),
+                    ).values("group_id"),
+                ),
+            )
+            .filter(
+                Q(num_shared_users__gt=0) | Q(num_shared_groups__gt=0),
+            )
+            if value is not None
+            else qs
+        )
+
+
+class CustomFieldsFilter(Filter):
+    def filter(self, qs, value):
+        if value:
+            return (
+                qs.filter(custom_fields__field__name__icontains=value)
+                | qs.filter(custom_fields__value_text__icontains=value)
+                | qs.filter(custom_fields__value_bool__icontains=value)
+                | qs.filter(custom_fields__value_int__icontains=value)
+                | qs.filter(custom_fields__value_date__icontains=value)
+                | qs.filter(custom_fields__value_url__icontains=value)
+            )
+        else:
+            return qs
+
+
 class DocumentFilterSet(FilterSet):
     is_tagged = BooleanFilter(
         label="Is tagged",
@@ -108,9 +182,14 @@ class DocumentFilterSet(FilterSet):
 
     owner__id__none = ObjectFilter(field_name="owner", exclude=True)
 
+    custom_fields__icontains = CustomFieldsFilter()
+
+    shared_by__id = SharedByUser()
+
     class Meta:
         model = Document
         fields = {
+            "id": ID_KWARGS,
             "title": CHAR_KWARGS,
             "content": CHAR_KWARGS,
             "archive_serial_number": INT_KWARGS,
@@ -132,6 +211,7 @@ class DocumentFilterSet(FilterSet):
             "storage_path__name": CHAR_KWARGS,
             "owner": ["isnull"],
             "owner__id": ID_KWARGS,
+            "custom_fields": ["icontains"],
         }
 
 
@@ -139,15 +219,6 @@ class LogFilterSet(FilterSet):
     class Meta:
         model = Log
         fields = {"level": INT_KWARGS, "created": DATE_KWARGS, "group": ID_KWARGS}
-
-
-class StoragePathFilterSet(FilterSet):
-    class Meta:
-        model = StoragePath
-        fields = {
-            "name": CHAR_KWARGS,
-            "path": CHAR_KWARGS,
-        }
 
 
 class ShareLinkFilterSet(FilterSet):

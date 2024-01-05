@@ -39,6 +39,7 @@ import { NgxFileDropModule } from 'ngx-file-drop'
 import { TextComponent } from './components/common/input/text/text.component'
 import { SelectComponent } from './components/common/input/select/select.component'
 import { CheckComponent } from './components/common/input/check/check.component'
+import { UrlComponent } from './components/common/input/url/url.component'
 import { PasswordComponent } from './components/common/input/password/password.component'
 import { SaveViewConfigDialogComponent } from './components/document-list/save-view-config-dialog/save-view-config-dialog.component'
 import { TagsComponent } from './components/common/input/tags/tags.component'
@@ -50,7 +51,6 @@ import { SavedViewWidgetComponent } from './components/dashboard/widgets/saved-v
 import { StatisticsWidgetComponent } from './components/dashboard/widgets/statistics-widget/statistics-widget.component'
 import { UploadFileWidgetComponent } from './components/dashboard/widgets/upload-file-widget/upload-file-widget.component'
 import { WidgetFrameComponent } from './components/dashboard/widgets/widget-frame/widget-frame.component'
-import { PdfViewerModule } from 'ng2-pdf-viewer'
 import { WelcomeWidgetComponent } from './components/dashboard/widgets/welcome-widget/welcome-widget.component'
 import { YesNoPipe } from './pipes/yes-no.pipe'
 import { FileSizePipe } from './pipes/file-size.pipe'
@@ -95,16 +95,26 @@ import { UsernamePipe } from './pipes/username.pipe'
 import { LogoComponent } from './components/common/logo/logo.component'
 import { IsNumberPipe } from './pipes/is-number.pipe'
 import { ShareLinksDropdownComponent } from './components/common/share-links-dropdown/share-links-dropdown.component'
-import { ConsumptionTemplatesComponent } from './components/manage/consumption-templates/consumption-templates.component'
-import { ConsumptionTemplateEditDialogComponent } from './components/common/edit-dialog/consumption-template-edit-dialog/consumption-template-edit-dialog.component'
+import { WorkflowsComponent } from './components/manage/workflows/workflows.component'
+import { WorkflowEditDialogComponent } from './components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component'
 import { MailComponent } from './components/manage/mail/mail.component'
 import { UsersAndGroupsComponent } from './components/admin/users-groups/users-groups.component'
-import { DndModule } from 'ngx-drag-drop'
+import { DragDropModule } from '@angular/cdk/drag-drop'
 import { FileDropComponent } from './components/file-drop/file-drop.component'
+import { CustomFieldsComponent } from './components/manage/custom-fields/custom-fields.component'
+import { CustomFieldEditDialogComponent } from './components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component'
+import { CustomFieldsDropdownComponent } from './components/common/custom-fields-dropdown/custom-fields-dropdown.component'
+import { ProfileEditDialogComponent } from './components/common/profile-edit-dialog/profile-edit-dialog.component'
+import { PdfViewerComponent } from './components/common/pdf-viewer/pdf-viewer.component'
+import { DocumentLinkComponent } from './components/common/input/document-link/document-link.component'
+import { PreviewPopupComponent } from './components/common/preview-popup/preview-popup.component'
+import { SwitchComponent } from './components/common/input/switch/switch.component'
+import { ConfigComponent } from './components/admin/config/config.component'
 
 import localeAf from '@angular/common/locales/af'
 import localeAr from '@angular/common/locales/ar'
 import localeBe from '@angular/common/locales/be'
+import localeBg from '@angular/common/locales/bg'
 import localeCa from '@angular/common/locales/ca'
 import localeCs from '@angular/common/locales/cs'
 import localeDa from '@angular/common/locales/da'
@@ -114,6 +124,7 @@ import localeEnGb from '@angular/common/locales/en-GB'
 import localeEs from '@angular/common/locales/es'
 import localeFi from '@angular/common/locales/fi'
 import localeFr from '@angular/common/locales/fr'
+import localeHu from '@angular/common/locales/hu'
 import localeIt from '@angular/common/locales/it'
 import localeLb from '@angular/common/locales/lb'
 import localeNl from '@angular/common/locales/nl'
@@ -133,6 +144,7 @@ import localeZh from '@angular/common/locales/zh'
 registerLocaleData(localeAf)
 registerLocaleData(localeAr)
 registerLocaleData(localeBe)
+registerLocaleData(localeBg)
 registerLocaleData(localeCa)
 registerLocaleData(localeCs)
 registerLocaleData(localeDa)
@@ -142,6 +154,7 @@ registerLocaleData(localeEnGb)
 registerLocaleData(localeEs)
 registerLocaleData(localeFi)
 registerLocaleData(localeFr)
+registerLocaleData(localeHu)
 registerLocaleData(localeIt)
 registerLocaleData(localeLb)
 registerLocaleData(localeNl)
@@ -198,6 +211,7 @@ function initializeApp(settings: SettingsService) {
     TextComponent,
     SelectComponent,
     CheckComponent,
+    UrlComponent,
     PasswordComponent,
     SaveViewConfigDialogComponent,
     TagsComponent,
@@ -239,11 +253,20 @@ function initializeApp(settings: SettingsService) {
     LogoComponent,
     IsNumberPipe,
     ShareLinksDropdownComponent,
-    ConsumptionTemplatesComponent,
-    ConsumptionTemplateEditDialogComponent,
+    WorkflowsComponent,
+    WorkflowEditDialogComponent,
     MailComponent,
     UsersAndGroupsComponent,
     FileDropComponent,
+    CustomFieldsComponent,
+    CustomFieldEditDialogComponent,
+    CustomFieldsDropdownComponent,
+    ProfileEditDialogComponent,
+    PdfViewerComponent,
+    DocumentLinkComponent,
+    PreviewPopupComponent,
+    SwitchComponent,
+    ConfigComponent,
   ],
   imports: [
     BrowserModule,
@@ -253,11 +276,10 @@ function initializeApp(settings: SettingsService) {
     FormsModule,
     ReactiveFormsModule,
     NgxFileDropModule,
-    PdfViewerModule,
     NgSelectModule,
     ColorSliderModule,
     TourNgBootstrapModule,
-    DndModule,
+    DragDropModule,
   ],
   providers: [
     {

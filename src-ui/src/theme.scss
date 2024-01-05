@@ -15,6 +15,7 @@ $color-mode-type: data;
   --bs-primary: hsl(var(--pngx-primary), var(--pngx-primary-lightness));
   --bs-border-color: var(--bs-gray-400);
   --pngx-primary-faded: hsl(var(--pngx-primary), calc(var(--pngx-primary-lightness) + 76%));
+  --pngx-primary-lighten-10: hsl(var(--pngx-primary), calc(var(--pngx-primary-lightness) + 10%));
   --pngx-primary-lighten-30: hsl(var(--pngx-primary), calc(var(--pngx-primary-lightness) + 30%));
   --pngx-primary-darken-5: hsl(var(--pngx-primary), calc(var(--pngx-primary-lightness) - 5%));
   --pngx-primary-darken-15: hsl(var(--pngx-primary), calc(var(--pngx-primary-lightness) - 15%));
@@ -56,9 +57,14 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
   --pngx-primary-text-contrast: #{$text-color-dark-bg} !important;
 }
 
+.text-primary-contrast {
+  color: var(--pngx-primary-text-contrast);
+}
+
 // Dark mode
 @mixin paperless-green-dark-mode {
   --pngx-primary-lightness: 31%;
+  --bs-primary: hsl(var(--pngx-primary),var(--pngx-primary-lightness));
 }
 
 @mixin dark-mode {
@@ -78,6 +84,7 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
   --pngx-primary-faded: var(--pngx-primary-darken-15);
   --pngx-primary-text-contrast: var(--bs-body-color);
   --bs-dark-border-subtle: var(--pngx-bg-darker);
+  --bs-border-color-translucent: rgba(0, 0, 0, .175); // override bs
 
   .text-dark, .text-light {
     color: var(--bs-body-color) !important;
@@ -140,10 +147,15 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
 
   .card {
     background-color: var(--bs-body-bg);
+    --bs-card-cap-bg: var(--bs-body-bg-rgb);
 
     .card-header {
       background-color: rgba(0, 0, 0, 0.12);
     }
+  }
+
+  .row-cols-paperless-cards .card {
+    --bs-border-color-translucent: rgba(0, 0, 0, .3);
   }
 
   .modal-content, .modal-header, .modal-body, .modal-footer {
@@ -225,8 +237,8 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
   }
 
   .alert-primary {
-    --bs-alert-color: var(--pngx-primary-text-contrast);
-    --bs-alert-bg: var(--pngx-primary-darken-27);
+    --bs-alert-color: var(--bs-primary);
+    --bs-alert-bg: var(--pngx-primary-darken-18);
     --bs-alert-border-color: var(--pngx-bg-darker);
   }
 
@@ -248,12 +260,11 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
     filter: invert(1) grayscale(100%) brightness(200%);
   }
 
-  .toast, .toast-header {
-    background-color: hsla(var(--pngx-primary), calc(var(--pngx-primary-lightness) - 15%), 0.8);
+  .toast {
+    background-color: hsla(var(--pngx-primary), calc(var(--pngx-primary-lightness) - 15%), 0.9);
   }
 
   .toast,
-  .toast .toast-header,
   .toast .btn,
   .toast .btn-close {
     color: var(--pngx-primary-text-contrast);
@@ -277,6 +288,10 @@ $form-check-radio-checked-bg-image-dark: url("data:image/svg+xml,<svg xmlns='htt
     .bg-secondary {
       background-color: rgb(var(--bs-dark-rgb)) !important;
     }
+  }
+
+  .tooltip {
+    --bs-tooltip-bg: #000;
   }
 }
 

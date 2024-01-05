@@ -7,6 +7,8 @@ import tqdm
 from django.core.management import BaseCommand
 from django.core.management import CommandError
 
+from documents.management.commands.mixins import MultiProcessMixin
+from documents.management.commands.mixins import ProgressBarMixin
 from documents.models import Document
 
 
@@ -41,7 +43,7 @@ def _process_and_match(work: _WorkPackage) -> _WorkResult:
     return _WorkResult(work.first_doc.pk, work.second_doc.pk, match)
 
 
-class Command(BaseCommand):
+class Command(MultiProcessMixin, ProgressBarMixin, BaseCommand):
     help = "Searches for documents where the content almost matches"
 
     def add_arguments(self, parser):
@@ -52,21 +54,27 @@ class Command(BaseCommand):
             help="Ratio to consider documents a match",
         )
         parser.add_argument(
-            "--processes",
-            default=4,
-            type=int,
-            help="Number of processes to distribute work amongst",
-        )
-        parser.add_argument(
-            "--no-progress-bar",
+            "--delete",
             default=False,
             action="store_true",
-            help="If set, the progress bar will not be shown",
+            help="If set, one document of matches above the ratio WILL BE DELETED",
         )
+        self.add_argument_progress_bar_mixin(parser)
+        self.add_argument_processes_mixin(parser)
 
     def handle(self, *args, **options):
         RATIO_MIN: Final[float] = 0.0
         RATIO_MAX: Final[float] = 100.0
+
+        self.handle_processes_mixin(**options)
+        self.handle_progress_bar_mixin(**options)
+
+        if options["delete"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    "The command is configured to delete documents.  Use with caution",
+                ),
+            )
 
         opt_ratio = options["ratio"]
         checked_pairs: set[tuple[int, int]] = set()
@@ -75,9 +83,6 @@ class Command(BaseCommand):
         # Ratio is a float from 0.0 to 100.0
         if opt_ratio < RATIO_MIN or opt_ratio > RATIO_MAX:
             raise CommandError("The ratio must be between 0 and 100")
-
-        if options["processes"] < 1:
-            raise CommandError("There must be at least 1 process")
 
         all_docs = Document.objects.all().order_by("id")
 
@@ -89,34 +94,32 @@ class Command(BaseCommand):
                     continue
                 # Skip matching which have already been matched together
                 # doc 1 to doc 2 is the same as doc 2 to doc 1
-                if (first_doc.pk, second_doc.pk) in checked_pairs or (
-                    second_doc.pk,
-                    first_doc.pk,
-                ) in checked_pairs:
+                doc_1_to_doc_2 = (first_doc.pk, second_doc.pk)
+                doc_2_to_doc_1 = doc_1_to_doc_2[::-1]
+                if doc_1_to_doc_2 in checked_pairs or doc_2_to_doc_1 in checked_pairs:
                     continue
-                checked_pairs.update(
-                    [(first_doc.pk, second_doc.pk), (second_doc.pk, first_doc.pk)],
-                )
-
+                checked_pairs.update([doc_1_to_doc_2, doc_2_to_doc_1])
+                # Actually something useful to work on now
                 work_pkgs.append(_WorkPackage(first_doc, second_doc))
 
         # Don't spin up a pool of 1 process
-        if options["processes"] == 1:
+        if self.process_count == 1:
             results = []
-            for work in tqdm.tqdm(work_pkgs, disable=options["no_progress_bar"]):
+            for work in tqdm.tqdm(work_pkgs, disable=self.no_progress_bar):
                 results.append(_process_and_match(work))
-        else:
-            with multiprocessing.Pool(processes=options["processes"]) as pool:
+        else:  # pragma: no cover
+            with multiprocessing.Pool(processes=self.process_count) as pool:
                 results = list(
                     tqdm.tqdm(
                         pool.imap_unordered(_process_and_match, work_pkgs),
                         total=len(work_pkgs),
-                        disable=options["no_progress_bar"],
+                        disable=self.no_progress_bar,
                     ),
                 )
 
         # Check results
         messages = []
+        maybe_delete_ids = []
         for result in sorted(results):
             if result.ratio >= opt_ratio:
                 messages.append(
@@ -125,6 +128,7 @@ class Command(BaseCommand):
                         f" to {result.doc_two_pk} (confidence {result.ratio:.3f})",
                     ),
                 )
+                maybe_delete_ids.append(result.doc_two_pk)
 
         if len(messages) == 0:
             messages.append(
@@ -133,3 +137,10 @@ class Command(BaseCommand):
         self.stdout.writelines(
             messages,
         )
+        if options["delete"]:
+            self.stdout.write(
+                self.style.NOTICE(
+                    f"Deleting {len(maybe_delete_ids)} documents based on ratio matches",
+                ),
+            )
+            Document.objects.filter(pk__in=maybe_delete_ids).delete()

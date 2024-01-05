@@ -1,5 +1,5 @@
 import { SettingsService } from './services/settings.service'
-import { SETTINGS_KEYS } from './data/paperless-uisettings'
+import { SETTINGS_KEYS } from './data/ui-settings'
 import { Component, OnDestroy, OnInit, Renderer2 } from '@angular/core'
 import { Router } from '@angular/router'
 import { Subscription, first } from 'rxjs'
@@ -33,8 +33,6 @@ export class AppComponent implements OnInit, OnDestroy {
     private renderer: Renderer2,
     private permissionsService: PermissionsService
   ) {
-    let anyWindow = window as any
-    anyWindow.pdfWorkerSrc = 'assets/js/pdf.worker.min.js'
     this.settings.updateAppearanceSettings()
   }
 
@@ -80,9 +78,8 @@ export class AppComponent implements OnInit, OnDestroy {
             )
           ) {
             this.toastService.show({
-              title: $localize`Document added`,
+              content: $localize`Document ${status.filename} was added to Paperless-ngx.`,
               delay: 10000,
-              content: $localize`Document ${status.filename} was added to paperless.`,
               actionName: $localize`Open document`,
               action: () => {
                 this.router.navigate(['documents', status.documentId])
@@ -90,9 +87,8 @@ export class AppComponent implements OnInit, OnDestroy {
             })
           } else {
             this.toastService.show({
-              title: $localize`Document added`,
+              content: $localize`Document ${status.filename} was added to Paperless-ngx.`,
               delay: 10000,
-              content: $localize`Document ${status.filename} was added to paperless.`,
             })
           }
         }
@@ -121,9 +117,8 @@ export class AppComponent implements OnInit, OnDestroy {
           )
         ) {
           this.toastService.show({
-            title: $localize`New document detected`,
+            content: $localize`Document ${status.filename} is being processed by Paperless-ngx.`,
             delay: 5000,
-            content: $localize`Document ${status.filename} is being processed by paperless.`,
           })
         }
       })
@@ -181,9 +176,9 @@ export class AppComponent implements OnInit, OnDestroy {
           },
         },
         {
-          anchorId: 'tour.consumption-templates',
-          content: $localize`Consumption templates give you finer control over the document ingestion process.`,
-          route: '/templates',
+          anchorId: 'tour.workflows',
+          content: $localize`Workflows give you more control over the document pipeline.`,
+          route: '/workflows',
           backdropConfig: {
             offset: 0,
           },

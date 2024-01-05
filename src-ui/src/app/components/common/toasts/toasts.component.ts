@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core'
-import { Subscription } from 'rxjs'
+import { Subscription, interval, take } from 'rxjs'
 import { Toast, ToastService } from 'src/app/services/toast.service'
-import { ClipboardService } from 'ngx-clipboard'
+import { Clipboard } from '@angular/cdk/clipboard'
 
 @Component({
   selector: 'pngx-toasts',
@@ -10,8 +10,8 @@ import { ClipboardService } from 'ngx-clipboard'
 })
 export class ToastsComponent implements OnInit, OnDestroy {
   constructor(
-    private toastService: ToastService,
-    private clipboardService: ClipboardService
+    public toastService: ToastService,
+    private clipboard: Clipboard
   ) {}
 
   private subscription: Subscription
@@ -19,6 +19,8 @@ export class ToastsComponent implements OnInit, OnDestroy {
   public toasts: Toast[] = []
 
   public copied: boolean = false
+
+  public seconds: number = 0
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe()
@@ -37,6 +39,20 @@ export class ToastsComponent implements OnInit, OnDestroy {
     })
   }
 
+  onShow(toast: Toast) {
+    const refreshInterval = 150
+    const delay = toast.delay - 500 // for fade animation
+
+    interval(refreshInterval)
+      .pipe(take(delay / refreshInterval))
+      .subscribe((count) => {
+        toast.delayRemaining = Math.max(
+          0,
+          delay - refreshInterval * (count + 1)
+        )
+      })
+  }
+
   public isDetailedError(error: any): boolean {
     return (
       typeof error === 'object' &&
@@ -49,7 +65,7 @@ export class ToastsComponent implements OnInit, OnDestroy {
   }
 
   public copyError(error: any) {
-    this.clipboardService.copy(JSON.stringify(error))
+    this.clipboard.copy(JSON.stringify(error))
     this.copied = true
     setTimeout(() => {
       this.copied = false
