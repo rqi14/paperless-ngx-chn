@@ -319,7 +319,7 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSION": "1",
     # Make sure these are ordered and that the most recent version appears
     # last
-    "ALLOWED_VERSIONS": ["1", "2", "3"],
+    "ALLOWED_VERSIONS": ["1", "2", "3", "4"],
 }
 
 if DEBUG:
@@ -367,6 +367,7 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": _static_backend,
     },
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
 }
 
 _CELERY_REDIS_URL, _CHANNELS_REDIS_URL = _parse_redis_url(
@@ -419,18 +420,30 @@ if AUTO_LOGIN_USERNAME:
     # regular login in case the provided user does not exist.
     MIDDLEWARE.insert(_index + 1, "paperless.auth.AutoLoginMiddleware")
 
-ENABLE_HTTP_REMOTE_USER = __get_boolean("PAPERLESS_ENABLE_HTTP_REMOTE_USER")
-HTTP_REMOTE_USER_HEADER_NAME = os.getenv(
-    "PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME",
-    "HTTP_REMOTE_USER",
-)
 
-if ENABLE_HTTP_REMOTE_USER:
-    MIDDLEWARE.append("paperless.auth.HttpRemoteUserMiddleware")
-    AUTHENTICATION_BACKENDS.insert(0, "django.contrib.auth.backends.RemoteUserBackend")
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].append(
-        "rest_framework.authentication.RemoteUserAuthentication",
+def _parse_remote_user_settings() -> str:
+    global MIDDLEWARE, AUTHENTICATION_BACKENDS, REST_FRAMEWORK
+    enable = __get_boolean("PAPERLESS_ENABLE_HTTP_REMOTE_USER")
+    if enable:
+        MIDDLEWARE.append("paperless.auth.HttpRemoteUserMiddleware")
+        AUTHENTICATION_BACKENDS.insert(
+            0,
+            "django.contrib.auth.backends.RemoteUserBackend",
+        )
+        REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
+            0,
+            "paperless.auth.PaperlessRemoteUserAuthentication",
+        )
+
+    header_name = os.getenv(
+        "PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME",
+        "HTTP_REMOTE_USER",
     )
+
+    return header_name
+
+
+HTTP_REMOTE_USER_HEADER_NAME = _parse_remote_user_settings()
 
 # X-Frame options for embedded PDF display:
 X_FRAME_OPTIONS = "ANY" if DEBUG else "SAMEORIGIN"
@@ -499,8 +512,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Disable Django's artificial limit on the number of form fields to submit at
 # once. This is a protection against overloading the server, but since this is
-# a self-hosted sort of gig, the benefits of being able to mass-delete a tonne
-# of log entries outweight the benefits of such a safeguard.
+# a self-hosted sort of gig, the benefits of being able to mass-delete a ton
+# of log entries outweigh the benefits of such a safeguard.
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 
@@ -998,6 +1011,9 @@ if os.getenv("PAPERLESS_IGNORE_DATES") is not None:
 ENABLE_UPDATE_CHECK = os.getenv("PAPERLESS_ENABLE_UPDATE_CHECK", "default")
 if ENABLE_UPDATE_CHECK != "default":
     ENABLE_UPDATE_CHECK = __get_boolean("PAPERLESS_ENABLE_UPDATE_CHECK")
+
+APP_TITLE = os.getenv("PAPERLESS_APP_TITLE", None)
+APP_LOGO = os.getenv("PAPERLESS_APP_LOGO", None)
 
 ###############################################################################
 # Machine Learning                                                            #

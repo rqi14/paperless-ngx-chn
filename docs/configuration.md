@@ -4,9 +4,9 @@ Paperless provides a wide range of customizations. Depending on how you
 run paperless, these settings have to be defined in different places.
 
 Certain configuration options may be set via the UI. This currently includes
-common [OCR](#ocr) related settings. If set, these will take preference over the
-settings via environment variables. If not set, the environment setting or applicable
-default will be utilized instead.
+common [OCR](#ocr) related settings and some frontend settings. If set, these will take
+preference over the settings via environment variables. If not set, the environment setting
+or applicable default will be utilized instead.
 
 - If you run paperless on docker, `paperless.conf` is not used.
   Rather, configure paperless by copying necessary options to
@@ -665,11 +665,13 @@ completely.
 
     Specifying 1 here will only use the first page.
 
+    The value must be greater than or equal to 1 to be used.
+
     When combined with `PAPERLESS_OCR_MODE=redo` or
     `PAPERLESS_OCR_MODE=force`, paperless will not modify any text it
     finds on excluded pages and copy it verbatim.
 
-    Defaults to 0, which disables this feature and always uses all
+    Defaults to unset, which disables this feature and always uses all
     pages.
 
 #### [`PAPERLESS_OCR_IMAGE_DPI=<num>`](#PAPERLESS_OCR_IMAGE_DPI) {#PAPERLESS_OCR_IMAGE_DPI}
@@ -683,7 +685,7 @@ fails, it uses this value as a fallback.
 
     Set this to the DPI your scanner produces images at.
 
-    Default is none, which will automatically calculate image DPI so
+    Defaults to unset, which will automatically calculate image DPI so
     that the produced PDF documents are A4 sized.
 
 #### [`PAPERLESS_OCR_MAX_IMAGE_PIXELS=<num>`](#PAPERLESS_OCR_MAX_IMAGE_PIXELS) {#PAPERLESS_OCR_MAX_IMAGE_PIXELS}
@@ -1315,6 +1317,10 @@ specified as "chi-tra".
 
     Defaults to none, which does not install any additional languages.
 
+    !!! warning
+
+         This option must not be used in rootless containers.
+
 #### [`PAPERLESS_ENABLE_FLOWER=<defined>`](#PAPERLESS_ENABLE_FLOWER) {#PAPERLESS_ENABLE_FLOWER}
 
 : If this environment variable is defined, the Celery monitoring tool
@@ -1323,7 +1329,15 @@ started by the container.
 
     You can read more about this in the [advanced documentation](advanced_usage.md#celery-monitoring).
 
-## Update Checking {#update-checking}
+## Frontend Settings
+
+#### [`PAPERLESS_APP_TITLE=<bool>`](#PAPERLESS_APP_TITLE) {#PAPERLESS_APP_TITLE}
+
+: If set, overrides the default name "Paperless-ngx"
+
+#### [`PAPERLESS_APP_LOGO=<path>`](#PAPERLESS_APP_LOGO) {#PAPERLESS_APP_LOGO}
+
+: Path to an image file in the /media/logo directory, must include 'logo', e.g. `/logo/Atari_logo.svg`
 
 #### [`PAPERLESS_ENABLE_UPDATE_CHECK=<bool>`](#PAPERLESS_ENABLE_UPDATE_CHECK) {#PAPERLESS_ENABLE_UPDATE_CHECK}
 

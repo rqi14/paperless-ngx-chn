@@ -33,7 +33,7 @@ from documents.utils import copy_file_with_basic_stats
 # - XX MON ZZZZ with XX being 1 or 2 and ZZZZ being 4 digits. MONTH is 3 letters
 # - XXPP MONTH ZZZZ with XX being 1 or 2 and PP being 2 letters and ZZZZ being 4 digits
 
-# TODO: isnt there a date parsing library for this?
+# TODO: isn't there a date parsing library for this?
 
 DATE_REGEX = re.compile(
     r"(\b|(?!=([_-])))([0-9]{1,2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{4}|[0-9]{2})(\b|(?=([_-])))|"
@@ -112,8 +112,6 @@ def get_parser_class_for_mime_type(mime_type: str) -> Optional[type["DocumentPar
     """
 
     options = []
-
-    # Sein letzter Befehl war: KOMMT! Und sie kamen. Alle. Sogar die Parser.
 
     for response in document_consumer_declaration.send(None):
         parser_declaration = response[1]
@@ -322,7 +320,9 @@ class DocumentParser(LoggingMixin):
         self.logging_group = logging_group
         self.settings = self.get_settings()
         os.makedirs(settings.SCRATCH_DIR, exist_ok=True)
-        self.tempdir = tempfile.mkdtemp(prefix="paperless-", dir=settings.SCRATCH_DIR)
+        self.tempdir = Path(
+            tempfile.mkdtemp(prefix="paperless-", dir=settings.SCRATCH_DIR),
+        )
 
         self.archive_path = None
         self.text = None

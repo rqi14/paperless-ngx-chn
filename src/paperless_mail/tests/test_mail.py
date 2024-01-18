@@ -118,7 +118,7 @@ class BogusMailBox(AbstractContextManager):
         if username != self.USERNAME or access_token != self.ACCESS_TOKEN:
             raise MailboxLoginError("BAD", "OK")
 
-    def fetch(self, criteria, mark_seen, charset=""):
+    def fetch(self, criteria, mark_seen, charset="", bulk=True):
         msg = self.messages
 
         criteria = str(criteria).strip("()").split(" ")
@@ -223,7 +223,7 @@ class TestMail(
         attachments: Union[int, list[_AttachmentDef]] = 1,
         body: str = "",
         subject: str = "the subject",
-        from_: str = "noone@mail.com",
+        from_: str = "no_one@mail.com",
         to: Optional[list[str]] = None,
         seen: bool = False,
         flagged: bool = False,

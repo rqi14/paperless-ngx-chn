@@ -96,7 +96,7 @@ steps described in [Docker setup](#docker_hub) automatically.
     - /home/jonaswinkler/paperless-inbox:/usr/src/paperless/consume
     ```
 
-    Don't change the part after the colon or paperless wont find your
+    Don't change the part after the colon or paperless won't find your
     documents.
 
     You may also need to change the default port that the webserver will
@@ -120,6 +120,10 @@ steps described in [Docker setup](#docker_hub) automatically.
     port.
 
     **Rootless**
+
+    !!! warning
+
+        It is currently not possible to run the container rootless if additional languages are specified via `PAPERLESS_OCR_LANGUAGES`.
 
     If you want to run Paperless as a rootless container, you will need
     to do the following in your `docker-compose.yml`:

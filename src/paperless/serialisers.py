@@ -1,9 +1,13 @@
+import logging
+
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from paperless.models import ApplicationConfiguration
+
+logger = logging.getLogger("paperless.settings")
 
 
 class ObfuscatedUserPasswordField(serializers.Field):
@@ -118,6 +122,21 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ApplicationConfigurationSerializer(serializers.ModelSerializer):
+    user_args = serializers.JSONField(binary=True, allow_null=True)
+
+    def run_validation(self, data):
+        # Empty strings treated as None to avoid unexpected behavior
+        if "user_args" in data and data["user_args"] == "":
+            data["user_args"] = None
+        if "language" in data and data["language"] == "":
+            data["language"] = None
+        return super().run_validation(data)
+
+    def update(self, instance, validated_data):
+        if instance.app_logo and "app_logo" in validated_data:
+            instance.app_logo.delete()
+        return super().update(instance, validated_data)
+
     class Meta:
         model = ApplicationConfiguration
         fields = "__all__"

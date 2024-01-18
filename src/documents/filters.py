@@ -12,6 +12,7 @@ from guardian.utils import get_user_obj_perms_model
 from rest_framework_guardian.filters import ObjectPermissionsFilter
 
 from documents.models import Correspondent
+from documents.models import CustomField
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Log
@@ -113,6 +114,8 @@ class SharedByUser(Filter):
         ctype = ContentType.objects.get_for_model(self.model)
         UserObjectPermission = get_user_obj_perms_model()
         GroupObjectPermission = get_group_obj_perms_model()
+        # see https://github.com/paperless-ngx/paperless-ngx/issues/5392, we limit subqueries
+        # to 1 because Postgres doesn't like returning > 1 row, but all we care about is > 0
         return (
             qs.filter(
                 owner_id=value,
@@ -122,7 +125,7 @@ class SharedByUser(Filter):
                     UserObjectPermission.objects.filter(
                         content_type=ctype,
                         object_pk=Cast(OuterRef("pk"), CharField()),
-                    ).values("user_id"),
+                    ).values("user_id")[:1],
                 ),
             )
             .annotate(
@@ -130,7 +133,7 @@ class SharedByUser(Filter):
                     GroupObjectPermission.objects.filter(
                         content_type=ctype,
                         object_pk=Cast(OuterRef("pk"), CharField()),
-                    ).values("group_id"),
+                    ).values("group_id")[:1],
                 ),
             )
             .filter(
@@ -139,6 +142,15 @@ class SharedByUser(Filter):
             if value is not None
             else qs
         )
+
+
+class CustomFieldFilterSet(FilterSet):
+    class Meta:
+        model = CustomField
+        fields = {
+            "id": ID_KWARGS,
+            "name": CHAR_KWARGS,
+        }
 
 
 class CustomFieldsFilter(Filter):

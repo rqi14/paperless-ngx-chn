@@ -2,12 +2,15 @@
   <div class="row">
     @if (!horizontal) {
       <div class="d-flex align-items-center position-relative hidden-button-container col-md-3">
-        <label class="form-label" [for]="inputId">{{title}}</label>
+        <label class="form-label" [for]="inputId" [ngbTooltip]="showUnsetNote && isUnset ? tipContent: null" placement="end">
+          {{title}}
+          @if (showUnsetNote && isUnset) {
+            <i-bs width="0.9em" height="0.9em" name="exclamation-triangle"></i-bs>
+          }
+        </label>
         @if (removable) {
           <button type="button" class="btn btn-sm btn-danger position-absolute left-0" (click)="removed.emit(this)">
-            <svg class="sidebaricon" fill="currentColor">
-              <use xlink:href="assets/bootstrap-icons.svg#x"/>
-            </svg>&nbsp;<ng-container i18n>Remove</ng-container>
+            <i-bs  name="x"></i-bs>&nbsp;<ng-container i18n>Remove</ng-container>
           </button>
         }
       </div>
@@ -16,7 +19,12 @@
       <div class="form-check form-switch">
         <input #inputField type="checkbox" class="form-check-input" [id]="inputId" [(ngModel)]="value" (change)="onChange(value)" (blur)="onTouched()" [disabled]="disabled">
         @if (horizontal) {
-          <label class="form-check-label" [for]="inputId">{{title}}</label>
+          <label class="form-check-label" [class.text-muted]="showUnsetNote && isUnset" [for]="inputId" [ngbTooltip]="showUnsetNote && isUnset ? tipContent: null" placement="end">
+            {{title}}
+            @if (showUnsetNote && isUnset) {
+              &nbsp;<i-bs width="0.9em" height="0.9em" name="exclamation-triangle"></i-bs>
+            }
+          </label>
         }
         @if (hint) {
           <div class="form-text text-muted">{{hint}}</div>
@@ -25,3 +33,8 @@
     </div>
   </div>
 </div>
+
+
+<ng-template #tipContent>
+  <span class="text-light fst-italic" i18n>Note: value has not yet been set and will not apply until explicitly changed</span>
+</ng-template>

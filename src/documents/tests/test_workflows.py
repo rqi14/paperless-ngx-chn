@@ -13,6 +13,7 @@ from documents.data_models import DocumentSource
 from documents.matching import document_matches_workflow
 from documents.models import Correspondent
 from documents.models import CustomField
+from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import MatchingModel
@@ -23,6 +24,7 @@ from documents.models import WorkflowAction
 from documents.models import WorkflowTrigger
 from documents.signals import document_consumption_finished
 from documents.tests.utils import DirectoriesMixin
+from documents.tests.utils import DummyProgressManager
 from documents.tests.utils import FileSystemAssertsMixin
 from paperless_mail.models import MailAccount
 from paperless_mail.models import MailRule
@@ -125,7 +127,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="INFO") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -202,7 +204,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
         w.save()
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="INFO") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -293,7 +295,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="INFO") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -323,6 +325,53 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
         self.assertIn(expected_str, cm.output[0])
         expected_str = f"Document matched {trigger2} from {w2}"
         self.assertIn(expected_str, cm.output[1])
+
+    @mock.patch("documents.consumer.Consumer.try_consume_file")
+    def test_workflow_fnmatch_path(self, m):
+        """
+        GIVEN:
+            - Existing workflow
+        WHEN:
+            - File that matches using fnmatch on path is consumed
+        THEN:
+            - Template overrides are applied
+            - Note: Test was added when path matching changed from pathlib.match to fnmatch
+        """
+        trigger = WorkflowTrigger.objects.create(
+            type=WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+            sources=f"{DocumentSource.ApiUpload},{DocumentSource.ConsumeFolder},{DocumentSource.MailFetch}",
+            filter_path="*sample*",
+        )
+        action = WorkflowAction.objects.create(
+            assign_title="Doc fnmatch title",
+        )
+        action.save()
+
+        w = Workflow.objects.create(
+            name="Workflow 1",
+            order=0,
+        )
+        w.triggers.add(trigger)
+        w.actions.add(action)
+        w.save()
+
+        test_file = self.SAMPLE_DIR / "simple.pdf"
+
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
+            with self.assertLogs("paperless.matching", level="DEBUG") as cm:
+                tasks.consume_file(
+                    ConsumableDocument(
+                        source=DocumentSource.ConsumeFolder,
+                        original_file=test_file,
+                    ),
+                    None,
+                )
+                m.assert_called_once()
+                _, overrides = m.call_args
+                self.assertEqual(overrides["override_title"], "Doc fnmatch title")
+
+        expected_str = f"Document matched {trigger} from {w}"
+        self.assertIn(expected_str, cm.output[0])
 
     @mock.patch("documents.consumer.Consumer.try_consume_file")
     def test_workflow_no_match_filename(self, m):
@@ -359,7 +408,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="DEBUG") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -420,7 +469,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="DEBUG") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -481,7 +530,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="DEBUG") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -543,7 +592,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="DEBUG") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -638,7 +687,7 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
 
         test_file = self.SAMPLE_DIR / "simple.pdf"
 
-        with mock.patch("documents.tasks.async_to_sync"):
+        with mock.patch("documents.tasks.ProgressManager", DummyProgressManager):
             with self.assertLogs("paperless.matching", level="INFO") as cm:
                 tasks.consume_file(
                     ConsumableDocument(
@@ -918,6 +967,50 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
             expected_str = f"Document correspondent {doc.correspondent} does not match {trigger.filter_has_correspondent}"
             self.assertIn(expected_str, cm.output[1])
 
+    def test_document_added_invalid_title_placeholders(self):
+        """
+        GIVEN:
+            - Existing workflow with added trigger type
+            - Assign title field has an error
+        WHEN:
+            - File that matches is added
+        THEN:
+            - Title is not updated, error is output
+        """
+        trigger = WorkflowTrigger.objects.create(
+            type=WorkflowTrigger.WorkflowTriggerType.DOCUMENT_ADDED,
+            filter_filename="*sample*",
+        )
+        action = WorkflowAction.objects.create(
+            assign_title="Doc {created_year]",
+        )
+        w = Workflow.objects.create(
+            name="Workflow 1",
+            order=0,
+        )
+        w.triggers.add(trigger)
+        w.actions.add(action)
+        w.save()
+
+        now = timezone.localtime(timezone.now())
+        created = now - timedelta(weeks=520)
+        doc = Document.objects.create(
+            original_filename="sample.pdf",
+            title="sample test",
+            content="Hello world bar",
+            created=created,
+        )
+
+        with self.assertLogs("paperless.handlers", level="ERROR") as cm:
+            document_consumption_finished.send(
+                sender=self.__class__,
+                document=doc,
+            )
+            expected_str = f"Error occurred parsing title assignment '{action.assign_title}', falling back to original"
+            self.assertIn(expected_str, cm.output[0])
+
+        self.assertEqual(doc.title, "sample test")
+
     def test_document_updated_workflow(self):
         trigger = WorkflowTrigger.objects.create(
             type=WorkflowTrigger.WorkflowTriggerType.DOCUMENT_UPDATED,
@@ -938,6 +1031,47 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
             correspondent=self.c,
             original_filename="sample.pdf",
         )
+
+        superuser = User.objects.create_superuser("superuser")
+        self.client.force_authenticate(user=superuser)
+
+        self.client.patch(
+            f"/api/documents/{doc.id}/",
+            {"document_type": self.dt.id},
+            format="json",
+        )
+
+        self.assertEqual(doc.custom_fields.all().count(), 1)
+
+    def test_document_updated_workflow_existing_custom_field(self):
+        """
+        GIVEN:
+            - Existing workflow with UPDATED trigger and action that adds a custom field
+        WHEN:
+            - Document is updated that already contains the field
+        THEN:
+            - Document update succeeds without trying to re-create the field
+        """
+        trigger = WorkflowTrigger.objects.create(
+            type=WorkflowTrigger.WorkflowTriggerType.DOCUMENT_UPDATED,
+            filter_has_document_type=self.dt,
+        )
+        action = WorkflowAction.objects.create()
+        action.assign_custom_fields.add(self.cf1)
+        w = Workflow.objects.create(
+            name="Workflow 1",
+            order=0,
+        )
+        w.triggers.add(trigger)
+        w.actions.add(action)
+        w.save()
+
+        doc = Document.objects.create(
+            title="sample test",
+            correspondent=self.c,
+            original_filename="sample.pdf",
+        )
+        CustomFieldInstance.objects.create(document=doc, field=self.cf1)
 
         superuser = User.objects.create_superuser("superuser")
         self.client.force_authenticate(user=superuser)

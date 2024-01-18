@@ -11,6 +11,7 @@ import {
   NgbPaginationModule,
   NgbModalModule,
   NgbModalRef,
+  NgbPopoverModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { of, throwError } from 'rxjs'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
@@ -64,6 +65,7 @@ describe('CustomFieldsComponent', () => {
         FormsModule,
         ReactiveFormsModule,
         NgbModalModule,
+        NgbPopoverModule,
       ],
     })
 
@@ -90,7 +92,7 @@ describe('CustomFieldsComponent', () => {
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
     const reloadSpy = jest.spyOn(component, 'reload')
 
-    const createButton = fixture.debugElement.queryAll(By.css('button'))[0]
+    const createButton = fixture.debugElement.queryAll(By.css('button'))[1]
     createButton.triggerEventHandler('click')
 
     expect(modal).not.toBeUndefined()
@@ -114,7 +116,7 @@ describe('CustomFieldsComponent', () => {
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
     const reloadSpy = jest.spyOn(component, 'reload')
 
-    const editButton = fixture.debugElement.queryAll(By.css('button'))[1]
+    const editButton = fixture.debugElement.queryAll(By.css('button'))[2]
     editButton.triggerEventHandler('click')
 
     expect(modal).not.toBeUndefined()
@@ -139,7 +141,7 @@ describe('CustomFieldsComponent', () => {
     const deleteSpy = jest.spyOn(customFieldsService, 'delete')
     const reloadSpy = jest.spyOn(component, 'reload')
 
-    const deleteButton = fixture.debugElement.queryAll(By.css('button'))[3]
+    const deleteButton = fixture.debugElement.queryAll(By.css('button'))[4]
     deleteButton.triggerEventHandler('click')
 
     expect(modal).not.toBeUndefined()

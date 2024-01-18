@@ -27,10 +27,7 @@
               <div class="d-flex">
                 <p class="p-2" i18n>Trigger Workflow On:</p>
                 <button type="button" class="btn btn-sm btn-outline-primary ms-auto mb-3" (click)="addTrigger()">
-                  <svg class="sidebaricon me-1" fill="currentColor">
-                    <use xlink:href="assets/bootstrap-icons.svg#plus-circle" />
-                  </svg>
-                  <ng-container i18n>Add Trigger</ng-container>
+                  <i-bs name="plus-circle"></i-bs>&nbsp;<ng-container i18n>Add Trigger</ng-container>
                 </button>
               </div>
               <div ngbAccordion [closeOthers]="true">
@@ -42,10 +39,7 @@
                           <span class="badge bg-primary text-primary-text-contrast ms-2">ID: {{trigger.id}}</span>
                         }
                         <button type="button" class="btn btn-link text-danger ms-2" (click)="removeTrigger(i)">
-                          <svg class="sidebaricon me-1" fill="currentColor">
-                            <use xlink:href="assets/bootstrap-icons.svg#trash" />
-                          </svg>
-                          <ng-container i18n>Delete</ng-container>
+                          <i-bs name="trash"></i-bs>&nbsp;<ng-container i18n>Delete</ng-container>
                         </button>
                       </button>
                     </div>
@@ -71,10 +65,7 @@
               <div class="d-flex">
                 <p class="p-2" i18n>Apply Actions:</p>
                 <button type="button" class="btn btn-sm btn-outline-primary ms-auto mb-3" (click)="addAction()">
-                  <svg class="sidebaricon me-1" fill="currentColor">
-                    <use xlink:href="assets/bootstrap-icons.svg#plus-circle" />
-                  </svg>
-                  <ng-container i18n>Add Action</ng-container>
+                  <i-bs name="plus-circle"></i-bs>&nbsp;<ng-container i18n>Add Action</ng-container>
                 </button>
               </div>
               <div ngbAccordion [closeOthers]="true" cdkDropList (cdkDropListDropped)="onActionDrop($event)">
@@ -86,10 +77,7 @@
                           <span class="badge bg-primary text-primary-text-contrast ms-2">ID: {{action.id}}</span>
                         }
                         <button type="button" class="btn btn-link text-danger ms-2" (click)="removeAction(i)">
-                          <svg class="sidebaricon me-1" fill="currentColor">
-                            <use xlink:href="assets/bootstrap-icons.svg#trash" />
-                          </svg>
-                          <ng-container i18n>Delete</ng-container>
+                          <i-bs name="trash"></i-bs>&nbsp;<ng-container i18n>Delete</ng-container>
                         </button>
                       </button>
                     </div>
@@ -99,7 +87,7 @@
                         <input type="hidden" formControlName="id" />
                         <div class="row">
                           <div class="col">
-                            <pngx-input-text i18n-title title="Assign title" formControlName="assign_title" i18n-hint hint="Can include some placeholders, see <a target='_blank' href='https://docs.paperless-ngx.com/usage/#workflows'>documentation</a>." [error]="error?.assign_title"></pngx-input-text>
+                            <pngx-input-text i18n-title title="Assign title" formControlName="assign_title" i18n-hint hint="Can include some placeholders, see <a target='_blank' href='https://docs.paperless-ngx.com/usage/#workflows'>documentation</a>." [error]="error?.actions?.[i]?.assign_title"></pngx-input-text>
                             <pngx-input-tags [allowCreate]="false" i18n-title title="Assign tags" formControlName="assign_tags"></pngx-input-tags>
                             <pngx-input-select i18n-title title="Assign document type" [items]="documentTypes" [allowNull]="true" formControlName="assign_document_type"></pngx-input-select>
                             <pngx-input-select i18n-title title="Assign correspondent" [items]="correspondents" [allowNull]="true" formControlName="assign_correspondent"></pngx-input-select>
@@ -182,7 +170,7 @@
         <pngx-input-text i18n-title title="Filter filename" formControlName="filter_filename" i18n-hint hint="Apply to documents that match this filename. Wildcards such as *.pdf or *invoice* are allowed. Case insensitive." [error]="error?.filter_filename"></pngx-input-text>
         @if (formGroup.get('type').value === WorkflowTriggerType.Consumption) {
           <pngx-input-select i18n-title title="Filter sources" [items]="sourceOptions" [multiple]="true" formControlName="sources" [error]="error?.sources"></pngx-input-select>
-          <pngx-input-text i18n-title title="Filter path" formControlName="filter_path" i18n-hint hint="Apply to documents that match this path. Wildcards specified as * are allowed. Case insensitive.</a>" [error]="error?.filter_path"></pngx-input-text>
+          <pngx-input-text i18n-title title="Filter path" formControlName="filter_path" i18n-hint hint="Apply to documents that match this path. Wildcards specified as * are allowed. Case-normalized.</a>" [error]="error?.filter_path"></pngx-input-text>
           <pngx-input-select i18n-title title="Filter mail rule" [items]="mailRules" [allowNull]="true" formControlName="filter_mailrule" i18n-hint hint="Apply to documents consumed via this mail rule." [error]="error?.filter_mailrule"></pngx-input-select>
         }
         @if (formGroup.get('type').value === WorkflowTriggerType.DocumentAdded || formGroup.get('type').value === WorkflowTriggerType.DocumentUpdated) {

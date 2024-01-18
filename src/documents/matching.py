@@ -296,7 +296,10 @@ def consumable_document_matches_workflow(
     if (
         trigger.filter_path is not None
         and len(trigger.filter_path) > 0
-        and not document.original_file.match(trigger.filter_path)
+        and not fnmatch(
+            document.original_file,
+            trigger.filter_path,
+        )
     ):
         reason = (
             f"Document path {document.original_file}"
@@ -342,7 +345,7 @@ def existing_document_matches_workflow(
         )
         trigger_matched = False
 
-    # Document correpondent vs trigger has_correspondent
+    # Document correspondent vs trigger has_correspondent
     if (
         trigger.filter_has_correspondent is not None
         and document.correspondent != trigger.filter_has_correspondent

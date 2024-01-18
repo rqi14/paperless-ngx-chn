@@ -423,6 +423,16 @@ class TestConsumer(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         self.assertEqual(document.title, "Override Title")
         self._assert_first_last_send_progress()
 
+    def testOverrideTitleInvalidPlaceholders(self):
+        with self.assertLogs("paperless.consumer", level="ERROR") as cm:
+            document = self.consumer.try_consume_file(
+                self.get_test_file(),
+                override_title="Override {correspondent]",
+            )
+            self.assertEqual(document.title, "sample")
+            expected_str = "Error occurred parsing title override 'Override {correspondent]', falling back to original"
+            self.assertIn(expected_str, cm.output[0])
+
     def testOverrideCorrespondent(self):
         c = Correspondent.objects.create(name="test")
 
@@ -665,7 +675,7 @@ class TestConsumer(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     @mock.patch("documents.signals.handlers.generate_unique_filename")
     def testFilenameHandlingUnstableFormat(self, m):
-        filenames = ["this", "that", "now this", "i cant decide"]
+        filenames = ["this", "that", "now this", "i cannot decide"]
 
         def get_filename():
             f = filenames.pop()
@@ -928,7 +938,7 @@ class PreConsumeTestCase(TestCase):
     @override_settings(PRE_CONSUME_SCRIPT=None)
     def test_no_pre_consume_script(self, m):
         c = Consumer()
-        c.path = "path-to-file"
+        c.working_copy = "path-to-file"
         c.run_pre_consume_script()
         m.assert_not_called()
 
@@ -938,7 +948,7 @@ class PreConsumeTestCase(TestCase):
     def test_pre_consume_script_not_found(self, m, m2):
         c = Consumer()
         c.filename = "somefile.pdf"
-        c.path = "path-to-file"
+        c.working_copy = "path-to-file"
         self.assertRaises(ConsumerError, c.run_pre_consume_script)
 
     @mock.patch("documents.consumer.run")
@@ -947,7 +957,7 @@ class PreConsumeTestCase(TestCase):
             with override_settings(PRE_CONSUME_SCRIPT=script.name):
                 c = Consumer()
                 c.original_path = "path-to-file"
-                c.path = "/tmp/somewhere/path-to-file"
+                c.working_copy = "/tmp/somewhere/path-to-file"
                 c.task_id = str(uuid.uuid4())
                 c.run_pre_consume_script()
 
@@ -963,7 +973,7 @@ class PreConsumeTestCase(TestCase):
 
                 subset = {
                     "DOCUMENT_SOURCE_PATH": c.original_path,
-                    "DOCUMENT_WORKING_PATH": c.path,
+                    "DOCUMENT_WORKING_PATH": c.working_copy,
                     "TASK_ID": c.task_id,
                 }
                 self.assertDictEqual(environment, {**environment, **subset})
@@ -991,7 +1001,7 @@ class PreConsumeTestCase(TestCase):
             with override_settings(PRE_CONSUME_SCRIPT=script.name):
                 with self.assertLogs("paperless.consumer", level="INFO") as cm:
                     c = Consumer()
-                    c.path = "path-to-file"
+                    c.working_copy = "path-to-file"
 
                     c.run_pre_consume_script()
                     self.assertIn(
@@ -1024,7 +1034,7 @@ class PreConsumeTestCase(TestCase):
 
             with override_settings(PRE_CONSUME_SCRIPT=script.name):
                 c = Consumer()
-                c.path = "path-to-file"
+                c.working_copy = "path-to-file"
                 self.assertRaises(
                     ConsumerError,
                     c.run_pre_consume_script,

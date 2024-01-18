@@ -136,6 +136,11 @@ script can access the following relevant environment variables set:
     be triggered, leading to failures as two tasks work on the
     same document path
 
+!!! warning
+
+    If your script modifies `DOCUMENT_WORKING_PATH` in a non-deterministic
+    way, this may allow duplicate documents to be stored
+
 A simple but common example for this would be creating a simple script
 like this:
 
@@ -608,7 +613,7 @@ scan a completely new "odd numbered pages" one. The old staging file will get di
 
 The collation feature can be used together with the [subdirs as tags](configuration.md#consume_config)
 feature (but this is not a requirement). Just create a correctly named double-sided subdir
-in the hierachy and upload your scans there. For example, both `double-sided/foo/bar` as
+in the hierarchy and upload your scans there. For example, both `double-sided/foo/bar` as
 well as `foo/bar/double-sided` will cause the collated document to be treated as if it
 were uploaded into `foo/bar` and receive both `foo` and `bar` tags, but not `double-sided`.
 
