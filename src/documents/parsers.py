@@ -33,7 +33,7 @@ from documents.utils import copy_file_with_basic_stats
 # - XX MON ZZZZ with XX being 1 or 2 and ZZZZ being 4 digits. MONTH is 3 letters
 # - XXPP MONTH ZZZZ with XX being 1 or 2 and PP being 2 letters and ZZZZ being 4 digits
 
-# TODO: isnt there a date parsing library for this?
+# TODO: isn't there a date parsing library for this?
 
 DATE_REGEX = re.compile(
     r"(\b|(?!=([_-])))([0-9]{1,2})[\.\/-]([0-9]{1,2})[\.\/-]([0-9]{4}|[0-9]{2})(\b|(?=([_-])))|"
@@ -113,8 +113,6 @@ def get_parser_class_for_mime_type(mime_type: str) -> Optional[type["DocumentPar
 
     options = []
 
-    # Sein letzter Befehl war: KOMMT! Und sie kamen. Alle. Sogar die Parser.
-
     for response in document_consumer_declaration.send(None):
         parser_declaration = response[1]
         supported_mime_types = parser_declaration["mime_types"]
@@ -125,8 +123,10 @@ def get_parser_class_for_mime_type(mime_type: str) -> Optional[type["DocumentPar
     if not options:
         return None
 
+    best_parser = sorted(options, key=lambda _: _["weight"], reverse=True)[0]
+
     # Return the parser with the highest weight.
-    return sorted(options, key=lambda _: _["weight"], reverse=True)[0]["parser"]
+    return best_parser["parser"]
 
 
 def run_convert(
@@ -318,8 +318,11 @@ class DocumentParser(LoggingMixin):
     def __init__(self, logging_group, progress_callback=None):
         super().__init__()
         self.logging_group = logging_group
+        self.settings = self.get_settings()
         os.makedirs(settings.SCRATCH_DIR, exist_ok=True)
-        self.tempdir = tempfile.mkdtemp(prefix="paperless-", dir=settings.SCRATCH_DIR)
+        self.tempdir = Path(
+            tempfile.mkdtemp(prefix="paperless-", dir=settings.SCRATCH_DIR),
+        )
 
         self.archive_path = None
         self.text = None
@@ -329,6 +332,12 @@ class DocumentParser(LoggingMixin):
     def progress(self, current_progress, max_progress):
         if self.progress_callback:
             self.progress_callback(current_progress, max_progress)
+
+    def get_settings(self):  # pragma: no cover
+        """
+        A parser must implement this
+        """
+        raise NotImplementedError
 
     def read_file_handle_unicode_errors(self, filepath: Path) -> str:
         """
