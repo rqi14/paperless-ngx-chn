@@ -23,7 +23,7 @@ class TestRemoteUser(DirectoriesMixin, APITestCase):
             - Configured user
             - Remote user auth is enabled
         WHEN:
-            - API call is made to get documents
+            - Call is made to root
         THEN:
             - Call succeeds
         """
@@ -32,6 +32,41 @@ class TestRemoteUser(DirectoriesMixin, APITestCase):
             os.environ,
             {
                 "PAPERLESS_ENABLE_HTTP_REMOTE_USER": "True",
+            },
+        ):
+            _parse_remote_user_settings()
+
+            response = self.client.get("/documents/")
+
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_302_FOUND,
+            )
+
+            response = self.client.get(
+                "/documents/",
+                headers={
+                    "Remote-User": self.user.username,
+                },
+            )
+
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_remote_user_api(self):
+        """
+        GIVEN:
+            - Configured user
+            - Remote user auth is enabled for the API
+        WHEN:
+            - API call is made to get documents
+        THEN:
+            - Call succeeds
+        """
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PAPERLESS_ENABLE_HTTP_REMOTE_USER_API": "True",
             },
         ):
             _parse_remote_user_settings()

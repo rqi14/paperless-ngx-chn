@@ -70,6 +70,12 @@ import {
   OwnerFilterType,
   PermissionsSelectionModel,
 } from '../../common/permissions-filter-dropdown/permissions-filter-dropdown.component'
+import {
+  PermissionAction,
+  PermissionType,
+  PermissionsService,
+} from 'src/app/services/permissions.service'
+import { ComponentWithPermissions } from '../../with-permissions/with-permissions.component'
 
 const TEXT_FILTER_TARGET_TITLE = 'title'
 const TEXT_FILTER_TARGET_TITLE_CONTENT = 'title-content'
@@ -155,7 +161,10 @@ const DEFAULT_TEXT_FILTER_MODIFIER_OPTIONS = [
   templateUrl: './filter-editor.component.html',
   styleUrls: ['./filter-editor.component.scss'],
 })
-export class FilterEditorComponent implements OnInit, OnDestroy {
+export class FilterEditorComponent
+  extends ComponentWithPermissions
+  implements OnInit, OnDestroy
+{
   generateFilterName() {
     if (this.filterRules.length == 1) {
       let rule = this.filterRules[0]
@@ -224,8 +233,11 @@ export class FilterEditorComponent implements OnInit, OnDestroy {
     private tagService: TagService,
     private correspondentService: CorrespondentService,
     private documentService: DocumentService,
-    private storagePathService: StoragePathService
-  ) {}
+    private storagePathService: StoragePathService,
+    public permissionsService: PermissionsService
+  ) {
+    super()
+  }
 
   @ViewChild('textFilterInput')
   textFilterInput: ElementRef
@@ -350,10 +362,11 @@ export class FilterEditorComponent implements OnInit, OnDestroy {
                     this.dateCreatedRelativeDate =
                       RELATIVE_DATE_QUERYSTRINGS.find(
                         (qS) => qS.dateQuery == match[1]
-                      )?.relativeDate
+                      )?.relativeDate ?? null
                   }
                 }
               )
+              if (this.dateCreatedRelativeDate === null) textQueryArgs.push(arg) // relative query not in the quick list
             } else if (arg.match(RELATIVE_DATE_QUERY_REGEXP_ADDED)) {
               ;[...arg.matchAll(RELATIVE_DATE_QUERY_REGEXP_ADDED)].forEach(
                 (match) => {
@@ -361,10 +374,11 @@ export class FilterEditorComponent implements OnInit, OnDestroy {
                     this.dateAddedRelativeDate =
                       RELATIVE_DATE_QUERYSTRINGS.find(
                         (qS) => qS.dateQuery == match[1]
-                      )?.relativeDate
+                      )?.relativeDate ?? null
                   }
                 }
               )
+              if (this.dateAddedRelativeDate === null) textQueryArgs.push(arg) // relative query not in the quick list
             } else {
               textQueryArgs.push(arg)
             }
@@ -775,27 +789,6 @@ export class FilterEditorComponent implements OnInit, OnDestroy {
         })
       }
     }
-    if (
-      this.dateCreatedRelativeDate == null &&
-      this.dateAddedRelativeDate == null
-    ) {
-      const existingRule = filterRules.find(
-        (fr) => fr.rule_type == FILTER_FULLTEXT_QUERY
-      )
-      if (
-        existingRule?.value.match(RELATIVE_DATE_QUERY_REGEXP_CREATED) ||
-        existingRule?.value.match(RELATIVE_DATE_QUERY_REGEXP_ADDED)
-      ) {
-        // remove any existing date query
-        existingRule.value = existingRule.value
-          .replace(RELATIVE_DATE_QUERY_REGEXP_CREATED, '')
-          .replace(RELATIVE_DATE_QUERY_REGEXP_ADDED, '')
-        if (existingRule.value.replace(',', '').trim() === '') {
-          // if its empty now, remove it entirely
-          filterRules.splice(filterRules.indexOf(existingRule), 1)
-        }
-      }
-    }
     if (this.permissionsSelectionModel.ownerFilter == OwnerFilterType.SELF) {
       filterRules.push({
         rule_type: FILTER_OWNER,
@@ -872,18 +865,46 @@ export class FilterEditorComponent implements OnInit, OnDestroy {
   subscription: Subscription
 
   ngOnInit() {
-    this.tagService
-      .listAll()
-      .subscribe((result) => (this.tags = result.results))
-    this.correspondentService
-      .listAll()
-      .subscribe((result) => (this.correspondents = result.results))
-    this.documentTypeService
-      .listAll()
-      .subscribe((result) => (this.documentTypes = result.results))
-    this.storagePathService
-      .listAll()
-      .subscribe((result) => (this.storagePaths = result.results))
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Tag
+      )
+    ) {
+      this.tagService
+        .listAll()
+        .subscribe((result) => (this.tags = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Correspondent
+      )
+    ) {
+      this.correspondentService
+        .listAll()
+        .subscribe((result) => (this.correspondents = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.DocumentType
+      )
+    ) {
+      this.documentTypeService
+        .listAll()
+        .subscribe((result) => (this.documentTypes = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.StoragePath
+      )
+    ) {
+      this.storagePathService
+        .listAll()
+        .subscribe((result) => (this.storagePaths = result.results))
+    }
 
     this.textFilterDebounce = new Subject<string>()
 

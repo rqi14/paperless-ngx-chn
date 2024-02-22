@@ -12,6 +12,7 @@ import {
   NgbAccordionModule,
   NgbActiveModal,
   NgbModalModule,
+  NgbPopoverModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { HttpClientModule } from '@angular/common/http'
 import { TextComponent } from '../input/text/text.component'
@@ -19,14 +20,25 @@ import { PasswordComponent } from '../input/password/password.component'
 import { of, throwError } from 'rxjs'
 import { ToastService } from 'src/app/services/toast.service'
 import { Clipboard } from '@angular/cdk/clipboard'
+import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { ConfirmButtonComponent } from '../confirm-button/confirm-button.component'
 
+const socialAccount = {
+  id: 1,
+  provider: 'test_provider',
+  name: 'Test Provider',
+}
 const profile = {
   email: 'foo@bar.com',
   password: '*********',
   first_name: 'foo',
   last_name: 'bar',
   auth_token: '123456789abcdef',
+  social_accounts: [socialAccount],
 }
+const socialAccountProviders = [
+  { name: 'Test Provider', login_url: 'https://example.com' },
+]
 
 describe('ProfileEditDialogComponent', () => {
   let component: ProfileEditDialogComponent
@@ -41,6 +53,7 @@ describe('ProfileEditDialogComponent', () => {
         ProfileEditDialogComponent,
         TextComponent,
         PasswordComponent,
+        ConfirmButtonComponent,
       ],
       providers: [NgbActiveModal],
       imports: [
@@ -49,6 +62,8 @@ describe('ProfileEditDialogComponent', () => {
         FormsModule,
         NgbModalModule,
         NgbAccordionModule,
+        NgxBootstrapIconsModule.pick(allIcons),
+        NgbPopoverModule,
       ],
     })
     profileService = TestBed.inject(ProfileService)
@@ -62,6 +77,11 @@ describe('ProfileEditDialogComponent', () => {
   it('should get profile on init, display in form', () => {
     const getSpy = jest.spyOn(profileService, 'get')
     getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
     component.ngOnInit()
     expect(getSpy).toHaveBeenCalled()
     fixture.detectChanges()
@@ -101,6 +121,11 @@ describe('ProfileEditDialogComponent', () => {
     expect(component.form.get('email_confirm').enabled).toBeFalsy()
     const getSpy = jest.spyOn(profileService, 'get')
     getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
     component.ngOnInit()
     component.form.get('email').patchValue('foo@bar2.com')
     component.onEmailKeyUp({ target: { value: 'foo@bar2.com' } } as any)
@@ -132,6 +157,12 @@ describe('ProfileEditDialogComponent', () => {
     expect(component.form.get('password_confirm').enabled).toBeFalsy()
     const getSpy = jest.spyOn(profileService, 'get')
     getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
+    component.hasUsablePassword = true
     component.ngOnInit()
     component.form.get('password').patchValue('new*pass')
     component.onPasswordKeyUp({
@@ -165,6 +196,11 @@ describe('ProfileEditDialogComponent', () => {
   it('should logout on save if password changed', fakeAsync(() => {
     const getSpy = jest.spyOn(profileService, 'get')
     getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
     component.ngOnInit()
     component['newPassword'] = 'new*pass'
     component.form.get('password').patchValue('new*pass')
@@ -187,6 +223,11 @@ describe('ProfileEditDialogComponent', () => {
   it('should support auth token copy', fakeAsync(() => {
     const getSpy = jest.spyOn(profileService, 'get')
     getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
     component.ngOnInit()
     const copySpy = jest.spyOn(clipboard, 'copy')
     component.copyAuthToken()
@@ -217,5 +258,41 @@ describe('ProfileEditDialogComponent', () => {
       profile.auth_token
     )
     expect(component.form.get('auth_token').value).toEqual(newToken)
+  })
+
+  it('should get social account providers on init', () => {
+    const getSpy = jest.spyOn(profileService, 'get')
+    getSpy.mockReturnValue(of(profile))
+    const getProvidersSpy = jest.spyOn(
+      profileService,
+      'getSocialAccountProviders'
+    )
+    getProvidersSpy.mockReturnValue(of(socialAccountProviders))
+    component.ngOnInit()
+    expect(getProvidersSpy).toHaveBeenCalled()
+  })
+
+  it('should remove disconnected social account from component, show error if needed', () => {
+    const disconnectSpy = jest.spyOn(profileService, 'disconnectSocialAccount')
+    const getSpy = jest.spyOn(profileService, 'get')
+    getSpy.mockImplementation(() => of(profile))
+    component.ngOnInit()
+
+    const errorSpy = jest.spyOn(toastService, 'showError')
+
+    expect(component.socialAccounts).toContainEqual(socialAccount)
+
+    // fail first
+    disconnectSpy.mockReturnValueOnce(
+      throwError(() => new Error('unable to disconnect'))
+    )
+    component.disconnectSocialAccount(socialAccount.id)
+    expect(errorSpy).toHaveBeenCalled()
+
+    // succeed
+    disconnectSpy.mockReturnValue(of(socialAccount.id))
+    component.disconnectSocialAccount(socialAccount.id)
+    expect(disconnectSpy).toHaveBeenCalled()
+    expect(component.socialAccounts).not.toContainEqual(socialAccount)
   })
 })

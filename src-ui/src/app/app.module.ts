@@ -112,6 +112,7 @@ import { SwitchComponent } from './components/common/input/switch/switch.compone
 import { ConfigComponent } from './components/admin/config/config.component'
 import { FileComponent } from './components/common/input/file/file.component'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import { ConfirmButtonComponent } from './components/common/confirm-button/confirm-button.component'
 import {
   archive,
   arrowCounterclockwise,
@@ -137,6 +138,7 @@ import {
   chevronDoubleLeft,
   chevronDoubleRight,
   clipboard,
+  clipboardCheck,
   clipboardCheckFill,
   clipboardFill,
   dash,
@@ -221,6 +223,7 @@ const icons = {
   chevronDoubleLeft,
   chevronDoubleRight,
   clipboard,
+  clipboardCheck,
   clipboardCheckFill,
   clipboardFill,
   dash,
@@ -295,6 +298,7 @@ import localeFi from '@angular/common/locales/fi'
 import localeFr from '@angular/common/locales/fr'
 import localeHu from '@angular/common/locales/hu'
 import localeIt from '@angular/common/locales/it'
+import localeJa from '@angular/common/locales/ja'
 import localeLb from '@angular/common/locales/lb'
 import localeNl from '@angular/common/locales/nl'
 import localeNo from '@angular/common/locales/no'
@@ -325,6 +329,7 @@ registerLocaleData(localeFi)
 registerLocaleData(localeFr)
 registerLocaleData(localeHu)
 registerLocaleData(localeIt)
+registerLocaleData(localeJa)
 registerLocaleData(localeLb)
 registerLocaleData(localeNl)
 registerLocaleData(localeNo)
@@ -437,6 +442,7 @@ function initializeApp(settings: SettingsService) {
     SwitchComponent,
     ConfigComponent,
     FileComponent,
+    ConfirmButtonComponent,
   ],
   imports: [
     BrowserModule,

@@ -1,5 +1,8 @@
 import { DatePipe } from '@angular/common'
-import { HttpClientTestingModule } from '@angular/common/http/testing'
+import {
+  HttpClientTestingModule,
+  HttpTestingController,
+} from '@angular/common/http/testing'
 import {
   ComponentFixture,
   fakeAsync,
@@ -77,6 +80,12 @@ import {
   OwnerFilterType,
 } from '../../common/permissions-filter-dropdown/permissions-filter-dropdown.component'
 import { FilterEditorComponent } from './filter-editor.component'
+import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import {
+  PermissionType,
+  PermissionsService,
+} from 'src/app/services/permissions.service'
+import { environment } from 'src/environments/environment'
 
 const tags: Tag[] = [
   {
@@ -134,6 +143,8 @@ describe('FilterEditorComponent', () => {
   let fixture: ComponentFixture<FilterEditorComponent>
   let documentService: DocumentService
   let settingsService: SettingsService
+  let permissionsService: PermissionsService
+  let httpTestingController: HttpTestingController
 
   beforeEach(fakeAsync(() => {
     TestBed.configureTestingModule({
@@ -191,18 +202,46 @@ describe('FilterEditorComponent', () => {
         FormsModule,
         ReactiveFormsModule,
         NgbDatepickerModule,
+        NgxBootstrapIconsModule.pick(allIcons),
       ],
     }).compileComponents()
 
     documentService = TestBed.inject(DocumentService)
     settingsService = TestBed.inject(SettingsService)
     settingsService.currentUser = users[0]
+    permissionsService = TestBed.inject(PermissionsService)
+    jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation((action, type) => {
+        // a little hack-ish, permissions filter dropdown causes reactive forms issue due to ng-select
+        // trying to apply formControlName
+        return type !== PermissionType.User
+      })
+    httpTestingController = TestBed.inject(HttpTestingController)
     fixture = TestBed.createComponent(FilterEditorComponent)
     component = fixture.componentInstance
     component.filterRules = []
     fixture.detectChanges()
     tick()
   }))
+
+  it('should not attempt to retrieve objects if user does not have permissions', () => {
+    jest.spyOn(permissionsService, 'currentUserCan').mockReset()
+    jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation((action, type) => false)
+    component.ngOnInit()
+    httpTestingController.expectNone(`${environment.apiBaseUrl}documents/tags/`)
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/correspondents/`
+    )
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/document_types/`
+    )
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/storage_paths/`
+    )
+  })
 
   // SET filterRules
 
@@ -340,6 +379,28 @@ describe('FilterEditorComponent', () => {
     ]
     expect(component.dateAddedRelativeDate).toEqual(0) // RELATIVE_DATE_QUERYSTRINGS['-1 week to now']
     expect(component.textFilter).toBeNull()
+  }))
+
+  it('should ingest text filter content with relative dates that are not in quick list', fakeAsync(() => {
+    expect(component.dateAddedRelativeDate).toBeNull()
+    component.filterRules = [
+      {
+        rule_type: FILTER_FULLTEXT_QUERY,
+        value: 'added:[-2 week to now]',
+      },
+    ]
+    expect(component.dateAddedRelativeDate).toBeNull()
+    expect(component.textFilter).toEqual('added:[-2 week to now]')
+
+    expect(component.dateCreatedRelativeDate).toBeNull()
+    component.filterRules = [
+      {
+        rule_type: FILTER_FULLTEXT_QUERY,
+        value: 'created:[-2 week to now]',
+      },
+    ]
+    expect(component.dateCreatedRelativeDate).toBeNull()
+    expect(component.textFilter).toEqual('created:[-2 week to now]')
   }))
 
   it('should ingest text filter rules for more like', fakeAsync(() => {
@@ -1329,6 +1390,34 @@ describe('FilterEditorComponent', () => {
       {
         rule_type: FILTER_FULLTEXT_QUERY,
         value: 'foo,created:[-1 week to now]',
+      },
+    ])
+  }))
+
+  it('should leave relative dates not in quick list intact', fakeAsync(() => {
+    component.textFilterInput.nativeElement.value = 'created:[-2 week to now]'
+    component.textFilterInput.nativeElement.dispatchEvent(new Event('input'))
+    const textFieldTargetDropdown = fixture.debugElement.queryAll(
+      By.directive(NgbDropdownItem)
+    )[4]
+    textFieldTargetDropdown.triggerEventHandler('click')
+    fixture.detectChanges()
+    tick(400)
+    expect(component.filterRules).toEqual([
+      {
+        rule_type: FILTER_FULLTEXT_QUERY,
+        value: 'created:[-2 week to now]',
+      },
+    ])
+
+    component.textFilterInput.nativeElement.value = 'added:[-2 month to now]'
+    component.textFilterInput.nativeElement.dispatchEvent(new Event('input'))
+    fixture.detectChanges()
+    tick(400)
+    expect(component.filterRules).toEqual([
+      {
+        rule_type: FILTER_FULLTEXT_QUERY,
+        value: 'added:[-2 month to now]',
       },
     ])
   }))

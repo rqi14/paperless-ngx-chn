@@ -28,7 +28,10 @@ import {
   PermissionsService,
   PermissionType,
 } from 'src/app/services/permissions.service'
-import { AbstractNameFilterService } from 'src/app/services/rest/abstract-name-filter-service'
+import {
+  AbstractNameFilterService,
+  BulkEditObjectOperation,
+} from 'src/app/services/rest/abstract-name-filter-service'
 import { ToastService } from 'src/app/services/toast.service'
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component'
 import { EditDialogMode } from '../../common/edit-dialog/edit-dialog.component'
@@ -279,12 +282,14 @@ export abstract class ManagementListComponent<T extends ObjectWithId>
       backdrop: 'static',
     })
     modal.componentInstance.confirmClicked.subscribe(
-      (permissions: { owner: number; set_permissions: PermissionsObject }) => {
+      ({ permissions, merge }) => {
         modal.componentInstance.buttonsEnabled = false
         this.service
-          .bulk_update_permissions(
+          .bulk_edit_objects(
             Array.from(this.selectedObjects),
-            permissions
+            BulkEditObjectOperation.SetPermissions,
+            permissions,
+            merge
           )
           .subscribe({
             next: () => {
@@ -304,5 +309,38 @@ export abstract class ManagementListComponent<T extends ObjectWithId>
           })
       }
     )
+  }
+
+  delete() {
+    let modal = this.modalService.open(ConfirmDialogComponent, {
+      backdrop: 'static',
+    })
+    modal.componentInstance.title = $localize`Confirm delete`
+    modal.componentInstance.messageBold = $localize`This operation will permanently delete all objects.`
+    modal.componentInstance.message = $localize`This operation cannot be undone.`
+    modal.componentInstance.btnClass = 'btn-danger'
+    modal.componentInstance.btnCaption = $localize`Proceed`
+    modal.componentInstance.confirmClicked.subscribe(() => {
+      modal.componentInstance.buttonsEnabled = false
+      this.service
+        .bulk_edit_objects(
+          Array.from(this.selectedObjects),
+          BulkEditObjectOperation.Delete
+        )
+        .subscribe({
+          next: () => {
+            modal.close()
+            this.toastService.showInfo($localize`Objects deleted successfully`)
+            this.reloadData()
+          },
+          error: (error) => {
+            modal.componentInstance.buttonsEnabled = true
+            this.toastService.showError(
+              $localize`Error deleting objects`,
+              error
+            )
+          },
+        })
+    })
   }
 }

@@ -2,8 +2,11 @@
   <button class="btn btn-sm btn-outline-secondary me-2" (click)="clearSelection()" [hidden]="selectedObjects.size === 0">
     <i-bs  name="x"></i-bs>&nbsp;<ng-container i18n>Clear selection</ng-container>
     </button>
-    <button type="button" class="btn btn-sm btn-outline-primary me-5" (click)="setPermissions()" [disabled]="!userOwnsAll || selectedObjects.size === 0">
+    <button type="button" class="btn btn-sm btn-outline-primary me-2" (click)="setPermissions()" [disabled]="!userOwnsAll || selectedObjects.size === 0">
       <i-bs name="person-fill-lock"></i-bs>&nbsp;<ng-container i18n>Permissions</ng-container>
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-danger me-5" (click)="delete()" [disabled]="!userOwnsAll || selectedObjects.size === 0">
+      <i-bs name="trash"></i-bs>&nbsp;<ng-container i18n>Delete</ng-container>
     </button>
     <button type="button" class="btn btn-sm btn-outline-primary" (click)="openCreateDialog()" *pngxIfPermissions="{ action: PermissionAction.Add, type: permissionType }">
       <i-bs name="plus-circle"></i-bs>&nbsp;<ng-container i18n>Create</ng-container>
@@ -57,7 +60,7 @@
                   <label class="form-check-label" for="{{typeName}}{{object.id}}"></label>
                 </div>
               </td>
-              <td scope="row"><button class="btn btn-link ms-0 ps-0 text-start" (click)="openEditDialog(object)">{{ object.name }}</button> </td>
+              <td scope="row"><button class="btn btn-link ms-0 ps-0 text-start" (click)="userCanEdit(object) ? openEditDialog(object) : null">{{ object.name }}</button> </td>
               <td scope="row" class="d-none d-sm-table-cell">{{ getMatching(object) }}</td>
               <td scope="row">{{ object.document_count }}</td>
               @for (column of extraColumns; track column) {

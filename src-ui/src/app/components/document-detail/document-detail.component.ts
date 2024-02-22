@@ -77,6 +77,14 @@ enum DocumentDetailNavIDs {
   Permissions = 6,
 }
 
+enum ContentRenderType {
+  PDF = 'pdf',
+  Image = 'image',
+  Text = 'text',
+  Other = 'other',
+  Unknown = 'unknown',
+}
+
 enum ZoomSetting {
   PageFit = 'page-fit',
   PageWidth = 'page-width',
@@ -154,7 +162,9 @@ export class DocumentDetailComponent
   ogDate: Date
 
   customFields: CustomField[]
-  public readonly PaperlessCustomFieldDataType = CustomFieldDataType
+  public readonly CustomFieldDataType = CustomFieldDataType
+
+  public readonly ContentRenderType = ContentRenderType
 
   @ViewChild('nav') nav: NgbNav
   @ViewChild('pdfPreview') set pdfPreview(element) {
@@ -201,16 +211,22 @@ export class DocumentDetailComponent
     return this.settings.get(SETTINGS_KEYS.USE_NATIVE_PDF_VIEWER)
   }
 
-  getContentType() {
-    return this.metadata?.has_archive_version
+  get contentRenderType(): ContentRenderType {
+    if (!this.metadata) return ContentRenderType.Unknown
+    const contentType = this.metadata?.has_archive_version
       ? 'application/pdf'
       : this.metadata?.original_mime_type
-  }
 
-  get renderAsPlainText(): boolean {
-    return ['text/plain', 'application/csv', 'text/csv'].includes(
-      this.getContentType()
-    )
+    if (contentType === 'application/pdf') {
+      return ContentRenderType.PDF
+    } else if (
+      ['text/plain', 'application/csv', 'text/csv'].includes(contentType)
+    ) {
+      return ContentRenderType.Text
+    } else if (contentType?.indexOf('image/') === 0) {
+      return ContentRenderType.Image
+    }
+    return ContentRenderType.Other
   }
 
   get isRTL() {
@@ -234,25 +250,50 @@ export class DocumentDetailComponent
         Object.assign(this.document, docValues)
       })
 
-    this.correspondentService
-      .listAll()
-      .pipe(first(), takeUntil(this.unsubscribeNotifier))
-      .subscribe((result) => (this.correspondents = result.results))
-
-    this.documentTypeService
-      .listAll()
-      .pipe(first(), takeUntil(this.unsubscribeNotifier))
-      .subscribe((result) => (this.documentTypes = result.results))
-
-    this.storagePathService
-      .listAll()
-      .pipe(first(), takeUntil(this.unsubscribeNotifier))
-      .subscribe((result) => (this.storagePaths = result.results))
-
-    this.userService
-      .listAll()
-      .pipe(first(), takeUntil(this.unsubscribeNotifier))
-      .subscribe((result) => (this.users = result.results))
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Correspondent
+      )
+    ) {
+      this.correspondentService
+        .listAll()
+        .pipe(first(), takeUntil(this.unsubscribeNotifier))
+        .subscribe((result) => (this.correspondents = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.DocumentType
+      )
+    ) {
+      this.documentTypeService
+        .listAll()
+        .pipe(first(), takeUntil(this.unsubscribeNotifier))
+        .subscribe((result) => (this.documentTypes = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.StoragePath
+      )
+    ) {
+      this.storagePathService
+        .listAll()
+        .pipe(first(), takeUntil(this.unsubscribeNotifier))
+        .subscribe((result) => (this.storagePaths = result.results))
+    }
+    if (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.User
+      )
+    ) {
+      this.userService
+        .listAll()
+        .pipe(first(), takeUntil(this.unsubscribeNotifier))
+        .subscribe((result) => (this.users = result.results))
+    }
 
     this.getCustomFields()
 
@@ -446,7 +487,7 @@ export class DocumentDetailComponent
           this.metadata = result
         },
         error: (error) => {
-          this.metadata = null
+          this.metadata = {} // allow display to fallback to <object> tag
           this.toastService.showError(
             $localize`Error retrieving metadata`,
             error
@@ -589,7 +630,9 @@ export class DocumentDetailComponent
       .update(this.document)
       .pipe(first())
       .subscribe({
-        next: () => {
+        next: (docValues) => {
+          // in case data changed while saving eg removing inbox_tags
+          this.documentForm.patchValue(docValues)
           this.store.next(this.documentForm.value)
           this.toastService.showInfo($localize`Document saved successfully.`)
           close && this.close()
