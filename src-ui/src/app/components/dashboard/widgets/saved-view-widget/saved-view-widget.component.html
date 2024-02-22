@@ -15,8 +15,14 @@
         <tr>
           <th scope="col" i18n>Created</th>
           <th scope="col" i18n>Title</th>
-          <th scope="col" class="d-none d-md-table-cell" i18n>Tags</th>
-          <th scope="col" class="d-none d-md-table-cell" i18n>Correspondent</th>
+          @if (permissionsService.currentUserCan(PermissionAction.View, PermissionType.Tag)) {
+            <th scope="col" class="d-none d-md-table-cell" i18n>Tags</th>
+          }
+          @if (permissionsService.currentUserCan(PermissionAction.View, PermissionType.Correspondent)) {
+            <th scope="col" class="d-none d-md-table-cell" i18n>Correspondent</th>
+          } @else {
+            <th scope="col" class="d-none d-md-table-cell"></th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -26,30 +32,28 @@
             <td class="py-2 py-md-3">
               <a routerLink="/documents/{{doc.id}}" title="Edit" i18n-title class="btn-link text-dark text-decoration-none py-2 py-md-3">{{doc.title | documentTitle}}</a>
             </td>
-            <td class="py-2 py-md-3 d-none d-md-table-cell">
-              @for (t of doc.tags$ | async; track t) {
-                <pngx-tag [tag]="t" class="ms-1" (click)="clickTag(t, $event)"></pngx-tag>
-              }
-            </td>
+            @if (permissionsService.currentUserCan(PermissionAction.View, PermissionType.Tag)) {
+              <td class="py-2 py-md-3 d-none d-md-table-cell">
+                @for (t of doc.tags$ | async; track t) {
+                  <pngx-tag [tag]="t" class="ms-1" (click)="clickTag(t, $event)"></pngx-tag>
+                }
+              </td>
+            }
             <td class="position-relative py-2 py-md-3 d-none d-md-table-cell">
-              @if (doc.correspondent !== null) {
+              @if (permissionsService.currentUserCan(PermissionAction.View, PermissionType.Correspondent) && doc.correspondent !== null) {
                 <a class="btn-link text-dark text-decoration-none py-2 py-md-3" routerLink="/documents" [queryParams]="getCorrespondentQueryParams(doc.correspondent)">{{(doc.correspondent$ | async)?.name}}</a>
               }
               <div class="btn-group position-absolute top-50 end-0 translate-middle-y">
                 <a [href]="getPreviewUrl(doc)" title="View Preview" i18n-title target="_blank" class="btn px-4 btn-dark border-dark-subtle"
                   [ngbPopover]="previewContent" [popoverTitle]="doc.title | documentTitle"
                   autoClose="true" popoverClass="shadow popover-preview" container="body" (mouseenter)="mouseEnterPreviewButton(doc)" (mouseleave)="mouseLeavePreviewButton()" #popover="ngbPopover">
-                  <svg class="buttonicon-xs" fill="currentColor">
-                    <use xlink:href="assets/bootstrap-icons.svg#eye"/>
-                  </svg>
+                  <i-bs width="0.8em" height="0.8em" name="eye"></i-bs>
                 </a>
                 <ng-template #previewContent>
                   <pngx-preview-popup [document]="doc" (mouseenter)="mouseEnterPreview()" (mouseleave)="mouseLeavePreview()"></pngx-preview-popup>
                 </ng-template>
                 <a [href]="getDownloadUrl(doc)" class="btn px-4 btn-dark border-dark-subtle" title="Download" i18n-title (click)="$event.stopPropagation()">
-                  <svg class="buttonicon-xs" fill="currentColor">
-                    <use xlink:href="assets/bootstrap-icons.svg#download"/>
-                  </svg>
+                  <i-bs width="0.8em" height="0.8em" name="download"></i-bs>
                 </a>
               </div>
             </td>

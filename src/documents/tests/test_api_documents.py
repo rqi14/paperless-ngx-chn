@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import uuid
 import zoneinfo
+from binascii import hexlify
 from datetime import timedelta
 from pathlib import Path
 from unittest import mock
@@ -13,12 +14,17 @@ from dateutil import parser
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import override_settings
 from django.utils import timezone
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from documents.caching import CACHE_50_MINUTES
+from documents.caching import CLASSIFIER_HASH_KEY
+from documents.caching import CLASSIFIER_MODIFIED_KEY
+from documents.caching import CLASSIFIER_VERSION_KEY
 from documents.models import Correspondent
 from documents.models import CustomField
 from documents.models import CustomFieldInstance
@@ -40,6 +46,7 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
 
         self.user = User.objects.create_superuser(username="temp_admin")
         self.client.force_authenticate(user=self.user)
+        cache.clear()
 
     def testDocuments(self):
         response = self.client.get("/api/documents/").data
@@ -1162,6 +1169,9 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
         self.assertEqual(meta["original_size"], os.stat(source_file).st_size)
         self.assertEqual(meta["archive_size"], os.stat(archive_file).st_size)
 
+        response = self.client.get(f"/api/documents/{doc.pk}/metadata/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_get_metadata_invalid_doc(self):
         response = self.client.get("/api/documents/34576/metadata/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -1265,6 +1275,97 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
                 "dates": ["2022-04-12"],
             },
         )
+
+    @mock.patch("documents.views.load_classifier")
+    @mock.patch("documents.views.match_storage_paths")
+    @mock.patch("documents.views.match_document_types")
+    @mock.patch("documents.views.match_tags")
+    @mock.patch("documents.views.match_correspondents")
+    @override_settings(NUMBER_OF_SUGGESTED_DATES=10)
+    def test_get_suggestions_cached(
+        self,
+        match_correspondents,
+        match_tags,
+        match_document_types,
+        match_storage_paths,
+        mocked_load,
+    ):
+        """
+        GIVEN:
+           - Request for suggestions for a document
+        WHEN:
+          - Classifier has not been modified
+        THEN:
+          - Subsequent requests are returned alright
+          - ETag and last modified headers are set
+        """
+
+        # setup the cache how the classifier does it
+        from documents.classifier import DocumentClassifier
+
+        settings.MODEL_FILE.touch()
+
+        classifier_checksum_bytes = b"thisisachecksum"
+        classifier_checksum_hex = hexlify(classifier_checksum_bytes).decode()
+
+        # Two loads, so two side effects
+        mocked_load.side_effect = [
+            mock.Mock(
+                last_auto_type_hash=classifier_checksum_bytes,
+                FORMAT_VERSION=DocumentClassifier.FORMAT_VERSION,
+            ),
+            mock.Mock(
+                last_auto_type_hash=classifier_checksum_bytes,
+                FORMAT_VERSION=DocumentClassifier.FORMAT_VERSION,
+            ),
+        ]
+
+        last_modified = timezone.now()
+        cache.set(CLASSIFIER_MODIFIED_KEY, last_modified, CACHE_50_MINUTES)
+        cache.set(CLASSIFIER_HASH_KEY, classifier_checksum_hex, CACHE_50_MINUTES)
+        cache.set(
+            CLASSIFIER_VERSION_KEY,
+            DocumentClassifier.FORMAT_VERSION,
+            CACHE_50_MINUTES,
+        )
+
+        # Mock the matching
+        match_correspondents.return_value = [Correspondent(id=88), Correspondent(id=2)]
+        match_tags.return_value = [Tag(id=56), Tag(id=123)]
+        match_document_types.return_value = [DocumentType(id=23)]
+        match_storage_paths.return_value = [StoragePath(id=99), StoragePath(id=77)]
+
+        doc = Document.objects.create(
+            title="test",
+            mime_type="application/pdf",
+            content="this is an invoice from 12.04.2022!",
+        )
+
+        response = self.client.get(f"/api/documents/{doc.pk}/suggestions/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            response.data,
+            {
+                "correspondents": [88, 2],
+                "tags": [56, 123],
+                "document_types": [23],
+                "storage_paths": [99, 77],
+                "dates": ["2022-04-12"],
+            },
+        )
+        self.assertIn("Last-Modified", response.headers)
+        self.assertEqual(
+            response.headers["Last-Modified"],
+            last_modified.strftime("%a, %d %b %Y %H:%M:%S %Z").replace("UTC", "GMT"),
+        )
+        self.assertIn("ETag", response.headers)
+        self.assertEqual(
+            response.headers["ETag"],
+            f'"{classifier_checksum_hex}:{settings.NUMBER_OF_SUGGESTED_DATES}"',
+        )
+
+        response = self.client.get(f"/api/documents/{doc.pk}/suggestions/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @mock.patch("documents.parsers.parse_date_generator")
     @override_settings(NUMBER_OF_SUGGESTED_DATES=0)
@@ -1970,6 +2071,101 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.content, b"1000")
+
+    def test_next_asn_no_documents_with_asn(self):
+        """
+        GIVEN:
+            - Existing document, but with no ASN assugned
+        WHEN:
+            - API request to get next ASN
+        THEN:
+            - ASN 1 is returned
+        """
+        user1 = User.objects.create_user(username="test1")
+        user1.user_permissions.add(*Permission.objects.all())
+        user1.save()
+
+        doc1 = Document.objects.create(
+            title="test",
+            mime_type="application/pdf",
+            content="this is a document 1",
+            checksum="1",
+        )
+        doc1.save()
+
+        self.client.force_authenticate(user1)
+
+        resp = self.client.get(
+            "/api/documents/next_asn/",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.content, b"1")
+
+    def test_remove_inbox_tags(self):
+        """
+        GIVEN:
+            - Existing document with or without inbox tags
+        WHEN:
+            - API request to update document, with or without `remove_inbox_tags` flag
+        THEN:
+            - Inbox tags are removed as long as they are not being added
+        """
+        tag1 = Tag.objects.create(name="tag1", color="#abcdef")
+        inbox_tag1 = Tag.objects.create(
+            name="inbox1",
+            color="#abcdef",
+            is_inbox_tag=True,
+        )
+        inbox_tag2 = Tag.objects.create(
+            name="inbox2",
+            color="#abcdef",
+            is_inbox_tag=True,
+        )
+
+        doc1 = Document.objects.create(
+            title="test",
+            mime_type="application/pdf",
+            content="this is a document 1",
+            checksum="1",
+        )
+        doc1.tags.add(tag1)
+        doc1.tags.add(inbox_tag1)
+        doc1.tags.add(inbox_tag2)
+        doc1.save()
+
+        # Remove inbox tags defaults to false
+        resp = self.client.patch(
+            f"/api/documents/{doc1.pk}/",
+            {
+                "title": "New title",
+            },
+        )
+        doc1.refresh_from_db()
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(doc1.tags.count(), 3)
+
+        # Remove inbox tags set to true
+        resp = self.client.patch(
+            f"/api/documents/{doc1.pk}/",
+            {
+                "remove_inbox_tags": True,
+            },
+        )
+        doc1.refresh_from_db()
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(doc1.tags.count(), 1)
+
+        # Remove inbox tags set to true but adding a new inbox tag
+        resp = self.client.patch(
+            f"/api/documents/{doc1.pk}/",
+            {
+                "remove_inbox_tags": True,
+                "tags": [inbox_tag1.pk, tag1.pk],
+            },
+        )
+        doc1.refresh_from_db()
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(doc1.tags.count(), 2)
 
 
 class TestDocumentApiV2(DirectoriesMixin, APITestCase):

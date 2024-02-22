@@ -434,8 +434,10 @@ to view more detailed information about the health of the celery workers
 used for asynchronous tasks. This includes details on currently running,
 queued and completed tasks, timing and more. Flower can also be used
 with Prometheus, as it exports metrics. For details on its capabilities,
-refer to the Flower documentation.
+refer to the [Flower](https://flower.readthedocs.io/en/latest/index.html)
+documentation.
 
+Flower can be enabled with the setting [PAPERLESS_ENABLE_FLOWER](configuration/#PAPERLESS_ENABLE_FLOWER).
 To configure Flower further, create a `flowerconfig.py` and
 place it into the `src/paperless` directory. For a Docker
 installation, you can use volumes to accomplish this:
@@ -444,6 +446,8 @@ installation, you can use volumes to accomplish this:
 services:
   # ...
   webserver:
+    environment:
+      - PAPERLESS_ENABLE_FLOWER
     ports:
       - 5555:5555 # (2)!
     # ...
@@ -452,7 +456,7 @@ services:
 ```
 
 1. Note the `:ro` tag means the file will be mounted as read only.
-2. `flower` runs by default on port 5555, but this can be configured
+2. By default, Flower runs on port 5555, but this can be configured.
 
 ## Custom Container Initialization
 
@@ -513,6 +517,18 @@ existing tables) with:
     an older system may fix issues that can arise while setting up Paperless-ngx but
     `utf8mb3` can cause issues with consumption (where `utf8mb4` does not).
 
+### Missing timezones
+
+MySQL as well as MariaDB do not have any timezone information by default (though some
+docker images such as the official MariaDB image take care of this for you) which will
+cause unexpected behavior with date-based queries.
+
+To fix this, execute one of the following commands:
+
+MySQL: `mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql -p`
+
+MariaDB: `mariadb-tzinfo-to-sql /usr/share/zoneinfo | mariadb -u root mysql -p`
+
 ## Barcodes {#barcodes}
 
 Paperless is able to utilize barcodes for automatically performing some tasks.
@@ -552,6 +568,14 @@ If document splitting via barcode is also enabled, documents will be split when 
 barcode is located. However, differing from the splitting, the page with the
 barcode _will_ be retained. This allows application of a barcode to any page, including
 one which holds data to keep in the document.
+
+### Tag Assignment
+
+When enabled, Paperless will parse barcodes and attempt to interpret and assign tags.
+
+See the relevant settings [`PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE`](configuration.md#PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE)
+and [`PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING`](configuration.md#PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING)
+for more information.
 
 ## Automatic collation of double-sided documents {#collate}
 
@@ -624,3 +648,47 @@ single-sided split marker page, the split document(s) will have an empty page at
 whatever else was on the backside of the split marker page.) You can work around that by having
 a split marker page that has the split barcode on _both_ sides. This way, the extra page will
 get automatically removed.
+
+## SSO and third party authentication with Paperless-ngx
+
+Paperless-ngx has a built-in authentication system from Django but you can easily integrate an
+external authentication solution using one of the following methods:
+
+### Remote User authentication
+
+This is a simple option that uses remote user authentication made available by certain SSO
+applications. See the relevant configuration options for more information:
+[PAPERLESS_ENABLE_HTTP_REMOTE_USER](configuration.md#PAPERLESS_ENABLE_HTTP_REMOTE_USER) and
+[PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME](configuration.md#PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME)
+
+### OpenID Connect and social authentication
+
+Version 2.5.0 of Paperless-ngx added support for integrating other authentication systems via
+the [django-allauth](https://github.com/pennersr/django-allauth) package. Once set up, users
+can either log in or (optionally) sign up using any third party systems you integrate. See the
+relevant [configuration settings](configuration.md#PAPERLESS_SOCIALACCOUNT_PROVIDERS) and
+[django-allauth docs](https://docs.allauth.org/en/latest/socialaccount/configuration.html)
+for more information.
+
+To associate an existing Paperless-ngx account with a social account, first login with your
+regular credentials and then choose "My Profile" from the user dropdown in the app and you
+will see options to connect social account(s). If enabled, signup options will be available
+on the login page.
+
+As an example, to set up login via Github, the following environment variables would need to be
+set:
+
+```conf
+PAPERLESS_APPS="allauth.socialaccount.providers.github"
+PAPERLESS_SOCIALACCOUNT_PROVIDERS='{"github": {"APPS": [{"provider_id": "github","name": "Github","client_id": "<CLIENT_ID>","secret": "<CLIENT_SECRET>"}]}}'
+```
+
+Or, to use OpenID Connect ("OIDC"), via Keycloak in this example:
+
+```conf
+PAPERLESS_APPS="allauth.socialaccount.providers.openid_connect"
+PAPERLESS_SOCIALACCOUNT_PROVIDERS='
+{"openid_connect": {"APPS": [{"provider_id": "keycloak","name": "Keycloak","client_id": "paperless","secret": "<CLIENT_SECRET>","settings": { "server_url": "https://<KEYCLOAK_SERVER>/realms/<REALM>/.well-known/openid-configuration"}}]}}'
+```
+
+More details about configuration option for various providers can be found in the [allauth documentation](https://docs.allauth.org/en/latest/socialaccount/providers/index.html#provider-specifics).

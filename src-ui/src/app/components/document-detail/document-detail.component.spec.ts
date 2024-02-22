@@ -1,5 +1,8 @@
 import { DatePipe } from '@angular/common'
-import { HttpClientTestingModule } from '@angular/common/http/testing'
+import {
+  HttpClientTestingModule,
+  HttpTestingController,
+} from '@angular/common/http/testing'
 import {
   ComponentFixture,
   TestBed,
@@ -70,6 +73,8 @@ import { CustomFieldsDropdownComponent } from '../common/custom-fields-dropdown/
 import { CustomFieldDataType } from 'src/app/data/custom-field'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { PdfViewerComponent } from '../common/pdf-viewer/pdf-viewer.component'
+import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { environment } from 'src/environments/environment'
 
 const doc: Document = {
   id: 3,
@@ -79,8 +84,9 @@ const doc: Document = {
   storage_path: 31,
   tags: [41, 42, 43],
   content: 'text content',
-  added: new Date(),
-  created: new Date(),
+  added: new Date('May 4, 2014 03:24:00'),
+  created: new Date('May 4, 2014 03:24:00'),
+  modified: new Date('May 4, 2014 03:24:00'),
   archive_serial_number: null,
   original_file_name: 'file.pdf',
   owner: null,
@@ -89,12 +95,12 @@ const doc: Document = {
     {
       created: new Date(),
       note: 'note 1',
-      user: 1,
+      user: { id: 1, username: 'user1' },
     },
     {
       created: new Date(),
       note: 'note 2',
-      user: 2,
+      user: { id: 2, username: 'user2' },
     },
   ],
   custom_fields: [
@@ -134,6 +140,7 @@ describe('DocumentDetailComponent', () => {
   let documentListViewService: DocumentListViewService
   let settingsService: SettingsService
   let customFieldsService: CustomFieldsService
+  let httpTestingController: HttpTestingController
 
   let currentUserCan = true
   let currentUserHasObjectPermissions = true
@@ -249,14 +256,12 @@ describe('DocumentDetailComponent', () => {
         FormsModule,
         ReactiveFormsModule,
         NgbModalModule,
+        NgxBootstrapIconsModule.pick(allIcons),
       ],
     }).compileComponents()
 
     router = TestBed.inject(Router)
     activatedRoute = TestBed.inject(ActivatedRoute)
-    jest
-      .spyOn(activatedRoute, 'paramMap', 'get')
-      .mockReturnValue(of(convertToParamMap({ id: 3 })))
     openDocumentsService = TestBed.inject(OpenDocumentsService)
     documentService = TestBed.inject(DocumentService)
     modalService = TestBed.inject(NgbModal)
@@ -266,6 +271,7 @@ describe('DocumentDetailComponent', () => {
     settingsService.currentUser = { id: 1 }
     customFieldsService = TestBed.inject(CustomFieldsService)
     fixture = TestBed.createComponent(DocumentDetailComponent)
+    httpTestingController = TestBed.inject(HttpTestingController)
     component = fixture.componentInstance
   })
 
@@ -294,6 +300,17 @@ describe('DocumentDetailComponent', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['documents', 3, 'notes'])
   })
 
+  it('should forward id without section to details', () => {
+    const navigateSpy = jest.spyOn(router, 'navigate')
+    jest
+      .spyOn(activatedRoute, 'paramMap', 'get')
+      .mockReturnValue(of(convertToParamMap({ id: 3 })))
+    fixture.detectChanges()
+    expect(navigateSpy).toHaveBeenCalledWith(['documents', 3, 'details'], {
+      replaceUrl: true,
+    })
+  })
+
   it('should update title after debounce', fakeAsync(() => {
     initNormally()
     component.titleInput.value = 'Foo Bar'
@@ -319,6 +336,7 @@ describe('DocumentDetailComponent', () => {
   })
 
   it('should load already-opened document via param', () => {
+    initNormally()
     jest.spyOn(documentService, 'get').mockReturnValueOnce(of(doc))
     jest.spyOn(openDocumentsService, 'getOpenDocument').mockReturnValue(doc)
     jest.spyOn(customFieldsService, 'listAll').mockReturnValue(
@@ -336,6 +354,26 @@ describe('DocumentDetailComponent', () => {
     currentUserHasObjectPermissions = false
     initNormally()
     expect(component.documentForm.disabled).toBeTruthy()
+  })
+
+  it('should not attempt to retrieve objects if user does not have permissions', () => {
+    currentUserCan = false
+    initNormally()
+    expect(component.correspondents).toBeUndefined()
+    expect(component.documentTypes).toBeUndefined()
+    expect(component.storagePaths).toBeUndefined()
+    expect(component.users).toBeUndefined()
+    httpTestingController.expectNone(`${environment.apiBaseUrl}documents/tags/`)
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/correspondents/`
+    )
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/document_types/`
+    )
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/storage_paths/`
+    )
+    currentUserCan = true
   })
 
   it('should support creating document type', () => {
@@ -399,8 +437,11 @@ describe('DocumentDetailComponent', () => {
   })
 
   it('should 404 on invalid id', () => {
-    jest.spyOn(documentService, 'get').mockReturnValueOnce(of(null))
     const navigateSpy = jest.spyOn(router, 'navigate')
+    jest
+      .spyOn(activatedRoute, 'paramMap', 'get')
+      .mockReturnValue(of(convertToParamMap({ id: 999, section: 'details' })))
+    jest.spyOn(documentService, 'get').mockReturnValueOnce(of(null))
     fixture.detectChanges()
     expect(navigateSpy).toHaveBeenCalledWith(['404'], { replaceUrl: true })
   })
@@ -666,6 +707,7 @@ describe('DocumentDetailComponent', () => {
 
   it('should support Enter key in password field', () => {
     initNormally()
+    component.metadata = { has_archive_version: true }
     component.onError({ name: 'PasswordException' }) // normally dispatched by pdf viewer
     fixture.detectChanges()
     expect(component.password).toBeUndefined()
@@ -935,7 +977,103 @@ describe('DocumentDetailComponent', () => {
     expect(refreshSpy).toHaveBeenCalled()
   })
 
+  it('should get suggestions', () => {
+    const suggestionsSpy = jest.spyOn(documentService, 'getSuggestions')
+    suggestionsSpy.mockReturnValue(of({ tags: [1, 2] }))
+    initNormally()
+    expect(suggestionsSpy).toHaveBeenCalled()
+    expect(component.suggestions).toEqual({ tags: [1, 2] })
+  })
+
+  it('should show error if needed for get suggestions', () => {
+    const suggestionsSpy = jest.spyOn(documentService, 'getSuggestions')
+    const errorSpy = jest.spyOn(toastService, 'showError')
+    suggestionsSpy.mockImplementationOnce(() =>
+      throwError(() => new Error('failed to get suggestions'))
+    )
+    initNormally()
+    expect(suggestionsSpy).toHaveBeenCalled()
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it('should warn when open document does not match doc retrieved from backend on init', () => {
+    let openModal: NgbModalRef
+    modalService.activeInstances.subscribe((modals) => (openModal = modals[0]))
+    const modalSpy = jest.spyOn(modalService, 'open')
+    const openDoc = Object.assign({}, doc)
+    // simulate a document being modified elsewhere and db updated
+    doc.modified = new Date()
+    jest
+      .spyOn(activatedRoute, 'paramMap', 'get')
+      .mockReturnValue(of(convertToParamMap({ id: 3, section: 'details' })))
+    jest.spyOn(documentService, 'get').mockReturnValueOnce(of(doc))
+    jest.spyOn(openDocumentsService, 'getOpenDocument').mockReturnValue(openDoc)
+    jest.spyOn(customFieldsService, 'listAll').mockReturnValue(
+      of({
+        count: customFields.length,
+        all: customFields.map((f) => f.id),
+        results: customFields,
+      })
+    )
+    fixture.detectChanges() // calls ngOnInit
+    expect(modalSpy).toHaveBeenCalledWith(ConfirmDialogComponent)
+    const closeSpy = jest.spyOn(openModal, 'close')
+    const confirmDialog = openModal.componentInstance as ConfirmDialogComponent
+    confirmDialog.confirmClicked.next(confirmDialog)
+    expect(closeSpy).toHaveBeenCalled()
+  })
+
+  it('should change preview element by render type', () => {
+    component.metadata = { has_archive_version: true }
+    initNormally()
+    fixture.detectChanges()
+    expect(component.contentRenderType).toEqual(component.ContentRenderType.PDF)
+    expect(
+      fixture.debugElement.query(By.css('pdf-viewer-container'))
+    ).not.toBeUndefined()
+
+    component.metadata = {
+      has_archive_version: false,
+      original_mime_type: 'text/plain',
+    }
+    fixture.detectChanges()
+    expect(component.contentRenderType).toEqual(
+      component.ContentRenderType.Text
+    )
+    expect(
+      fixture.debugElement.query(By.css('div.preview-sticky'))
+    ).not.toBeUndefined()
+
+    component.metadata = {
+      has_archive_version: false,
+      original_mime_type: 'image/jpg',
+    }
+    fixture.detectChanges()
+    expect(component.contentRenderType).toEqual(
+      component.ContentRenderType.Image
+    )
+    expect(
+      fixture.debugElement.query(By.css('.preview-sticky img'))
+    ).not.toBeUndefined()
+
+    component.metadata = {
+      has_archive_version: false,
+      original_mime_type:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }
+    fixture.detectChanges()
+    expect(component.contentRenderType).toEqual(
+      component.ContentRenderType.Other
+    )
+    expect(
+      fixture.debugElement.query(By.css('object.preview-sticky'))
+    ).not.toBeUndefined()
+  })
+
   function initNormally() {
+    jest
+      .spyOn(activatedRoute, 'paramMap', 'get')
+      .mockReturnValue(of(convertToParamMap({ id: 3, section: 'details' })))
     jest
       .spyOn(documentService, 'get')
       .mockReturnValueOnce(of(Object.assign({}, doc)))

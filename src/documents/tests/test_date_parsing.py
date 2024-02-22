@@ -1,7 +1,4 @@
 import datetime
-import os
-import shutil
-from uuid import uuid4
 
 from dateutil import tz
 from django.conf import settings
@@ -13,17 +10,6 @@ from documents.parsers import parse_date_generator
 
 
 class TestDate(TestCase):
-    SAMPLE_FILES = os.path.join(
-        os.path.dirname(__file__),
-        "../../paperless_tesseract/tests/samples",
-    )
-    SCRATCH = f"/tmp/paperless-tests-{str(uuid4())[:8]}"
-
-    def setUp(self):
-        os.makedirs(self.SCRATCH, exist_ok=True)
-
-    def tearDown(self):
-        shutil.rmtree(self.SCRATCH)
 
     def test_date_format_1(self):
         text = "lorem ipsum 130218 lorem ipsum"
@@ -93,7 +79,6 @@ class TestDate(TestCase):
             datetime.datetime(2020, 3, 1, 0, 0, tzinfo=tz.gettz(settings.TIME_ZONE)),
         )
 
-    @override_settings(SCRATCH_DIR=SCRATCH)
     def test_date_format_9(self):
         text = "lorem ipsum\n27. Nullmonth 2020\nMärz 2020\nlorem ipsum"
         self.assertEqual(
@@ -199,6 +184,13 @@ class TestDate(TestCase):
         self.assertEqual(
             parse_date("", text),
             datetime.datetime(2022, 3, 25, 0, 0, tzinfo=tz.gettz(settings.TIME_ZONE)),
+        )
+
+    def test_date_format_26(self):
+        text = "CHASE 0 September 25, 2019 JPMorgan Chase Bank, NA. P0 Box 182051"
+        self.assertEqual(
+            parse_date("", text),
+            datetime.datetime(2019, 9, 25, 0, 0, tzinfo=tz.gettz(settings.TIME_ZONE)),
         )
 
     def test_crazy_date_past(self, *args):

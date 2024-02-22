@@ -17,6 +17,7 @@ export enum PermissionType {
   StoragePath = '%s_storagepath',
   SavedView = '%s_savedview',
   PaperlessTask = '%s_paperlesstask',
+  AppConfig = '%s_applicationconfiguration',
   UISettings = '%s_uisettings',
   Note = '%s_note',
   MailAccount = '%s_mailaccount',
@@ -27,8 +28,6 @@ export enum PermissionType {
   ShareLink = '%s_sharelink',
   CustomField = '%s_customfield',
   Workflow = '%s_workflow',
-  WorkflowTrigger = '%s_workflowtrigger',
-  WorkflowAction = '%s_workflowaction',
 }
 
 @Injectable({
