@@ -264,7 +264,7 @@ directory. See [File name handling](advanced_usage.md#file-name-handling) for de
 : Tells paperless to replace placeholders in
 `PAPERLESS_FILENAME_FORMAT` that would resolve to
 'none' to be omitted from the resulting filename. This also holds
-true for directory names. See [File name handling](advanced_usage.md#file-name-handling) for
+true for directory names. See [File name handling](advanced_usage.md#empty-placeholders) for
 details.
 
     Defaults to `false` which disables this feature.
@@ -491,8 +491,9 @@ followed by the normalized actual header name.
 #### [`PAPERLESS_LOGOUT_REDIRECT_URL=<str>`](#PAPERLESS_LOGOUT_REDIRECT_URL) {#PAPERLESS_LOGOUT_REDIRECT_URL}
 
 : URL to redirect the user to after a logout. This can be used
-together with PAPERLESS_ENABLE_HTTP_REMOTE_USER to
-redirect the user back to the SSO application's logout page.
+together with PAPERLESS_ENABLE_HTTP_REMOTE_USER and SSO to
+redirect the user back to the SSO application's logout page to
+complete the logout process.
 
     Defaults to None, which disables this feature.
 
@@ -539,7 +540,7 @@ This is for use with self-signed certificates against local IMAP servers.
 #### [`PAPERLESS_SOCIALACCOUNT_PROVIDERS=<json>`](#PAPERLESS_SOCIALACCOUNT_PROVIDERS) {#PAPERLESS_SOCIALACCOUNT_PROVIDERS}
 
 : This variable is used to setup login and signup via social account providers which are compatible with django-allauth.
-See the corresponding [django-allauth documentation](https://docs.allauth.org/en/0.60.0/socialaccount/providers/index.html)
+See the corresponding [django-allauth documentation](https://docs.allauth.org/en/latest/socialaccount/providers/index.html)
 for a list of provider configurations. You will also need to include the relevant Django 'application' inside the
 [PAPERLESS_APPS](#PAPERLESS_APPS) setting to activate that specific authentication provider (e.g. `allauth.socialaccount.providers.openid_connect` for the [OIDC Connect provider](https://docs.allauth.org/en/latest/socialaccount/providers/openid_connect.html)).
 
@@ -549,7 +550,7 @@ for a list of provider configurations. You will also need to include the relevan
 
 : Attempt to signup the user using retrieved email, username etc from the third party authentication
 system. See the corresponding
-[django-allauth documentation](https://docs.allauth.org/en/0.60.0/socialaccount/configuration.html)
+[django-allauth documentation](https://docs.allauth.org/en/latest/socialaccount/configuration.html)
 
     Defaults to False
 
@@ -571,6 +572,28 @@ system. See the corresponding
 [django-allauth documentation](https://docs.allauth.org/en/latest/account/configuration.html)
 
     Defaults to 'https'
+
+#### [`PAPERLESS_ACCOUNT_EMAIL_VERIFICATION=<string>`](#PAPERLESS_ACCOUNT_EMAIL_VERIFICATION) {#PAPERLESS_ACCOUNT_EMAIL_VERIFICATION}
+
+: Determines whether email addresses are verified during signup (as performed by Django allauth). See the relevant
+[paperless settings](#PAPERLESS_EMAIL_HOST) and [the allauth docs](https://docs.allauth.org/en/latest/account/configuration.html)
+
+    Defaults to 'optional'
+
+!!! note
+
+    If you do not have a working email server set up you should set this to 'none'.
+
+#### [`PAPERLESS_DISABLE_REGULAR_LOGIN=<bool>`](#PAPERLESS_DISABLE_REGULAR_LOGIN) {#PAPERLESS_DISABLE_REGULAR_LOGIN}
+
+: Disables the regular frontend username / password login, i.e. once you have setup SSO. Note that this setting does not disable the Django admin login. To prevent logins directly to Django, consider blocking `/admin/` in your [web server or reverse proxy configuration](https://github.com/paperless-ngx/paperless-ngx/wiki/Using-a-Reverse-Proxy-with-Paperless-ngx).
+
+    Defaults to False
+
+#### [`PAPERLESS_ACCOUNT_SESSION_REMEMBER=<bool>`](#PAPERLESS_ACCOUNT_SESSION_REMEMBER) {#PAPERLESS_ACCOUNT_SESSION_REMEMBER}
+
+: See the corresponding
+[django-allauth documentation](https://docs.allauth.org/en/latest/account/configuration.html)
 
 ## OCR settings {#ocr}
 
@@ -749,6 +772,8 @@ but could result in missing text content.
     If unset, will default to the value determined by
     [Pillow](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS).
 
+    Setting this value to 0 will entirely disable the limit.  See the below warning.
+
     !!! note
 
         Increasing this limit could cause Paperless to consume additional
@@ -758,7 +783,7 @@ but could result in missing text content.
     !!! warning
 
         The limit is intended to prevent malicious files from consuming
-        system resources and causing crashes and other errors. Only increase
+        system resources and causing crashes and other errors. Only change
         this value if you are certain your documents are not malicious and
         you need the text which was not OCRed
 
@@ -950,6 +975,20 @@ be used with caution!
 
     Defaults to None, which does not add any additional apps.
 
+#### [`PAPERLESS_MAX_IMAGE_PIXELS=<number>`](#PAPERLESS_MAX_IMAGE_PIXELS) {#PAPERLESS_MAX_IMAGE_PIXELS}
+
+: Configures the maximum size of an image PIL will allow to load without warning or error.
+
+: If unset, will default to the value determined by
+[Pillow](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.MAX_IMAGE_PIXELS).
+
+    Defaults to None, which does change the limit
+
+    !!! warning
+
+        This limit is designed to prevent denial of service from malicious files.
+        It should only be raised or disabled in certain circumstances and with great care.
+
 ## Document Consumption {#consume_config}
 
 #### [`PAPERLESS_CONSUMER_DELETE_DUPLICATES=<bool>`](#PAPERLESS_CONSUMER_DELETE_DUPLICATES) {#PAPERLESS_CONSUMER_DELETE_DUPLICATES}
@@ -997,7 +1036,7 @@ or hidden folders some tools use to store data.
     `._foo.pdf` and `._bar/foo.pdf`
 
     Defaults to
-    `[".DS_STORE/*", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*"]`.
+    `[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*", "Thumbs.db"]`.
 
 #### [`PAPERLESS_CONSUMER_BARCODE_SCANNER=<string>`](#PAPERLESS_CONSUMER_BARCODE_SCANNER) {#PAPERLESS_CONSUMER_BARCODE_SCANNER}
 

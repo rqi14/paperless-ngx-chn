@@ -58,6 +58,10 @@ fields:
 - `custom_fields`: Array of custom fields & values, specified as
   `{ field: CUSTOM_FIELD_ID, value: VALUE }`
 
+!!! note
+
+    Note that all endpoint URLs must end with a `/`slash.
+
 ## Downloading documents
 
 In addition to that, the document endpoint offers these additional
@@ -336,7 +340,7 @@ The API supports various bulk-editing operations which are executed asynchronous
 
 ### Documents
 
-For bulk operations on documents, use the endpoint `/api/bulk_edit/` which accepts
+For bulk operations on documents, use the endpoint `/api/documents/bulk_edit/` which accepts
 a json payload of the format:
 
 ```json
