@@ -351,11 +351,19 @@ if __get_boolean("PAPERLESS_ENABLE_COMPRESSION", "yes"):  # pragma: no cover
 
 ROOT_URLCONF = "paperless.urls"
 
-FORCE_SCRIPT_NAME = os.getenv("PAPERLESS_FORCE_SCRIPT_NAME")
-BASE_URL = (FORCE_SCRIPT_NAME or "") + "/"
-LOGIN_URL = BASE_URL + "accounts/login/"
-LOGIN_REDIRECT_URL = "/dashboard"
-LOGOUT_REDIRECT_URL = os.getenv("PAPERLESS_LOGOUT_REDIRECT_URL")
+
+def _parse_base_paths() -> tuple[str, str, str, str, str]:
+    script_name = os.getenv("PAPERLESS_FORCE_SCRIPT_NAME")
+    base_url = (script_name or "") + "/"
+    login_url = base_url + "accounts/login/"
+    login_redirect_url = base_url + "dashboard"
+    logout_redirect_url = os.getenv("PAPERLESS_LOGOUT_REDIRECT_URL", base_url)
+    return script_name, base_url, login_url, login_redirect_url, logout_redirect_url
+
+
+FORCE_SCRIPT_NAME, BASE_URL, LOGIN_URL, LOGIN_REDIRECT_URL, LOGOUT_REDIRECT_URL = (
+    _parse_base_paths()
+)
 
 WSGI_APPLICATION = "paperless.wsgi.application"
 ASGI_APPLICATION = "paperless.asgi.application"
@@ -437,7 +445,18 @@ SOCIALACCOUNT_PROVIDERS = json.loads(
     os.getenv("PAPERLESS_SOCIALACCOUNT_PROVIDERS", "{}"),
 )
 
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Paperless-ngx] "
+
+DISABLE_REGULAR_LOGIN = __get_boolean("PAPERLESS_DISABLE_REGULAR_LOGIN")
+
 AUTO_LOGIN_USERNAME = os.getenv("PAPERLESS_AUTO_LOGIN_USERNAME")
+
+ACCOUNT_EMAIL_VERIFICATION = os.getenv(
+    "PAPERLESS_ACCOUNT_EMAIL_VERIFICATION",
+    "optional",
+)
+
+ACCOUNT_SESSION_REMEMBER = __get_boolean("PAPERLESS_ACCOUNT_SESSION_REMEMBER")
 
 if AUTO_LOGIN_USERNAME:
     _index = MIDDLEWARE.index("django.contrib.auth.middleware.AuthenticationMiddleware")
@@ -491,18 +510,23 @@ if DEBUG:
     CORS_ALLOWED_ORIGINS.append("http://localhost:4200")
 
 ALLOWED_HOSTS = __get_list("PAPERLESS_ALLOWED_HOSTS", ["*"])
-
-_paperless_url = os.getenv("PAPERLESS_URL")
-if _paperless_url:
-    _paperless_uri = urlparse(_paperless_url)
-    CSRF_TRUSTED_ORIGINS.append(_paperless_url)
-    CORS_ALLOWED_ORIGINS.append(_paperless_url)
-
 if ["*"] != ALLOWED_HOSTS:
     # always allow localhost. Necessary e.g. for healthcheck in docker.
     ALLOWED_HOSTS.append("localhost")
-    if _paperless_url:
-        ALLOWED_HOSTS.append(_paperless_uri.hostname)
+
+
+def _parse_paperless_url():
+    global CSRF_TRUSTED_ORIGINS, CORS_ALLOWED_ORIGINS, ALLOWED_HOSTS
+    url = os.getenv("PAPERLESS_URL")
+    if url:
+        CSRF_TRUSTED_ORIGINS.append(url)
+        CORS_ALLOWED_ORIGINS.append(url)
+        ALLOWED_HOSTS.append(urlparse(url).hostname)
+
+    return url
+
+
+PAPERLESS_URL = _parse_paperless_url()
 
 # For use with trusted proxies
 TRUSTED_PROXIES = __get_list("PAPERLESS_TRUSTED_PROXIES")
@@ -739,6 +763,7 @@ LOGGING = {
     "loggers": {
         "paperless": {"handlers": ["file_paperless"], "level": "DEBUG"},
         "paperless_mail": {"handlers": ["file_mail"], "level": "DEBUG"},
+        "ocrmypdf": {"handlers": ["file_paperless"], "level": "INFO"},
         "celery": {"handlers": ["file_celery"], "level": "DEBUG"},
         "kombu": {"handlers": ["file_celery"], "level": "DEBUG"},
     },
@@ -842,7 +867,7 @@ CONSUMER_IGNORE_PATTERNS = list(
     json.loads(
         os.getenv(
             "PAPERLESS_CONSUMER_IGNORE_PATTERNS",
-            '[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*"]',
+            '[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*", "Thumbs.db"]',
         ),
     ),
 )
@@ -946,6 +971,10 @@ OCR_COLOR_CONVERSION_STRATEGY = os.getenv(
 )
 
 OCR_USER_ARGS = os.getenv("PAPERLESS_OCR_USER_ARGS")
+
+MAX_IMAGE_PIXELS: Final[Optional[int]] = __get_optional_int(
+    "PAPERLESS_MAX_IMAGE_PIXELS",
+)
 
 # GNUPG needs a home directory for some reason
 GNUPG_HOME = os.getenv("HOME", "/tmp")
@@ -1119,3 +1148,6 @@ DEFAULT_FROM_EMAIL: Final[str] = os.getenv("PAPERLESS_EMAIL_FROM", EMAIL_HOST_US
 EMAIL_USE_TLS: Final[bool] = __get_boolean("PAPERLESS_EMAIL_USE_TLS")
 EMAIL_USE_SSL: Final[bool] = __get_boolean("PAPERLESS_EMAIL_USE_SSL")
 EMAIL_SUBJECT_PREFIX: Final[str] = "[Paperless-ngx] "
+if DEBUG:  # pragma: no cover
+    EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+    EMAIL_FILE_PATH = BASE_DIR / "sent_emails"

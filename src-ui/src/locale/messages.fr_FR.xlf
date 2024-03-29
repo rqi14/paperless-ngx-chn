@@ -2,14 +2,6 @@
 <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
   <file source-language="en" datatype="plaintext" original="ng2.template" target-language="fr">
     <body>
-      <trans-unit id="ngb.alert.close" datatype="html" approved="yes">
-        <source>Close</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
-          <context context-type="linenumber">13</context>
-        </context-group>
-        <target state="final">Fermer</target>
-      </trans-unit>
       <trans-unit id="ngb.timepicker.HH" datatype="html" approved="yes">
         <source>HH</source>
         <context-group purpose="location">
@@ -18,7 +10,7 @@
         </context-group>
         <target state="final">HH</target>
       </trans-unit>
-      <trans-unit id="ngb.toast.close-aria" datatype="html" approved="yes">
+      <trans-unit id="ngb.alert.close" datatype="html" approved="yes">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
@@ -26,13 +18,13 @@
         </context-group>
         <target state="final">Fermer</target>
       </trans-unit>
-      <trans-unit id="ngb.pagination.first" datatype="html" approved="yes">
-        <source>««</source>
+      <trans-unit id="ngb.toast.close-aria" datatype="html" approved="yes">
+        <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
           <context context-type="linenumber">13</context>
         </context-group>
-        <target state="final">««</target>
+        <target state="final">Fermer</target>
       </trans-unit>
       <trans-unit id="ngb.datepicker.select-month" datatype="html" approved="yes">
         <source>Select month</source>
@@ -45,6 +37,14 @@
           <context context-type="linenumber">13</context>
         </context-group>
         <target state="final">Sélectionner le mois</target>
+      </trans-unit>
+      <trans-unit id="ngb.pagination.first" datatype="html" approved="yes">
+        <source>««</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+        <target state="final">««</target>
       </trans-unit>
       <trans-unit id="ngb.datepicker.previous-month" datatype="html" approved="yes">
         <source>Previous month</source>
@@ -164,14 +164,6 @@
         </context-group>
         <target state="final">»»</target>
       </trans-unit>
-      <trans-unit id="ngb.timepicker.increment-hours" datatype="html">
-        <source>Increment hours</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
-          <context context-type="linenumber">13</context>
-        </context-group>
-        <target state="translated">Incrémenter les heures</target>
-      </trans-unit>
       <trans-unit id="ngb.pagination.first-aria" datatype="html" approved="yes">
         <source>First</source>
         <context-group purpose="location">
@@ -179,6 +171,14 @@
           <context context-type="linenumber">13</context>
         </context-group>
         <target state="final">Premier</target>
+      </trans-unit>
+      <trans-unit id="ngb.timepicker.increment-hours" datatype="html">
+        <source>Increment hours</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">node_modules/src/ngb-config.ts</context>
+          <context context-type="linenumber">13</context>
+        </context-group>
+        <target state="translated">Incrémenter les heures</target>
       </trans-unit>
       <trans-unit id="ngb.pagination.previous-aria" datatype="html" approved="yes">
         <source>Previous</source>
@@ -325,7 +325,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">82</context>
+          <context context-type="linenumber">81</context>
         </context-group>
         <target state="final">Suivant</target>
       </trans-unit>
@@ -415,7 +415,7 @@
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
           <context context-type="linenumber">4</context>
         </context-group>
-        <target state="final">Les tâches de fichiers vous montrent les documents qui ont été consommés, ceux qui sont en attente de l'être, ou ceux qui ont pu échouer au cours du processus.</target>
+        <target state="final">Les tâches sur les fichiers vous montrent les documents qui ont été consommés, ceux qui sont en attente de l'être, ou ceux qui ont pu échouer au cours du processus.</target>
       </trans-unit>
       <trans-unit id="1453710303796913192" datatype="html">
         <source>Check out the settings for various tweaks to the web app and toggle settings for saved views.</source>
@@ -507,7 +507,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">315</context>
+          <context context-type="linenumber">312</context>
         </context-group>
         <target state="final">Abandonner</target>
       </trans-unit>
@@ -519,47 +519,47 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">354</context>
+          <context context-type="linenumber">375</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
-          <context context-type="linenumber">25</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">16</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
-          <context context-type="linenumber">27</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
-          <context context-type="linenumber">17</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">37</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">49</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">26</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
           <context context-type="linenumber">28</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
+          <context context-type="linenumber">30</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
+          <context context-type="linenumber">40</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
+          <context context-type="linenumber">51</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
+          <context context-type="linenumber">29</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">167</context>
+          <context context-type="linenumber">114</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -567,7 +567,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">307</context>
+          <context context-type="linenumber">304</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/save-view-config-dialog/save-view-config-dialog.component.html</context>
@@ -671,7 +671,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">342</context>
+          <context context-type="linenumber">363</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
@@ -683,7 +683,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">35</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/document-link/document-link.component.html</context>
@@ -692,6 +692,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-dialog/permissions-dialog.component.html</context>
           <context context-type="linenumber">23</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">10</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/dashboard/dashboard.component.html</context>
@@ -703,7 +707,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">324</context>
+          <context context-type="linenumber">321</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -739,7 +743,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">293</context>
+          <context context-type="linenumber">314</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
@@ -767,15 +771,27 @@
         <source>Start tour</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">7</context>
+          <context context-type="linenumber">8</context>
         </context-group>
         <target state="final">Commencer la visite </target>
+      </trans-unit>
+      <trans-unit id="3276228498925657259" datatype="html" approved="yes">
+        <source>System Status</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
+          <context context-type="linenumber">27</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">2</context>
+        </context-group>
+        <target state="final">État du système</target>
       </trans-unit>
       <trans-unit id="4798013226763881638" datatype="html" approved="yes">
         <source>Open Django Admin</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">30</context>
         </context-group>
         <target state="final">Ouvrir l'interface d'administration Django</target>
       </trans-unit>
@@ -783,7 +799,7 @@
         <source>General</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <target state="final">Général</target>
       </trans-unit>
@@ -791,7 +807,7 @@
         <source>Appearance</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">42</context>
         </context-group>
         <target state="final">Affichage</target>
       </trans-unit>
@@ -799,7 +815,7 @@
         <source>Display language</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">46</context>
         </context-group>
         <target state="final">Langue d'affichage</target>
       </trans-unit>
@@ -807,7 +823,7 @@
         <source>You need to reload the page after applying a new language.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">38</context>
+          <context context-type="linenumber">59</context>
         </context-group>
         <target state="final">Vous devez recharger la page après avoir sélectionné une nouvelle langue.</target>
       </trans-unit>
@@ -815,7 +831,7 @@
         <source>Date display</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">67</context>
         </context-group>
         <target state="final">Affichage de la date</target>
       </trans-unit>
@@ -823,7 +839,7 @@
         <source>Date format</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">84</context>
         </context-group>
         <target state="final">Format de date</target>
       </trans-unit>
@@ -831,7 +847,7 @@
         <source>Short: <x id="INTERPOLATION" equiv-text="{{today | customDate:&apos;shortDate&apos;:null:computedDateLocale}}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">69,70</context>
+          <context context-type="linenumber">90,91</context>
         </context-group>
         <target state="final">Court : <x id="INTERPOLATION" equiv-text="{{today | customDate:'shortDate':null:computedDateLocale}}"/></target>
       </trans-unit>
@@ -839,7 +855,7 @@
         <source>Medium: <x id="INTERPOLATION" equiv-text="{{today | customDate:&apos;mediumDate&apos;:null:computedDateLocale}}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">73,74</context>
+          <context context-type="linenumber">94,95</context>
         </context-group>
         <target state="final">Moyen : <x id="INTERPOLATION" equiv-text="{{today | customDate:'mediumDate':null:computedDateLocale}}"/></target>
       </trans-unit>
@@ -847,7 +863,7 @@
         <source>Long: <x id="INTERPOLATION" equiv-text="{{today | customDate:&apos;longDate&apos;:null:computedDateLocale}}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">77,78</context>
+          <context context-type="linenumber">98,99</context>
         </context-group>
         <target state="final">Long : <x id="INTERPOLATION" equiv-text="{{today | customDate:'longDate':null:computedDateLocale}}"/></target>
       </trans-unit>
@@ -855,7 +871,7 @@
         <source>Items per page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">106</context>
         </context-group>
         <target state="final">Éléments par page</target>
       </trans-unit>
@@ -863,7 +879,7 @@
         <source>Document editor</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">122</context>
         </context-group>
         <target state="final">Visionneuse de documents</target>
       </trans-unit>
@@ -871,7 +887,7 @@
         <source>Use PDF viewer provided by the browser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">105</context>
+          <context context-type="linenumber">126</context>
         </context-group>
         <target state="final">Utiliser la visionneuse PDF intégrée du navigateur</target>
       </trans-unit>
@@ -879,7 +895,7 @@
         <source>This is usually faster for displaying large PDF documents, but it might not work on some browsers.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">105</context>
+          <context context-type="linenumber">126</context>
         </context-group>
         <target state="final">Cette option est généralement plus rapide pour l'affichage de grands documents PDF, mais elle peut ne pas fonctionner sur certains navigateurs.</target>
       </trans-unit>
@@ -887,7 +903,7 @@
         <source>Sidebar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">133</context>
         </context-group>
         <target state="final">Barre latérale</target>
       </trans-unit>
@@ -895,7 +911,7 @@
         <source>Use &apos;slim&apos; sidebar (icons only)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">137</context>
         </context-group>
         <target state="final">Utiliser la barre latérale réduite (icônes seulement)</target>
       </trans-unit>
@@ -903,7 +919,7 @@
         <source>Dark mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">123</context>
+          <context context-type="linenumber">144</context>
         </context-group>
         <target state="final">Mode sombre</target>
       </trans-unit>
@@ -911,7 +927,7 @@
         <source>Use system settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">147</context>
         </context-group>
         <target state="final">Utiliser les paramètres du système</target>
       </trans-unit>
@@ -919,7 +935,7 @@
         <source>Enable dark mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">127</context>
+          <context context-type="linenumber">148</context>
         </context-group>
         <target state="final">Activer le mode sombre</target>
       </trans-unit>
@@ -927,7 +943,7 @@
         <source>Invert thumbnails in dark mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">128</context>
+          <context context-type="linenumber">149</context>
         </context-group>
         <target state="final">Inverser la couleur des vignettes en mode sombre</target>
       </trans-unit>
@@ -935,7 +951,7 @@
         <source>Theme Color</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">134</context>
+          <context context-type="linenumber">155</context>
         </context-group>
         <target state="final">Couleur du thème</target>
       </trans-unit>
@@ -943,7 +959,7 @@
         <source>Reset</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">141</context>
+          <context context-type="linenumber">162</context>
         </context-group>
         <target state="final">Réinitialiser</target>
       </trans-unit>
@@ -951,7 +967,7 @@
         <source>Update checking</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">146</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <target state="final">Vérification des mises à jour</target>
       </trans-unit>
@@ -959,7 +975,7 @@
         <source> Update checking works by pinging the public <x id="START_LINK" ctype="x-a" equiv-text="&lt;a href=&quot;https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;"/>GitHub API<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/> for the latest release to determine whether a new version is available.<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br/&gt;"/> Actual updating of the app must still be performed manually. </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">150,153</context>
+          <context context-type="linenumber">171,174</context>
         </context-group>
         <target state="final"> La vérification des mises à jour fonctionne en faisant un ping sur l'API publique <x id="START_LINK" ctype="x-a" equiv-text="&lt;a href=&quot;https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;"/>GitHub<x id="CLOSE_LINK" ctype="x-a" equiv-text="&lt;/a&gt;"/> sur la dernière version afin de déterminer si une nouvelle version est disponible.<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br/&gt;"/> La mise à jour réelle de l'application doit toujours être effectuée manuellement. </target>
       </trans-unit>
@@ -967,7 +983,7 @@
         <source><x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&gt;"/>No tracking data is collected by the app in any way.<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">155,157</context>
+          <context context-type="linenumber">176,178</context>
         </context-group>
         <target state="translated"><x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&gt;"/>Aucune donnée de suivi n'est collectée par l'application.<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/></target>
       </trans-unit>
@@ -975,7 +991,7 @@
         <source>Enable update checking</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">157</context>
+          <context context-type="linenumber">178</context>
         </context-group>
         <target state="final">Activer les vérifications de mises à jour</target>
       </trans-unit>
@@ -983,15 +999,15 @@
         <source>Document editing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">161</context>
+          <context context-type="linenumber">182</context>
         </context-group>
-        <target state="needs-translation">Document editing</target>
+        <target state="translated">Visionneuse de documents</target>
       </trans-unit>
       <trans-unit id="2959590948110714366" datatype="html">
         <source>Automatically remove inbox tag(s) on save</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">165</context>
+          <context context-type="linenumber">186</context>
         </context-group>
         <target state="translated">Automatiquement supprimer le(s) étiquette(s) réception lors d'une sauvegarde</target>
       </trans-unit>
@@ -999,7 +1015,7 @@
         <source>Bulk editing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">169</context>
+          <context context-type="linenumber">190</context>
         </context-group>
         <target state="final">Édition en masse</target>
       </trans-unit>
@@ -1007,7 +1023,7 @@
         <source>Show confirmation dialogs</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">173</context>
+          <context context-type="linenumber">194</context>
         </context-group>
         <target state="final">Afficher les messages de confirmation</target>
       </trans-unit>
@@ -1015,7 +1031,7 @@
         <source>Deleting documents will always ask for confirmation.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">173</context>
+          <context context-type="linenumber">194</context>
         </context-group>
         <target state="final">La suppression de documents requiert toujours une confirmation.</target>
       </trans-unit>
@@ -1023,7 +1039,7 @@
         <source>Apply on close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">174</context>
+          <context context-type="linenumber">195</context>
         </context-group>
         <target state="final">Appliquer lors de la fermeture</target>
       </trans-unit>
@@ -1031,7 +1047,7 @@
         <source>Notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">199</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -1047,7 +1063,7 @@
         <source>Enable notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">182</context>
+          <context context-type="linenumber">203</context>
         </context-group>
         <target state="final">Activer les notes</target>
       </trans-unit>
@@ -1055,15 +1071,15 @@
         <source>Permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">211</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">33</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
@@ -1071,7 +1087,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">283</context>
+          <context context-type="linenumber">280</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -1111,7 +1127,7 @@
         <source>Default Permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">193</context>
+          <context context-type="linenumber">214</context>
         </context-group>
         <target state="final">Droits d'accès par défaut</target>
       </trans-unit>
@@ -1119,7 +1135,7 @@
         <source> Settings apply to this user account for objects (Tags, Mail Rules, etc.) created via the web UI </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">197,199</context>
+          <context context-type="linenumber">218,220</context>
         </context-group>
         <target state="translated"> Les paramètres s'appliquent à ce compte utilisateur pour les objets (Tags, Règles de Mail, etc.) créés via l'interface web </target>
       </trans-unit>
@@ -1127,7 +1143,7 @@
         <source>Default Owner</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">204</context>
+          <context context-type="linenumber">225</context>
         </context-group>
         <target state="final">Propriétaire par défaut</target>
       </trans-unit>
@@ -1135,7 +1151,7 @@
         <source>Objects without an owner can be viewed and edited by all users</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">208</context>
+          <context context-type="linenumber">229</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
@@ -1147,27 +1163,35 @@
         <source>Default View Permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">213</context>
+          <context context-type="linenumber">234</context>
         </context-group>
-        <target state="translated">Permissions de vue par défaut</target>
+        <target state="translated">Autorisations de consultation par défaut</target>
       </trans-unit>
       <trans-unit id="2191775412581217688" datatype="html" approved="yes">
         <source>Users:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">239</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">266</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">112</context>
+          <context context-type="linenumber">174</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">131</context>
+          <context context-type="linenumber">193</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">260</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">279</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
@@ -1183,19 +1207,27 @@
         <source>Groups:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">228</context>
+          <context context-type="linenumber">249</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">255</context>
+          <context context-type="linenumber">276</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">120</context>
+          <context context-type="linenumber">182</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">139</context>
+          <context context-type="linenumber">201</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">268</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">287</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
@@ -1211,19 +1243,23 @@
         <source>Default Edit Permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">240</context>
+          <context context-type="linenumber">261</context>
         </context-group>
-        <target state="translated">Permissions d'édition par défaut</target>
+        <target state="translated">Autorisations de modification par défaut</target>
       </trans-unit>
       <trans-unit id="3728984448750213892" datatype="html" approved="yes">
         <source>Edit permissions also grant viewing permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">264</context>
+          <context context-type="linenumber">285</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">145</context>
+          <context context-type="linenumber">207</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">293</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
@@ -1235,7 +1271,7 @@
         <source>Notifications</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">272</context>
+          <context context-type="linenumber">293</context>
         </context-group>
         <target state="final">Notifications</target>
       </trans-unit>
@@ -1243,7 +1279,7 @@
         <source>Document processing</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">275</context>
+          <context context-type="linenumber">296</context>
         </context-group>
         <target state="final">Traitement de documents</target>
       </trans-unit>
@@ -1251,7 +1287,7 @@
         <source>Show notifications when new documents are detected</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">279</context>
+          <context context-type="linenumber">300</context>
         </context-group>
         <target state="final">Afficher des notifications lorsque de nouveaux documents sont détectés</target>
       </trans-unit>
@@ -1259,7 +1295,7 @@
         <source>Show notifications when document processing completes successfully</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">280</context>
+          <context context-type="linenumber">301</context>
         </context-group>
         <target state="final">Afficher des notifications lorsque le traitement des documents se termine avec succès</target>
       </trans-unit>
@@ -1267,7 +1303,7 @@
         <source>Show notifications when document processing fails</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">281</context>
+          <context context-type="linenumber">302</context>
         </context-group>
         <target state="final">Afficher des notifications en cas d'échec du traitement des documents</target>
       </trans-unit>
@@ -1275,7 +1311,7 @@
         <source>Suppress notifications on dashboard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">282</context>
+          <context context-type="linenumber">303</context>
         </context-group>
         <target state="final">Supprimer les notifications du tableau de bord</target>
       </trans-unit>
@@ -1283,7 +1319,7 @@
         <source>This will suppress all messages about document processing status on the dashboard.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">282</context>
+          <context context-type="linenumber">303</context>
         </context-group>
         <target state="final">Cela supprimera tous les messages liés au traitement de documents sur le tableau de bord.</target>
       </trans-unit>
@@ -1291,7 +1327,7 @@
         <source>Saved views</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">290</context>
+          <context context-type="linenumber">311</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
@@ -1299,19 +1335,19 @@
         </context-group>
         <target state="final">Vues enregistrées</target>
       </trans-unit>
-      <trans-unit id="1595668988802980095" datatype="html">
+      <trans-unit id="1595668988802980095" datatype="html" approved="yes">
         <source>Show warning when closing saved views with unsaved changes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">296</context>
+          <context context-type="linenumber">317</context>
         </context-group>
-        <target state="translated">Afficher un avertissement lors de la fermeture d’une vue enregistrée avec des modifications non enregistrées</target>
+        <target state="final">Afficher un avertissement lors de la fermeture d’une vue enregistrée avec des modifications non enregistrées</target>
       </trans-unit>
       <trans-unit id="2123659921722214537" datatype="html" approved="yes">
         <source>Views</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">300</context>
+          <context context-type="linenumber">321</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -1323,7 +1359,7 @@
         <source>Name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">306</context>
+          <context context-type="linenumber">327</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
@@ -1339,39 +1375,39 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">12</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="linenumber">11</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">12</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="linenumber">11</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/save-view-config-dialog/save-view-config-dialog.component.html</context>
@@ -1431,7 +1467,7 @@
         <source> <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;visually-hidden&quot;&gt;"/>Appears on<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">310,311</context>
+          <context context-type="linenumber">331,332</context>
         </context-group>
         <target state="final"> <x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;visually-hidden&quot;&gt;"/>Apparaît sur<x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/></target>
       </trans-unit>
@@ -1439,7 +1475,7 @@
         <source>Show on dashboard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">313</context>
+          <context context-type="linenumber">334</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/save-view-config-dialog/save-view-config-dialog.component.html</context>
@@ -1451,7 +1487,7 @@
         <source>Show in sidebar</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">317</context>
+          <context context-type="linenumber">338</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/save-view-config-dialog/save-view-config-dialog.component.html</context>
@@ -1463,7 +1499,7 @@
         <source>Actions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">321</context>
+          <context context-type="linenumber">342</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
@@ -1479,7 +1515,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">67</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
@@ -1527,7 +1563,7 @@
         <source>Delete</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">324</context>
+          <context context-type="linenumber">345</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
@@ -1543,11 +1579,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">45</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">87</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
@@ -1626,6 +1662,10 @@
           <context context-type="linenumber">96</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">206</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.html</context>
           <context context-type="linenumber">38</context>
         </context-group>
@@ -1635,7 +1675,7 @@
         <source>No saved views defined.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">336</context>
+          <context context-type="linenumber">357</context>
         </context-group>
         <target state="final">Aucune vue sauvegardée n'est définie.</target>
       </trans-unit>
@@ -1643,7 +1683,7 @@
         <source>Use system language</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">61</context>
         </context-group>
         <target state="final">Utiliser la langue du système</target>
       </trans-unit>
@@ -1651,7 +1691,7 @@
         <source>Use date format of display language</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">64</context>
         </context-group>
         <target state="final">Utiliser le format de date de la langue d'affichage</target>
       </trans-unit>
@@ -1659,7 +1699,7 @@
         <source>Error retrieving users</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">159</context>
+          <context context-type="linenumber">183</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
@@ -1671,7 +1711,7 @@
         <source>Error retrieving groups</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">202</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
@@ -1683,15 +1723,15 @@
         <source>Saved view &quot;<x id="PH" equiv-text="savedView.name"/>&quot; deleted.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">380</context>
+          <context context-type="linenumber">415</context>
         </context-group>
-        <target state="final">Vue "<x id="PH" equiv-text="savedView.name"/>" supprimée.</target>
+        <target state="final">Vue sauvegardée « <x id="PH" equiv-text="savedView.name"/> » supprimée.</target>
       </trans-unit>
       <trans-unit id="7217000812750597833" datatype="html" approved="yes">
         <source>Settings were saved successfully.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">506</context>
+          <context context-type="linenumber">541</context>
         </context-group>
         <target state="final">Les paramètres ont été enregistrés avec succès.</target>
       </trans-unit>
@@ -1699,7 +1739,7 @@
         <source>Settings were saved successfully. Reload is required to apply some changes.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">510</context>
+          <context context-type="linenumber">545</context>
         </context-group>
         <target state="final">Les paramètres ont été enregistrés avec succès. Un rechargement est nécessaire pour appliquer certains changements.</target>
       </trans-unit>
@@ -1707,7 +1747,7 @@
         <source>Reload now</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">511</context>
+          <context context-type="linenumber">546</context>
         </context-group>
         <target state="final">Recharger maintenant</target>
       </trans-unit>
@@ -1715,7 +1755,7 @@
         <source>An error occurred while saving settings.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">521</context>
+          <context context-type="linenumber">556</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.ts</context>
@@ -1727,7 +1767,7 @@
         <source>Error while storing settings on server.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.ts</context>
-          <context context-type="linenumber">555</context>
+          <context context-type="linenumber">590</context>
         </context-group>
         <target state="final">Erreur lors de l'enregistrement des paramètres sur le serveur.</target>
       </trans-unit>
@@ -1847,13 +1887,13 @@
         </context-group>
         <target state="final">{VAR_PLURAL, plural,=1 {Une tâche <x id="INTERPOLATION"/>} other {<x id="INTERPOLATION_1"/> tâches <x id="INTERPOLATION"/>}}</target>
       </trans-unit>
-      <trans-unit id="1943508481059904274" datatype="html">
+      <trans-unit id="1943508481059904274" datatype="html" approved="yes">
         <source> (<x id="INTERPOLATION" equiv-text="{{selectedTasks.size}}"/> selected)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
           <context context-type="linenumber">111</context>
         </context-group>
-        <target state="translated"> (<x id="INTERPOLATION" equiv-text="{{selectedTasks.size}}"/> sélectionné(s))</target>
+        <target state="final"> (<x id="INTERPOLATION" equiv-text="{{selectedTasks.size}}"/> sélectionné(s))</target>
       </trans-unit>
       <trans-unit id="5639839509673911668" datatype="html" approved="yes">
         <source>Failed<x id="START_BLOCK_IF" equiv-text="@if (tasksService.failedFileTasks.length &gt; 0) {"/><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;badge bg-danger ms-2&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{tasksService.failedFileTasks.length}}"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/><x id="CLOSE_BLOCK_IF" equiv-text="}"/></source>
@@ -1911,13 +1951,13 @@
         </context-group>
         <target state="final">Confirmer « Tout ignorer »</target>
       </trans-unit>
-      <trans-unit id="4157200209636243740" datatype="html">
+      <trans-unit id="4157200209636243740" datatype="html" approved="yes">
         <source>Dismiss all <x id="PH" equiv-text="tasks.size"/> tasks?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.ts</context>
           <context context-type="linenumber">65</context>
         </context-group>
-        <target state="translated">Ignorer les <x id="PH" equiv-text="tasks.size"/> tâches ?</target>
+        <target state="final">Ignorer toutes (<x id="PH" equiv-text="tasks.size"/>) les tâches ?</target>
       </trans-unit>
       <trans-unit id="9011556615675272238" datatype="html">
         <source>queued</source>
@@ -1941,7 +1981,7 @@
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.ts</context>
           <context context-type="linenumber">137</context>
         </context-group>
-        <target state="translated">terminé</target>
+        <target state="translated">terminé(s)</target>
       </trans-unit>
       <trans-unit id="4083337005045748464" datatype="html">
         <source>failed</source>
@@ -2003,11 +2043,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">19</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <target state="final">Nom d'utilisateur</target>
       </trans-unit>
@@ -2023,7 +2063,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">27</context>
+          <context context-type="linenumber">30</context>
         </context-group>
         <target state="final">Groupes</target>
       </trans-unit>
@@ -2047,7 +2087,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">55</context>
+          <context context-type="linenumber">53</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -2175,7 +2215,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">762</context>
+          <context context-type="linenumber">766</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
@@ -2199,7 +2239,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">304</context>
+          <context context-type="linenumber">320</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.ts</context>
@@ -2219,7 +2259,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">764</context>
+          <context context-type="linenumber">768</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
@@ -2239,7 +2279,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">306</context>
+          <context context-type="linenumber">322</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.ts</context>
@@ -2679,13 +2719,13 @@
         </context-group>
         <target state="final">Réinitialiser</target>
       </trans-unit>
-      <trans-unit id="7515883357904500238" datatype="html">
+      <trans-unit id="7515883357904500238" datatype="html" approved="yes">
         <source>Are you sure?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/confirm-button/confirm-button.component.ts</context>
           <context context-type="linenumber">20</context>
         </context-group>
-        <target state="translated">Êtes-vous sûr ?</target>
+        <target state="final">Êtes-vous sûr ?</target>
       </trans-unit>
       <trans-unit id="1234709746630139322" datatype="html" approved="yes">
         <source>Confirmation</source>
@@ -2731,43 +2771,43 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
-          <context context-type="linenumber">24</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">15</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
-          <context context-type="linenumber">26</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
-          <context context-type="linenumber">16</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">36</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">48</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">25</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
           <context context-type="linenumber">27</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
+          <context context-type="linenumber">18</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
+          <context context-type="linenumber">29</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/group-edit-dialog/group-edit-dialog.component.html</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
+          <context context-type="linenumber">39</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
+          <context context-type="linenumber">30</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">38</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">166</context>
+          <context context-type="linenumber">113</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-dialog/permissions-dialog.component.html</context>
@@ -2911,44 +2951,24 @@
         <source>Matching algorithm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <target state="final">Algorithme de rapprochement</target>
       </trans-unit>
       <trans-unit id="2656329676292524585" datatype="html" approved="yes">
         <source>Matching pattern</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">15</context>
-        </context-group>
-        <target state="final">Modèle de rapprochement</target>
-      </trans-unit>
-      <trans-unit id="6063936469630366525" datatype="html" approved="yes">
-        <source>Case insensitive</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
           <context context-type="linenumber">15</context>
@@ -2965,9 +2985,29 @@
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
           <context context-type="linenumber">18</context>
         </context-group>
+        <target state="final">Modèle de rapprochement</target>
+      </trans-unit>
+      <trans-unit id="6063936469630366525" datatype="html" approved="yes">
+        <source>Case insensitive</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/correspondent-edit-dialog/correspondent-edit-dialog.component.html</context>
+          <context context-type="linenumber">18</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
+          <context context-type="linenumber">19</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
+          <context context-type="linenumber">21</context>
+        </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">137</context>
         </context-group>
         <target state="final">Insensible à la casse</target>
       </trans-unit>
@@ -2991,7 +3031,7 @@
         <source>Data type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">12</context>
         </context-group>
         <target state="final">Type de données</target>
       </trans-unit>
@@ -2999,7 +3039,7 @@
         <source>Data type cannot be changed after a field is created</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <target state="final">Le type de données ne peut pas être modifié après la création d'un champ</target>
       </trans-unit>
@@ -3071,7 +3111,7 @@
         <source>IMAP Server</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <target state="final">Serveur IMAP</target>
       </trans-unit>
@@ -3079,7 +3119,7 @@
         <source>IMAP Port</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <target state="final">Port IMAP</target>
       </trans-unit>
@@ -3087,7 +3127,7 @@
         <source>IMAP Security</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <target state="final">Sécurité IMAP</target>
       </trans-unit>
@@ -3095,11 +3135,11 @@
         <source>Password</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">20</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -3111,7 +3151,7 @@
         <source>Password is token</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">21</context>
         </context-group>
         <target state="final">Le mot de passe est un jeton d'authentification</target>
       </trans-unit>
@@ -3119,7 +3159,7 @@
         <source>Check if the password above is a token used for authentication</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">21</context>
         </context-group>
         <target state="final">Cocher si le mot de passe ci-dessus est un jeton utilisé pour l'authentification</target>
       </trans-unit>
@@ -3127,7 +3167,7 @@
         <source>Character Set</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">22</context>
         </context-group>
         <target state="final">Jeu de caractères</target>
       </trans-unit>
@@ -3135,7 +3175,7 @@
         <source>Test</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-account-edit-dialog/mail-account-edit-dialog.component.html</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">37</context>
         </context-group>
         <target state="final">Tester</target>
       </trans-unit>
@@ -3199,7 +3239,7 @@
         <source>Account</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
@@ -3211,7 +3251,7 @@
         <source>Folder</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <target state="final">Dossier</target>
       </trans-unit>
@@ -3219,7 +3259,7 @@
         <source>Subfolders must be separated by a delimiter, often a dot (&apos;.&apos;) or slash (&apos;/&apos;), but it varies by mail server.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <target state="final">Les sous-dossiers doivent être séparés par un délimiteur, souvent un point ('.') ou un slash ('/'), en fonction du serveur de messagerie.</target>
       </trans-unit>
@@ -3227,7 +3267,7 @@
         <source>Maximum age (days)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <target state="final">Âge maximum (jours)</target>
       </trans-unit>
@@ -3235,7 +3275,7 @@
         <source>Attachment type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">17</context>
         </context-group>
         <target state="final">Type de pièce jointe</target>
       </trans-unit>
@@ -3243,7 +3283,7 @@
         <source>Consumption scope</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <target state="final">Périmètre de consommation</target>
       </trans-unit>
@@ -3251,7 +3291,7 @@
         <source>See docs for .eml processing requirements</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <target state="final">Consulter la documentation pour les exigences de traitement des .eml</target>
       </trans-unit>
@@ -3259,7 +3299,7 @@
         <source>Rule order</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">19</context>
         </context-group>
         <target state="final">Ordre de la règle</target>
       </trans-unit>
@@ -3267,7 +3307,7 @@
         <source>Paperless will only process mails that match <x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;em&gt;"/>all<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/> of the filters specified below.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">22</context>
         </context-group>
         <target state="final">Paperless ne traitera que les courriels correspondant à <x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;em&gt;"/>tous<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/> les filtres spécifiés ci-dessous.</target>
       </trans-unit>
@@ -3275,7 +3315,7 @@
         <source>Filter from</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">20</context>
+          <context context-type="linenumber">23</context>
         </context-group>
         <target state="final">Filtre selon le courriel de l'expéditeur</target>
       </trans-unit>
@@ -3283,7 +3323,7 @@
         <source>Filter to</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">24</context>
         </context-group>
         <target state="final">Filtre selon le courriel du destinataire</target>
       </trans-unit>
@@ -3291,7 +3331,7 @@
         <source>Filter subject</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">25</context>
         </context-group>
         <target state="final">Filtre selon l'objet du courriel</target>
       </trans-unit>
@@ -3299,7 +3339,7 @@
         <source>Filter body</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <target state="final">Filtre selon le contenu du courriel</target>
       </trans-unit>
@@ -3307,7 +3347,7 @@
         <source>Filter attachment filename includes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">27</context>
         </context-group>
         <target state="translated">Filtrer les noms de fichiers des pièces jointes</target>
       </trans-unit>
@@ -3315,7 +3355,7 @@
         <source>Only consume documents which entirely match this filename if specified. Wildcards such as *.pdf or *invoice* are allowed. Case insensitive.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">27</context>
         </context-group>
         <target state="final">Ne traiter que les documents correspondant intégralement à ce nom de fichier s'il est spécifié. Les jokers tels que *.pdf ou *facture* sont autorisés. La casse n'est pas prise en compte.</target>
       </trans-unit>
@@ -3323,7 +3363,7 @@
         <source>Filter attachment filename excluding</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">28</context>
         </context-group>
         <target state="translated">Filtrer les noms de fichiers des pièces jointes par exclusion</target>
       </trans-unit>
@@ -3331,7 +3371,7 @@
         <source>Do not consume documents which entirely match this filename if specified. Wildcards such as *.pdf or *invoice* are allowed. Case insensitive.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">28</context>
         </context-group>
         <target state="translated">N'importer que les documents qui correspondent intégralement à ce nom de fichier s'il est spécifié. Les caractères tels que *.pdf ou *facture* sont autorisés. La casse n'est pas prise en compte.</target>
       </trans-unit>
@@ -3339,7 +3379,7 @@
         <source>Action</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">31</context>
         </context-group>
         <target state="final">Action</target>
       </trans-unit>
@@ -3347,7 +3387,7 @@
         <source>Action is only performed when documents are consumed from the mail. Mails without attachments remain entirely untouched.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">31</context>
         </context-group>
         <target state="final">Cette action n'est exécutée que lorsque les documents sont traités depuis des courriels. Les courriels sans pièces jointes ne seront pas affectés.</target>
       </trans-unit>
@@ -3355,23 +3395,15 @@
         <source>Action parameter</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">33</context>
         </context-group>
         <target state="final">Paramètre d'action</target>
-      </trans-unit>
-      <trans-unit id="5512171567357420308" datatype="html">
-        <source>Assignments specified here will supersede any consumption templates.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">32</context>
-        </context-group>
-        <target state="translated">Les affectations spécifiées ici remplaceront tous les modèles de traitement.</target>
       </trans-unit>
       <trans-unit id="6093797930511670257" datatype="html" approved="yes">
         <source>Assign title from</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">33</context>
+          <context context-type="linenumber">35</context>
         </context-group>
         <target state="final">Affectation du titre du document</target>
       </trans-unit>
@@ -3379,11 +3411,11 @@
         <source>Assign document type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">35</context>
+          <context context-type="linenumber">37</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">100</context>
+          <context context-type="linenumber">162</context>
         </context-group>
         <target state="final">Affectation du type de document</target>
       </trans-unit>
@@ -3391,7 +3423,7 @@
         <source>Assign correspondent from</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">38</context>
         </context-group>
         <target state="final">Affectation du correspondant</target>
       </trans-unit>
@@ -3399,11 +3431,11 @@
         <source>Assign correspondent</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">38</context>
+          <context context-type="linenumber">40</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">163</context>
         </context-group>
         <target state="final">Affecter le correspondant</target>
       </trans-unit>
@@ -3411,7 +3443,7 @@
         <source>Assign owner from rule</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">42</context>
         </context-group>
         <target state="translated">Affecter le propriétaire à la règle</target>
       </trans-unit>
@@ -3419,11 +3451,11 @@
         <source>Error</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.html</context>
-          <context context-type="linenumber">46</context>
+          <context context-type="linenumber">48</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">164</context>
+          <context context-type="linenumber">111</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/toasts/toasts.component.html</context>
@@ -3575,7 +3607,7 @@
         <source>Path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/storage-path-list/storage-path-list.component.ts</context>
@@ -3627,7 +3659,7 @@
         <source>Color</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">13</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/tag-list/tag-list.component.ts</context>
@@ -3639,7 +3671,7 @@
         <source>Inbox tag</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <target state="final">Étiquette de boîte de réception</target>
       </trans-unit>
@@ -3647,7 +3679,7 @@
         <source>Inbox tags are automatically assigned to all consumed documents.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/tag-edit-dialog/tag-edit-dialog.component.html</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <target state="final">Les étiquettes de boîte de réception sont automatiquement affectées à tous les documents traités.</target>
       </trans-unit>
@@ -3671,7 +3703,7 @@
         <source>Email</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">11</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -3683,7 +3715,7 @@
         <source>First name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -3695,7 +3727,7 @@
         <source>Last name</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">17</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -3707,7 +3739,7 @@
         <source>Active</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">22</context>
         </context-group>
         <target state="final">Actif</target>
       </trans-unit>
@@ -3715,7 +3747,7 @@
         <source>Superuser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <target state="final">Superutilisateur</target>
       </trans-unit>
@@ -3723,7 +3755,7 @@
         <source>(Grants all permissions and can view objects)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
-          <context context-type="linenumber">23</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <target state="final">(accorde tous les droits et permet de voir les objets)</target>
       </trans-unit>
@@ -3747,7 +3779,7 @@
         <source>Sort order</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.html</context>
@@ -3759,7 +3791,7 @@
         <source>Enabled</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">16</context>
+          <context context-type="linenumber">19</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.html</context>
@@ -3771,7 +3803,7 @@
         <source>Triggers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">25</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.html</context>
@@ -3783,7 +3815,7 @@
         <source>Trigger Workflow On:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">28</context>
+          <context context-type="linenumber">31</context>
         </context-group>
         <target state="final">Déclencher un workflow sur :</target>
       </trans-unit>
@@ -3791,7 +3823,7 @@
         <source>Add Trigger</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">33</context>
         </context-group>
         <target state="final">Ajouter un déclencheur</target>
       </trans-unit>
@@ -3799,7 +3831,7 @@
         <source>Apply Actions:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">73</context>
         </context-group>
         <target state="final">Appliquer l’action :</target>
       </trans-unit>
@@ -3807,87 +3839,15 @@
         <source>Add Action</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">75</context>
         </context-group>
         <target state="final">Ajouter une action</target>
-      </trans-unit>
-      <trans-unit id="6417103744331194518" datatype="html" approved="yes">
-        <source>Action type</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">94</context>
-        </context-group>
-        <target state="final">Type d'action</target>
-      </trans-unit>
-      <trans-unit id="6019822389883736115" datatype="html" approved="yes">
-        <source>Assign title</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">98</context>
-        </context-group>
-        <target state="final">Attribuer un titre</target>
-      </trans-unit>
-      <trans-unit id="1098196422099517191" datatype="html">
-        <source>Can include some placeholders, see &lt;a target=&apos;_blank&apos; href=&apos;https://docs.paperless-ngx.com/usage/#workflows&apos;&gt;documentation&lt;/a&gt;.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">98</context>
-        </context-group>
-        <target state="translated">Peut inclure certains placeholders, voir la &lt;a target='_blank' href='https://docs.paperless-ngx.com/usage/#workflows'&gt;documentation&lt;/a&gt;.</target>
-      </trans-unit>
-      <trans-unit id="6528897010417701530" datatype="html" approved="yes">
-        <source>Assign tags</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">99</context>
-        </context-group>
-        <target state="final">Assigner des étiquettes</target>
-      </trans-unit>
-      <trans-unit id="7198346314713788799" datatype="html">
-        <source>Assign storage path</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">102</context>
-        </context-group>
-        <target state="translated">Attribuer un chemin de stockage</target>
-      </trans-unit>
-      <trans-unit id="475685412372379925" datatype="html">
-        <source>Assign custom fields</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">103</context>
-        </context-group>
-        <target state="translated">Affecter des champs personnalisés</target>
-      </trans-unit>
-      <trans-unit id="5057200219587080996" datatype="html" approved="yes">
-        <source>Assign owner</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">106</context>
-        </context-group>
-        <target state="final">Affecter un propriétaire</target>
-      </trans-unit>
-      <trans-unit id="1749184201773078639" datatype="html">
-        <source>Assign view permissions</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">108</context>
-        </context-group>
-        <target state="translated">Affecter des autorisations de vue</target>
-      </trans-unit>
-      <trans-unit id="1744964187586405039" datatype="html" approved="yes">
-        <source>Assign edit permissions</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">127</context>
-        </context-group>
-        <target state="final">Assigner des autorisations d'édition</target>
       </trans-unit>
       <trans-unit id="3288318211116868972" datatype="html">
         <source>Trigger type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">174</context>
+          <context context-type="linenumber">121</context>
         </context-group>
         <target state="translated">Type de déclenchement</target>
       </trans-unit>
@@ -3895,7 +3855,7 @@
         <source>Trigger for documents that match <x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;em&gt;"/>all<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/> filters specified below.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">175</context>
+          <context context-type="linenumber">122</context>
         </context-group>
         <target state="translated">Déclenche pour les documents qui correspondent à <x id="START_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;em&gt;"/>tous<x id="CLOSE_EMPHASISED_TEXT" ctype="x-em" equiv-text="&lt;/em&gt;"/>les filtres spécifiés ci-dessous.</target>
       </trans-unit>
@@ -3903,7 +3863,7 @@
         <source>Filter filename</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">125</context>
         </context-group>
         <target state="translated">Filtrer le nom de fichier</target>
       </trans-unit>
@@ -3911,7 +3871,7 @@
         <source>Apply to documents that match this filename. Wildcards such as *.pdf or *invoice* are allowed. Case insensitive.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">125</context>
         </context-group>
         <target state="translated">Appliquer aux documents qui correspondent à ce nom de fichier. Les expressions telles que *.pdf ou *facture* sont autorisées. Insensible à la casse.</target>
       </trans-unit>
@@ -3919,7 +3879,7 @@
         <source>Filter sources</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">180</context>
+          <context context-type="linenumber">127</context>
         </context-group>
         <target state="translated">Filtrer les sources</target>
       </trans-unit>
@@ -3927,7 +3887,7 @@
         <source>Filter path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">181</context>
+          <context context-type="linenumber">128</context>
         </context-group>
         <target state="translated">Filtrer le chemin</target>
       </trans-unit>
@@ -3935,7 +3895,7 @@
         <source>Apply to documents that match this path. Wildcards specified as * are allowed. Case-normalized.&lt;/a&gt;</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">181</context>
+          <context context-type="linenumber">128</context>
         </context-group>
         <target state="translated">Appliquer aux documents qui correspondent à ce chemin. Les caractères génériques tels que "*" sont autorisés. Normalisation de la casse.&lt;/a&gt;</target>
       </trans-unit>
@@ -3943,7 +3903,7 @@
         <source>Filter mail rule</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">182</context>
+          <context context-type="linenumber">129</context>
         </context-group>
         <target state="translated">Règle de filtrage des messages</target>
       </trans-unit>
@@ -3951,7 +3911,7 @@
         <source>Apply to documents consumed via this mail rule.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">182</context>
+          <context context-type="linenumber">129</context>
         </context-group>
         <target state="translated">Appliquer aux documents traités par cette règle de courrier.</target>
       </trans-unit>
@@ -3959,7 +3919,7 @@
         <source>Content matching algorithm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">185</context>
+          <context context-type="linenumber">132</context>
         </context-group>
         <target state="final">Algorithme de correspondance de contenu</target>
       </trans-unit>
@@ -3967,7 +3927,7 @@
         <source>Content matching pattern</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">187</context>
+          <context context-type="linenumber">134</context>
         </context-group>
         <target state="final">Modèle de correspondance au contenu</target>
       </trans-unit>
@@ -3975,7 +3935,7 @@
         <source>Has tags</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">196</context>
+          <context context-type="linenumber">143</context>
         </context-group>
         <target state="translated">Porte les étiquettes</target>
       </trans-unit>
@@ -3983,7 +3943,7 @@
         <source>Has correspondent</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">197</context>
+          <context context-type="linenumber">144</context>
         </context-group>
         <target state="final">A le correspondant</target>
       </trans-unit>
@@ -3991,9 +3951,185 @@
         <source>Has document type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
-          <context context-type="linenumber">198</context>
+          <context context-type="linenumber">145</context>
         </context-group>
         <target state="final">A le type de document</target>
+      </trans-unit>
+      <trans-unit id="6417103744331194518" datatype="html" approved="yes">
+        <source>Action type</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">155</context>
+        </context-group>
+        <target state="final">Type d'action</target>
+      </trans-unit>
+      <trans-unit id="6019822389883736115" datatype="html" approved="yes">
+        <source>Assign title</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+        <target state="final">Attribuer un titre</target>
+      </trans-unit>
+      <trans-unit id="1098196422099517191" datatype="html">
+        <source>Can include some placeholders, see &lt;a target=&apos;_blank&apos; href=&apos;https://docs.paperless-ngx.com/usage/#workflows&apos;&gt;documentation&lt;/a&gt;.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">160</context>
+        </context-group>
+        <target state="translated">Peut inclure certains placeholders, voir la &lt;a target='_blank' href='https://docs.paperless-ngx.com/usage/#workflows'&gt;documentation&lt;/a&gt;.</target>
+      </trans-unit>
+      <trans-unit id="6528897010417701530" datatype="html" approved="yes">
+        <source>Assign tags</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">161</context>
+        </context-group>
+        <target state="final">Assigner des étiquettes</target>
+      </trans-unit>
+      <trans-unit id="7198346314713788799" datatype="html">
+        <source>Assign storage path</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">164</context>
+        </context-group>
+        <target state="translated">Attribuer un chemin de stockage</target>
+      </trans-unit>
+      <trans-unit id="475685412372379925" datatype="html">
+        <source>Assign custom fields</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">165</context>
+        </context-group>
+        <target state="translated">Affecter des champs personnalisés</target>
+      </trans-unit>
+      <trans-unit id="5057200219587080996" datatype="html" approved="yes">
+        <source>Assign owner</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">168</context>
+        </context-group>
+        <target state="final">Affecter un propriétaire</target>
+      </trans-unit>
+      <trans-unit id="1749184201773078639" datatype="html">
+        <source>Assign view permissions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">170</context>
+        </context-group>
+        <target state="translated">Affecter des autorisations de consultation</target>
+      </trans-unit>
+      <trans-unit id="1744964187586405039" datatype="html" approved="yes">
+        <source>Assign edit permissions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">189</context>
+        </context-group>
+        <target state="final">Assigner des autorisations d'édition</target>
+      </trans-unit>
+      <trans-unit id="6236311670364192011" datatype="html" approved="yes">
+        <source>Remove tags</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">216</context>
+        </context-group>
+        <target state="final">Supprimer des étiquettes</target>
+      </trans-unit>
+      <trans-unit id="7890599006071681081" datatype="html" approved="yes">
+        <source>Remove all</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">217</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">223</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">229</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">235</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">241</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">248</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">254</context>
+        </context-group>
+        <target state="final">Tout supprimer</target>
+      </trans-unit>
+      <trans-unit id="8636414563726517994" datatype="html" approved="yes">
+        <source>Remove correspondents</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">222</context>
+        </context-group>
+        <target state="final">Supprimer des correspondants</target>
+      </trans-unit>
+      <trans-unit id="5305293055593064952" datatype="html" approved="yes">
+        <source>Remove document types</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">228</context>
+        </context-group>
+        <target state="final">Supprimer des types de document</target>
+      </trans-unit>
+      <trans-unit id="2400388879708187" datatype="html" approved="yes">
+        <source>Remove storage paths</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">234</context>
+        </context-group>
+        <target state="final">Supprimer des chemins de stockage</target>
+      </trans-unit>
+      <trans-unit id="4324304327041955720" datatype="html" approved="yes">
+        <source>Remove custom fields</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">240</context>
+        </context-group>
+        <target state="final">Supprimer des champs personnalisés</target>
+      </trans-unit>
+      <trans-unit id="8367536502602515064" datatype="html" approved="yes">
+        <source>Remove owners</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">247</context>
+        </context-group>
+        <target state="final">Supprimer des propriétaires</target>
+      </trans-unit>
+      <trans-unit id="3393772184866313281" datatype="html" approved="yes">
+        <source>Remove permissions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">253</context>
+        </context-group>
+        <target state="final">Supprimer des autorisations</target>
+      </trans-unit>
+      <trans-unit id="3145629643370481114" datatype="html" approved="yes">
+        <source>View permissions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">256</context>
+        </context-group>
+        <target state="final">Autorisations de consultation</target>
+      </trans-unit>
+      <trans-unit id="1946660694635960249" datatype="html" approved="yes">
+        <source>Edit permissions</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
+          <context context-type="linenumber">275</context>
+        </context-group>
+        <target state="final">Autorisations de modification</target>
       </trans-unit>
       <trans-unit id="4626030417479279989" datatype="html">
         <source>Consume Folder</source>
@@ -4051,11 +4187,19 @@
         </context-group>
         <target state="translated">Assignation</target>
       </trans-unit>
+      <trans-unit id="6234812824772766804" datatype="html" approved="yes">
+        <source>Removal</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.ts</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+        <target state="final">Suppression</target>
+      </trans-unit>
       <trans-unit id="3138206142174978019" datatype="html" approved="yes">
         <source>Create new workflow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.ts</context>
-          <context context-type="linenumber">137</context>
+          <context context-type="linenumber">142</context>
         </context-group>
         <target state="final">Créer un nouveau workflow</target>
       </trans-unit>
@@ -4063,7 +4207,7 @@
         <source>Edit workflow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.ts</context>
-          <context context-type="linenumber">141</context>
+          <context context-type="linenumber">146</context>
         </context-group>
         <target state="translated">Modifier le workflow</target>
       </trans-unit>
@@ -4191,6 +4335,10 @@
           <context context-type="linenumber">21</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/input/monetary/monetary.component.html</context>
+          <context context-type="linenumber">9</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/number/number.component.html</context>
           <context context-type="linenumber">9</context>
         </context-group>
@@ -4272,13 +4420,13 @@
         </context-group>
         <target state="translated">Afficher le mot de passe</target>
       </trans-unit>
-      <trans-unit id="594042705136125260" datatype="html" approved="yes">
+      <trans-unit id="594042705136125260" datatype="html">
         <source>Edit Permissions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/permissions/permissions-form/permissions-form.component.html</context>
           <context context-type="linenumber">9</context>
         </context-group>
-        <target state="final">Modifier les droits d'accès</target>
+        <target state="translated">Autorisations de modification</target>
       </trans-unit>
       <trans-unit id="6035283612400841811" datatype="html" approved="yes">
         <source>Owner:</source>
@@ -4300,7 +4448,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">58</context>
         </context-group>
         <target state="final">Vue</target>
       </trans-unit>
@@ -4411,7 +4559,7 @@
           <context context-type="sourcefile">src/app/components/common/permissions-dialog/permissions-dialog.component.ts</context>
           <context context-type="linenumber">33</context>
         </context-group>
-        <target state="translated">Modifier les droits d'accès pour </target>
+        <target state="translated">Modifier les autorisations de modification pour </target>
       </trans-unit>
       <trans-unit id="347498040201588614" datatype="html">
         <source>Existing owner, user and group permissions will be merged with these settings.</source>
@@ -4427,7 +4575,7 @@
           <context context-type="sourcefile">src/app/components/common/permissions-dialog/permissions-dialog.component.ts</context>
           <context context-type="linenumber">75</context>
         </context-group>
-        <target state="needs-translation">Any and all existing owner, user and group permissions will be replaced.</target>
+        <target state="translated">Toutes autorisations du propriétaire, d'un utilisateur et d'un groupe existantes seront remplacées.</target>
       </trans-unit>
       <trans-unit id="5947558132119506443" datatype="html" approved="yes">
         <source>My documents</source>
@@ -4474,6 +4622,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
           <context context-type="linenumber">5</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">45</context>
         </context-group>
         <target state="final">Type</target>
       </trans-unit>
@@ -4533,7 +4685,7 @@
         </context-group>
         <target state="translated">Jeton d'authentification d'API</target>
       </trans-unit>
-      <trans-unit id="4323470180912194028" datatype="html">
+      <trans-unit id="4323470180912194028" datatype="html" approved="yes">
         <source>Copy</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/profile-edit-dialog/profile-edit-dialog.component.html</context>
@@ -4547,7 +4699,11 @@
           <context context-type="sourcefile">src/app/components/common/share-links-dropdown/share-links-dropdown.component.html</context>
           <context context-type="linenumber">29</context>
         </context-group>
-        <target state="translated">Copier</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">156</context>
+        </context-group>
+        <target state="final">Copier</target>
       </trans-unit>
       <trans-unit id="595732867213154214" datatype="html">
         <source>Regenerate auth token</source>
@@ -4809,8 +4965,76 @@
         </context-group>
         <target state="translated">Erreur lors de la création du lien</target>
       </trans-unit>
+      <trans-unit id="9180110319941008393" datatype="html" approved="yes">
+        <source>Environment</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">18</context>
+        </context-group>
+        <target state="final">Environnement</target>
+      </trans-unit>
+      <trans-unit id="5973078531069712831" datatype="html" approved="yes">
+        <source>Paperless-ngx Version</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+        <target state="final">Version de Paperless-ngx</target>
+      </trans-unit>
+      <trans-unit id="6269705781013540301" datatype="html" approved="yes">
+        <source>Install Type</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">24</context>
+        </context-group>
+        <target state="final">Type d'installation</target>
+      </trans-unit>
+      <trans-unit id="7962174670320694437" datatype="html" approved="yes">
+        <source>Server OS</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">26</context>
+        </context-group>
+        <target state="final">Système d'exploitation du serveur</target>
+      </trans-unit>
+      <trans-unit id="2903495470702110128" datatype="html" approved="yes">
+        <source>Media Storage</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">28</context>
+        </context-group>
+        <target state="final">Stockage média</target>
+      </trans-unit>
+      <trans-unit id="2571831784751497241" datatype="html" approved="yes">
+        <source>available</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+        <target state="final">disponible</target>
+      </trans-unit>
+      <trans-unit id="6489441800790477240" datatype="html" approved="yes">
+        <source>total</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+        <target state="final">au total</target>
+      </trans-unit>
+      <trans-unit id="4198035112366277884" datatype="html" approved="yes">
+        <source>Database</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+        <target state="final">Base de données</target>
+      </trans-unit>
       <trans-unit id="5611592591303869712" datatype="html">
         <source>Status</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">47</context>
+        </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/toasts/toasts.component.html</context>
           <context context-type="linenumber">26</context>
@@ -4820,6 +5044,94 @@
           <context context-type="linenumber">19</context>
         </context-group>
         <target state="translated">État</target>
+      </trans-unit>
+      <trans-unit id="2256165083739630668" datatype="html" approved="yes">
+        <source>Migration Status</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">56</context>
+        </context-group>
+        <target state="final">État de la migration</target>
+      </trans-unit>
+      <trans-unit id="7489316373554112115" datatype="html" approved="yes">
+        <source>Up to date</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">59</context>
+        </context-group>
+        <target state="final">À jour</target>
+      </trans-unit>
+      <trans-unit id="7881311375431899727" datatype="html" approved="yes">
+        <source>Latest Migration</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+        <target state="final">Dernière migration</target>
+      </trans-unit>
+      <trans-unit id="4632965004151576238" datatype="html">
+        <source>Pending Migrations</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+        <target state="translated">Migrations en attente</target>
+      </trans-unit>
+      <trans-unit id="6904866445262015585" datatype="html" approved="yes">
+        <source>Tasks</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+        <target state="final">Tâches</target>
+      </trans-unit>
+      <trans-unit id="6911698235105017958" datatype="html" approved="yes">
+        <source>Redis Status</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">87</context>
+        </context-group>
+        <target state="final">État de Redis</target>
+      </trans-unit>
+      <trans-unit id="5349496739889768589" datatype="html" approved="yes">
+        <source>Celery Status</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">96</context>
+        </context-group>
+        <target state="final">État de Celery</target>
+      </trans-unit>
+      <trans-unit id="31377277941774469" datatype="html" approved="yes">
+        <source>Search Index</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">105</context>
+        </context-group>
+        <target state="final">Index de recherche</target>
+      </trans-unit>
+      <trans-unit id="4089509911694721896" datatype="html" approved="yes">
+        <source>Last Updated</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">119</context>
+        </context-group>
+        <target state="final">Dernière mise à jour</target>
+      </trans-unit>
+      <trans-unit id="46628344485199198" datatype="html" approved="yes">
+        <source>Classifier</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">121</context>
+        </context-group>
+        <target state="final">Classificateur</target>
+      </trans-unit>
+      <trans-unit id="6096684179126491743" datatype="html" approved="yes">
+        <source>Last Trained</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
+          <context context-type="linenumber">139</context>
+        </context-group>
+        <target state="final">Dernière entraînement</target>
       </trans-unit>
       <trans-unit id="6732151329960766506" datatype="html" approved="yes">
         <source>Copy Raw Error</source>
@@ -4845,21 +5157,21 @@
         </context-group>
         <target state="final">Bienvenue sur <x id="PH" equiv-text="environment.appTitle"/></target>
       </trans-unit>
-      <trans-unit id="1325877348738783391" datatype="html">
+      <trans-unit id="1325877348738783391" datatype="html" approved="yes">
         <source>Dashboard updated</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/dashboard/dashboard.component.ts</context>
           <context context-type="linenumber">71</context>
         </context-group>
-        <target state="translated">Tableau de bord mis à jour</target>
+        <target state="final">Tableau de bord mis à jour</target>
       </trans-unit>
-      <trans-unit id="3214475953924351473" datatype="html">
+      <trans-unit id="3214475953924351473" datatype="html" approved="yes">
         <source>Error updating dashboard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/dashboard/dashboard.component.ts</context>
           <context context-type="linenumber">74</context>
         </context-group>
-        <target state="translated">Erreur lors de la mise à jour du tableau de bord</target>
+        <target state="final">Erreur lors de la mise à jour du tableau de bord</target>
       </trans-unit>
       <trans-unit id="2946624699882754313" datatype="html" approved="yes">
         <source>Show all</source>
@@ -4881,7 +5193,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">95</context>
+          <context context-type="linenumber">94</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -4905,7 +5217,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">99</context>
+          <context context-type="linenumber">98</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -4949,7 +5261,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">64</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -5212,7 +5524,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">50</context>
         </context-group>
         <target state="final">Documents liés</target>
       </trans-unit>
@@ -5220,7 +5532,7 @@
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">76</context>
+          <context context-type="linenumber">75</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/guards/dirty-saved-view.guard.ts</context>
@@ -5232,7 +5544,7 @@
         <source>Previous</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">79</context>
+          <context context-type="linenumber">78</context>
         </context-group>
         <target state="final">Précédent</target>
       </trans-unit>
@@ -5240,7 +5552,7 @@
         <source>Details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">91</context>
         </context-group>
         <target state="final">Détails</target>
       </trans-unit>
@@ -5248,7 +5560,7 @@
         <source>Archive serial number</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">96</context>
+          <context context-type="linenumber">95</context>
         </context-group>
         <target state="final">Numéro de série d'archivage (NSA)</target>
       </trans-unit>
@@ -5256,7 +5568,7 @@
         <source>Date created</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">97</context>
+          <context context-type="linenumber">96</context>
         </context-group>
         <target state="final">Date de création</target>
       </trans-unit>
@@ -5264,7 +5576,7 @@
         <source>Document type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">100</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -5288,7 +5600,7 @@
         <source>Storage path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">103</context>
+          <context context-type="linenumber">102</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -5308,7 +5620,7 @@
         <source>Default</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">103</context>
         </context-group>
         <target state="translated">Par défaut</target>
       </trans-unit>
@@ -5316,7 +5628,7 @@
         <source>Content</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">187</context>
         </context-group>
         <target state="final">Contenu</target>
       </trans-unit>
@@ -5324,7 +5636,7 @@
         <source>Metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">199</context>
+          <context context-type="linenumber">196</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/metadata-collapse/metadata-collapse.component.ts</context>
@@ -5336,7 +5648,7 @@
         <source>Date modified</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">206</context>
+          <context context-type="linenumber">203</context>
         </context-group>
         <target state="final">Date de modification</target>
       </trans-unit>
@@ -5344,7 +5656,7 @@
         <source>Date added</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">210</context>
+          <context context-type="linenumber">207</context>
         </context-group>
         <target state="final">Date d'ajout</target>
       </trans-unit>
@@ -5352,7 +5664,7 @@
         <source>Media filename</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">214</context>
+          <context context-type="linenumber">211</context>
         </context-group>
         <target state="final">Nom de fichier du média</target>
       </trans-unit>
@@ -5360,7 +5672,7 @@
         <source>Original filename</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">215</context>
         </context-group>
         <target state="final">Nom du fichier d'origine</target>
       </trans-unit>
@@ -5368,7 +5680,7 @@
         <source>Original MD5 checksum</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">219</context>
         </context-group>
         <target state="final">Somme de contrôle MD5 de l'original</target>
       </trans-unit>
@@ -5376,7 +5688,7 @@
         <source>Original file size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">226</context>
+          <context context-type="linenumber">223</context>
         </context-group>
         <target state="final">Taille du fichier original</target>
       </trans-unit>
@@ -5384,7 +5696,7 @@
         <source>Original mime type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">230</context>
+          <context context-type="linenumber">227</context>
         </context-group>
         <target state="final">Type MIME de l'original</target>
       </trans-unit>
@@ -5392,7 +5704,7 @@
         <source>Archive MD5 checksum</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">235</context>
+          <context context-type="linenumber">232</context>
         </context-group>
         <target state="final">Somme de contrôle MD5 de l'archive</target>
       </trans-unit>
@@ -5400,7 +5712,7 @@
         <source>Archive file size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">241</context>
+          <context context-type="linenumber">238</context>
         </context-group>
         <target state="final">Taille du fichier archivé</target>
       </trans-unit>
@@ -5408,7 +5720,7 @@
         <source>Original document metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">250</context>
+          <context context-type="linenumber">247</context>
         </context-group>
         <target state="final">Métadonnées du document original</target>
       </trans-unit>
@@ -5416,7 +5728,7 @@
         <source>Archived document metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">253</context>
+          <context context-type="linenumber">250</context>
         </context-group>
         <target state="final">Métadonnées du document archivé</target>
       </trans-unit>
@@ -5424,7 +5736,7 @@
         <source>Preview</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">260</context>
+          <context context-type="linenumber">257</context>
         </context-group>
         <target state="translated">Prévisualisation</target>
       </trans-unit>
@@ -5432,7 +5744,7 @@
         <source>Notes <x id="START_BLOCK_IF" equiv-text="@if (document?.notes.length) {"/><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;badge text-bg-secondary ms-1&quot;&gt;"/><x id="INTERPOLATION" equiv-text="ngth}}"/><x id="CLOSE_TAG_SPAN" ctype="x-span"/><x id="CLOSE_BLOCK_IF" equiv-text="}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">272,275</context>
+          <context context-type="linenumber">269,272</context>
         </context-group>
         <target state="final">Notes <x id="START_BLOCK_IF" equiv-text="@if (document?.notes.length) {"/><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;badge text-bg-secondary ms-1&quot;&gt;"/><x id="INTERPOLATION" equiv-text="ngth}}"/><x id="CLOSE_TAG_SPAN" ctype="x-span"/><x id="CLOSE_BLOCK_IF" equiv-text="}"/></target>
       </trans-unit>
@@ -5440,7 +5752,7 @@
         <source>Save &amp; next</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">309</context>
+          <context context-type="linenumber">306</context>
         </context-group>
         <target state="final">Enregistrer &amp; suivant</target>
       </trans-unit>
@@ -5448,7 +5760,7 @@
         <source>Save &amp; close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">312</context>
+          <context context-type="linenumber">309</context>
         </context-group>
         <target state="final">Enregister &amp; fermer</target>
       </trans-unit>
@@ -5456,7 +5768,7 @@
         <source>Enter Password</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">363</context>
+          <context context-type="linenumber">360</context>
         </context-group>
         <target state="translated">Saisir le mot de passe</target>
       </trans-unit>
@@ -5468,29 +5780,29 @@
         </context-group>
         <target state="final">Une erreur s'est produite lors du chargement du contenu : <x id="PH" equiv-text="err.message ?? err.toString()"/></target>
       </trans-unit>
-      <trans-unit id="3200733026060976258" datatype="html">
+      <trans-unit id="3200733026060976258" datatype="html" approved="yes">
         <source>Document changes detected</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">348</context>
         </context-group>
-        <target state="translated">Modifications du document détectées</target>
+        <target state="final">Modifications du document détectées</target>
       </trans-unit>
-      <trans-unit id="2887155916749964" datatype="html">
+      <trans-unit id="2887155916749964" datatype="html" approved="yes">
         <source>The version of this document in your browser session appears older than the existing version.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">349</context>
         </context-group>
-        <target state="translated">La version de ce document dans la session de votre navigateur semble plus ancien que la version existante.</target>
+        <target state="final">La version de ce document dans la session de votre navigateur semble plus ancienne que la version existante.</target>
       </trans-unit>
-      <trans-unit id="237142428785956348" datatype="html">
+      <trans-unit id="237142428785956348" datatype="html" approved="yes">
         <source>Saving the document here may overwrite other changes that were made. To restore the existing version, discard your changes or close the document.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">350</context>
         </context-group>
-        <target state="translated">Sauvegarder le document ici peut écraser les autres modifications qui ont été faites. Pour restaurer la version existante, annulez vos modifications ou fermez le document.</target>
+        <target state="final">Sauvegarder le document ici peut écraser les autres modifications qui ont été faites. Pour restaurer la version existante, annulez vos modifications ou fermez le document.</target>
       </trans-unit>
       <trans-unit id="8720977247725652816" datatype="html" approved="yes">
         <source>Ok</source>
@@ -5520,11 +5832,11 @@
         <source>Document saved successfully.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">637</context>
+          <context context-type="linenumber">638</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">646</context>
+          <context context-type="linenumber">649</context>
         </context-group>
         <target state="final">Document enregistré avec succès.</target>
       </trans-unit>
@@ -5532,11 +5844,11 @@
         <source>Error saving document</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">650</context>
+          <context context-type="linenumber">653</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">691</context>
+          <context context-type="linenumber">694</context>
         </context-group>
         <target state="final">Erreur lors de la sauvegarde du document</target>
       </trans-unit>
@@ -5544,11 +5856,15 @@
         <source>Confirm delete</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">717</context>
+          <context context-type="linenumber">721</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">302</context>
+          <context context-type="linenumber">202</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">318</context>
         </context-group>
         <target state="final">Confirmer la suppression</target>
       </trans-unit>
@@ -5556,15 +5872,15 @@
         <source>Do you really want to delete document &quot;<x id="PH" equiv-text="this.document.title"/>&quot;?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">718</context>
+          <context context-type="linenumber">722</context>
         </context-group>
-        <target state="final">Voulez-vous vraiment supprimer le document "<x id="PH" equiv-text="this.document.title"/>" ?</target>
+        <target state="final">Voulez-vous vraiment supprimer le document « <x id="PH" equiv-text="this.document.title"/> » ?</target>
       </trans-unit>
       <trans-unit id="6691075929777935948" datatype="html" approved="yes">
         <source>The files for this document will be deleted permanently. This operation cannot be undone.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">719</context>
+          <context context-type="linenumber">723</context>
         </context-group>
         <target state="final">Les fichiers liés à ce document seront supprimés définitivement. Cette action est irréversible.</target>
       </trans-unit>
@@ -5572,7 +5888,7 @@
         <source>Delete document</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">721</context>
+          <context context-type="linenumber">725</context>
         </context-group>
         <target state="final">Supprimer le document</target>
       </trans-unit>
@@ -5580,7 +5896,7 @@
         <source>Error deleting document</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">740</context>
+          <context context-type="linenumber">744</context>
         </context-group>
         <target state="final">Erreur lors de la suppression du document</target>
       </trans-unit>
@@ -5588,7 +5904,7 @@
         <source>Redo OCR confirm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">760</context>
+          <context context-type="linenumber">764</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
@@ -5600,7 +5916,7 @@
         <source>This operation will permanently redo OCR for this document.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">761</context>
+          <context context-type="linenumber">765</context>
         </context-group>
         <target state="final">Cette opération écrasera l’OCR pour ce document.</target>
       </trans-unit>
@@ -5608,7 +5924,7 @@
         <source>Redo OCR operation will begin in the background. Close and re-open or reload this document after the operation has completed to see new content.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">772</context>
+          <context context-type="linenumber">776</context>
         </context-group>
         <target state="translated">La relance de l'ORC va démarrer en arrière-plan. Fermez et rouvrez ou rechargez ce document une fois l'opération terminée pour voir le nouveau contenu.</target>
       </trans-unit>
@@ -5616,7 +5932,7 @@
         <source>Error executing operation</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">783</context>
+          <context context-type="linenumber">787</context>
         </context-group>
         <target state="final">Erreur lors de l'exécution de l'opération</target>
       </trans-unit>
@@ -5624,7 +5940,7 @@
         <source>Page Fit</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">852</context>
+          <context context-type="linenumber">856</context>
         </context-group>
         <target state="translated">Ajustement de la page</target>
       </trans-unit>
@@ -5918,7 +6234,7 @@
         <source>Filter by correspondent</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">20</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -5930,7 +6246,7 @@
         <source>Filter by tag</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">28</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -5942,7 +6258,7 @@
         <source>View notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">70</context>
         </context-group>
         <target state="final">Afficher les notes</target>
       </trans-unit>
@@ -5950,7 +6266,7 @@
         <source><x id="INTERPOLATION" equiv-text="ocument.notes.length}}"/> Notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">71</context>
         </context-group>
         <target state="final"><x id="INTERPOLATION" equiv-text="ocument.notes.length}}"/> Notes</target>
       </trans-unit>
@@ -5958,7 +6274,7 @@
         <source>Filter by document type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">75</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -5970,7 +6286,7 @@
         <source>Filter by storage path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">81</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -5982,7 +6298,7 @@
         <source>Created: <x id="INTERPOLATION" equiv-text="{{ document.created | customDate }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">96,97</context>
+          <context context-type="linenumber">93,94</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -5994,7 +6310,7 @@
         <source>Added: <x id="INTERPOLATION" equiv-text="{{ document.added | customDate }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">97,98</context>
+          <context context-type="linenumber">94,95</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -6006,7 +6322,7 @@
         <source>Modified: <x id="INTERPOLATION" equiv-text="{{ document.modified | customDate }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">98,99</context>
+          <context context-type="linenumber">95,96</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -6018,7 +6334,7 @@
         <source>Shared</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">108</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-small/document-card-small.component.html</context>
@@ -6034,7 +6350,7 @@
         <source>Score:</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">113</context>
         </context-group>
         <target state="final">Score :</target>
       </trans-unit>
@@ -6300,7 +6616,7 @@
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.ts</context>
           <context context-type="linenumber">248</context>
         </context-group>
-        <target state="final">Vue "<x id="PH" equiv-text="savedView.name"/>" créée avec succès.</target>
+        <target state="final">Vue « <x id="PH" equiv-text="savedView.name"/> » créée avec succès.</target>
       </trans-unit>
       <trans-unit id="3100631071441658964" datatype="html" approved="yes">
         <source>Title &amp; content</source>
@@ -6600,7 +6916,7 @@
           <context context-type="sourcefile">src/app/components/manage/correspondent-list/correspondent-list.component.ts</context>
           <context context-type="linenumber">67</context>
         </context-group>
-        <target state="final">Voulez-vous vraiment supprimer le correspondant "<x id="PH" equiv-text="object.name"/>" ?</target>
+        <target state="final">Voulez-vous vraiment supprimer le correspondant « <x id="PH" equiv-text="object.name"/> » ?</target>
       </trans-unit>
       <trans-unit id="8384138406252790442" datatype="html" approved="yes">
         <source>Customize the data fields that can be attached to documents.</source>
@@ -6688,7 +7004,7 @@
           <context context-type="sourcefile">src/app/components/manage/document-type-list/document-type-list.component.ts</context>
           <context context-type="linenumber">44</context>
         </context-group>
-        <target state="final">Voulez-vous vraiment supprimer le type de document "<x id="PH" equiv-text="object.name"/>" ?</target>
+        <target state="final">Voulez-vous vraiment supprimer le type de document « <x id="PH" equiv-text="object.name"/> » ?</target>
       </trans-unit>
       <trans-unit id="8957855217409261143" datatype="html">
         <source>Mail Settings</source>
@@ -6882,7 +7198,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">289</context>
+          <context context-type="linenumber">305</context>
         </context-group>
         <target state="translated">Erreur lors de la mise à jour des droits d'accès</target>
       </trans-unit>
@@ -6970,19 +7286,19 @@
         <source>{VAR_PLURAL, plural, =1 {One <x id="INTERPOLATION"/>} other {<x id="INTERPOLATION_1"/> total <x id="INTERPOLATION_2"/>}}</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">110</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">110</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">110</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">110</context>
         </context-group>
         <target state="translated">{VAR_PLURAL, plural, one {}=1 {Un <x id="INTERPOLATION"/>} other {<x id="INTERPOLATION_1"/> total <x id="INTERPOLATION_2"/>}}</target>
       </trans-unit>
@@ -6990,7 +7306,7 @@
         <source>Automatic</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">113</context>
+          <context context-type="linenumber">114</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/matching-model.ts</context>
@@ -7002,7 +7318,7 @@
         <source>None</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">115</context>
+          <context context-type="linenumber">116</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/matching-model.ts</context>
@@ -7014,7 +7330,7 @@
         <source>Successfully created <x id="PH" equiv-text="this.typeName"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">158</context>
+          <context context-type="linenumber">159</context>
         </context-group>
         <target state="translated">Création de <x id="PH" equiv-text="this.typeName"/> réussie.</target>
       </trans-unit>
@@ -7022,7 +7338,7 @@
         <source>Error occurred while creating <x id="PH" equiv-text="this.typeName"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">163</context>
+          <context context-type="linenumber">164</context>
         </context-group>
         <target state="final">Une erreur s'est produite lors de la création de <x id="PH" equiv-text="this.typeName"/>.</target>
       </trans-unit>
@@ -7030,7 +7346,7 @@
         <source>Successfully updated <x id="PH" equiv-text="this.typeName"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">179</context>
         </context-group>
         <target state="final">Mise à jour de <x id="PH" equiv-text="this.typeName"/> réussie.</target>
       </trans-unit>
@@ -7038,15 +7354,23 @@
         <source>Error occurred while saving <x id="PH" equiv-text="this.typeName"/>.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">183</context>
+          <context context-type="linenumber">184</context>
         </context-group>
         <target state="final">Une erreur s'est produite lors de la sauvegarde de <x id="PH" equiv-text="this.typeName"/>.</target>
+      </trans-unit>
+      <trans-unit id="8371896857609524947" datatype="html">
+        <source>Associated documents will not be deleted.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">204</context>
+        </context-group>
+        <target state="translated">Les documents associés ne seront pas supprimés.</target>
       </trans-unit>
       <trans-unit id="6639207128255974941" datatype="html" approved="yes">
         <source>Error while deleting element</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">220</context>
         </context-group>
         <target state="final">Erreur lors de la suppression de l'élément</target>
       </trans-unit>
@@ -7054,7 +7378,7 @@
         <source>Permissions updated successfully</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">282</context>
+          <context context-type="linenumber">298</context>
         </context-group>
         <target state="translated">Les droits d'accès ont bien été mis à jour</target>
       </trans-unit>
@@ -7062,7 +7386,7 @@
         <source>This operation will permanently delete all objects.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">303</context>
+          <context context-type="linenumber">319</context>
         </context-group>
         <target state="translated">Cette opération supprimera définitivement tous les objets.</target>
       </trans-unit>
@@ -7070,7 +7394,7 @@
         <source>Objects deleted successfully</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">317</context>
+          <context context-type="linenumber">333</context>
         </context-group>
         <target state="translated">Objects supprimés avec succès</target>
       </trans-unit>
@@ -7078,7 +7402,7 @@
         <source>Error deleting objects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">323</context>
+          <context context-type="linenumber">339</context>
         </context-group>
         <target state="translated">Erreur lors de la suppression des objets</target>
       </trans-unit>
@@ -7128,7 +7452,7 @@
           <context context-type="sourcefile">src/app/components/manage/tag-list/tag-list.component.ts</context>
           <context context-type="linenumber">53</context>
         </context-group>
-        <target state="final">Voulez-vous vraiment supprimer l'étiquette "<x id="PH" equiv-text="object.name"/>" ?</target>
+        <target state="final">Voulez-vous vraiment supprimer l'étiquette « <x id="PH" equiv-text="object.name"/> » ?</target>
       </trans-unit>
       <trans-unit id="1229748338333965418" datatype="html" approved="yes">
         <source>Use workflows to customize the behavior of Paperless-ngx when events &apos;trigger&apos; a workflow.</source>

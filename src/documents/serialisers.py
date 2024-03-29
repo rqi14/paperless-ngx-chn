@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import DecimalValidator
 from django.core.validators import MaxLengthValidator
+from django.core.validators import RegexValidator
 from django.core.validators import integer_validator
 from django.utils import timezone
 from django.utils.crypto import get_random_string
@@ -528,9 +529,17 @@ class CustomFieldInstanceSerializer(serializers.ModelSerializer):
             elif field.data_type == CustomField.FieldDataType.INT:
                 integer_validator(data["value"])
             elif field.data_type == CustomField.FieldDataType.MONETARY:
-                DecimalValidator(max_digits=12, decimal_places=2)(
-                    Decimal(str(data["value"])),
-                )
+                try:
+                    # First try to validate as a number from legacy format
+                    DecimalValidator(max_digits=12, decimal_places=2)(
+                        Decimal(str(data["value"])),
+                    )
+                except Exception:
+                    # If that fails, try to validate as a monetary string
+                    RegexValidator(
+                        regex=r"^[A-Z][A-Z][A-Z]\d+(\.\d{2,2})$",
+                        message="Must be a two-decimal number with optional currency code e.g. GBP123.45",
+                    )(data["value"])
             elif field.data_type == CustomField.FieldDataType.STRING:
                 MaxLengthValidator(limit_value=128)(data["value"])
 
@@ -656,6 +665,8 @@ class DocumentSerializer(
     remove_inbox_tags = serializers.BooleanField(
         default=False,
         write_only=True,
+        allow_null=True,
+        required=False,
     )
 
     def get_original_file_name(self, obj):
@@ -858,12 +869,15 @@ class BulkEditSerializer(DocumentListSerializer, SetPermissionsMixin):
             "delete",
             "redo_ocr",
             "set_permissions",
+            "rotate",
+            "merge",
+            "split",
         ],
         label="Method",
         write_only=True,
     )
 
-    parameters = serializers.DictField(allow_empty=True)
+    parameters = serializers.DictField(allow_empty=True, default={}, write_only=True)
 
     def _validate_tag_id_list(self, tags, name="tags"):
         if not isinstance(tags, list):
@@ -895,6 +909,12 @@ class BulkEditSerializer(DocumentListSerializer, SetPermissionsMixin):
             return bulk_edit.redo_ocr
         elif method == "set_permissions":
             return bulk_edit.set_permissions
+        elif method == "rotate":
+            return bulk_edit.rotate
+        elif method == "merge":
+            return bulk_edit.merge
+        elif method == "split":
+            return bulk_edit.split
         else:
             raise serializers.ValidationError("Unsupported method.")
 
@@ -973,6 +993,39 @@ class BulkEditSerializer(DocumentListSerializer, SetPermissionsMixin):
         if "merge" not in parameters:
             parameters["merge"] = False
 
+    def _validate_parameters_rotate(self, parameters):
+        try:
+            if (
+                "degrees" not in parameters
+                or not float(parameters["degrees"]).is_integer()
+            ):
+                raise serializers.ValidationError("invalid rotation degrees")
+        except ValueError:
+            raise serializers.ValidationError("invalid rotation degrees")
+
+    def _validate_parameters_split(self, parameters):
+        if "pages" not in parameters:
+            raise serializers.ValidationError("pages not specified")
+        try:
+            pages = []
+            docs = parameters["pages"].split(",")
+            for doc in docs:
+                if "-" in doc:
+                    pages.append(
+                        [
+                            x
+                            for x in range(
+                                int(doc.split("-")[0]),
+                                int(doc.split("-")[1]) + 1,
+                            )
+                        ],
+                    )
+                else:
+                    pages.append([int(doc)])
+            parameters["pages"] = pages
+        except ValueError:
+            raise serializers.ValidationError("invalid pages specified")
+
     def validate(self, attrs):
         method = attrs["method"]
         parameters = attrs["parameters"]
@@ -989,6 +1042,14 @@ class BulkEditSerializer(DocumentListSerializer, SetPermissionsMixin):
             self._validate_storage_path(parameters)
         elif method == bulk_edit.set_permissions:
             self._validate_parameters_set_permissions(parameters)
+        elif method == bulk_edit.rotate:
+            self._validate_parameters_rotate(parameters)
+        elif method == bulk_edit.split:
+            if len(attrs["documents"]) > 1:
+                raise serializers.ValidationError(
+                    "Split method only supports one document",
+                )
+            self._validate_parameters_split(parameters)
 
         return attrs
 
@@ -1460,6 +1521,23 @@ class WorkflowActionSerializer(serializers.ModelSerializer):
             "assign_change_users",
             "assign_change_groups",
             "assign_custom_fields",
+            "remove_all_tags",
+            "remove_tags",
+            "remove_all_correspondents",
+            "remove_correspondents",
+            "remove_all_document_types",
+            "remove_document_types",
+            "remove_all_storage_paths",
+            "remove_storage_paths",
+            "remove_custom_fields",
+            "remove_all_custom_fields",
+            "remove_all_owners",
+            "remove_owners",
+            "remove_all_permissions",
+            "remove_view_users",
+            "remove_view_groups",
+            "remove_change_users",
+            "remove_change_groups",
         ]
 
     def validate(self, attrs):
@@ -1540,10 +1618,22 @@ class WorkflowSerializer(serializers.ModelSerializer):
                 assign_change_users = action.pop("assign_change_users", None)
                 assign_change_groups = action.pop("assign_change_groups", None)
                 assign_custom_fields = action.pop("assign_custom_fields", None)
+                remove_tags = action.pop("remove_tags", None)
+                remove_correspondents = action.pop("remove_correspondents", None)
+                remove_document_types = action.pop("remove_document_types", None)
+                remove_storage_paths = action.pop("remove_storage_paths", None)
+                remove_custom_fields = action.pop("remove_custom_fields", None)
+                remove_owners = action.pop("remove_owners", None)
+                remove_view_users = action.pop("remove_view_users", None)
+                remove_view_groups = action.pop("remove_view_groups", None)
+                remove_change_users = action.pop("remove_change_users", None)
+                remove_change_groups = action.pop("remove_change_groups", None)
+
                 action_instance, _ = WorkflowAction.objects.update_or_create(
                     id=action.get("id"),
                     defaults=action,
                 )
+
                 if assign_tags is not None:
                     action_instance.assign_tags.set(assign_tags)
                 if assign_view_users is not None:
@@ -1556,6 +1646,27 @@ class WorkflowSerializer(serializers.ModelSerializer):
                     action_instance.assign_change_groups.set(assign_change_groups)
                 if assign_custom_fields is not None:
                     action_instance.assign_custom_fields.set(assign_custom_fields)
+                if remove_tags is not None:
+                    action_instance.remove_tags.set(remove_tags)
+                if remove_correspondents is not None:
+                    action_instance.remove_correspondents.set(remove_correspondents)
+                if remove_document_types is not None:
+                    action_instance.remove_document_types.set(remove_document_types)
+                if remove_storage_paths is not None:
+                    action_instance.remove_storage_paths.set(remove_storage_paths)
+                if remove_custom_fields is not None:
+                    action_instance.remove_custom_fields.set(remove_custom_fields)
+                if remove_owners is not None:
+                    action_instance.remove_owners.set(remove_owners)
+                if remove_view_users is not None:
+                    action_instance.remove_view_users.set(remove_view_users)
+                if remove_view_groups is not None:
+                    action_instance.remove_view_groups.set(remove_view_groups)
+                if remove_change_users is not None:
+                    action_instance.remove_change_users.set(remove_change_users)
+                if remove_change_groups is not None:
+                    action_instance.remove_change_groups.set(remove_change_groups)
+
                 set_actions.append(action_instance)
 
         instance.triggers.set(set_triggers)

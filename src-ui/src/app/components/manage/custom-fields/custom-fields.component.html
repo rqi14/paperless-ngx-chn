@@ -5,7 +5,7 @@
   i18n-info
   infoLink="usage/#custom-fields"
   >
-  <button type="button" class="btn btn-sm btn-outline-primary ms-4" (click)="editField()" *pngxIfPermissions="{ action: PermissionAction.Add, type: PermissionType.CustomField }">
+  <button type="button" class="btn btn-sm btn-outline-primary" (click)="editField()" *pngxIfPermissions="{ action: PermissionAction.Add, type: PermissionType.CustomField }">
     <i-bs name="plus-circle"></i-bs>&nbsp;<ng-container i18n>Add Field</ng-container>
   </button>
 </pngx-page-header>
@@ -23,7 +23,7 @@
   @for (field of fields; track field) {
     <li class="list-group-item">
       <div class="row">
-        <div class="col d-flex align-items-center"><button class="btn btn-link p-0" type="button" (click)="editField(field)" [disabled]="!permissionsService.currentUserCan(PermissionAction.Change, PermissionType.CustomField)">{{field.name}}</button></div>
+        <div class="col d-flex align-items-center"><button class="btn btn-link p-0 text-start" type="button" (click)="editField(field)" [disabled]="!permissionsService.currentUserCan(PermissionAction.Change, PermissionType.CustomField)">{{field.name}}</button></div>
         <div class="col d-flex align-items-center">{{getDataType(field)}}</div>
         <div class="col">
           <div class="btn-group">

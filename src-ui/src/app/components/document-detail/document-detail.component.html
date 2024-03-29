@@ -1,11 +1,11 @@
 <pngx-page-header [(title)]="title">
   @if (contentRenderType === ContentRenderType.PDF && !useNativePdfViewer) {
-    <div class="input-group input-group-sm me-2 d-none d-md-flex">
+    <div class="input-group input-group-sm d-none d-md-flex">
       <div class="input-group-text" i18n>Page</div>
       <input class="form-control flex-grow-0 w-auto" type="number" min="1" [max]="previewNumPages" [(ngModel)]="previewCurrentPage" />
       <div class="input-group-text" i18n>of {{previewNumPages}}</div>
     </div>
-    <div class="input-group input-group-sm me-5 d-none d-md-flex">
+    <div class="input-group input-group-sm me-md-5 d-none d-md-flex">
       <button class="btn btn-outline-secondary" (click)="decreaseZoom()" i18n>-</button>
       <select class="form-select" (change)="onZoomSelect($event)">
         @for (setting of zoomSettings; track setting) {
@@ -18,11 +18,11 @@
     </div>
   }
 
-  <button type="button" class="btn btn-sm btn-outline-danger me-4" (click)="delete()" [disabled]="!userIsOwner" *pngxIfPermissions="{ action: PermissionAction.Delete, type: PermissionType.Document }">
+  <button type="button" class="btn btn-sm btn-outline-danger me-md-4" (click)="delete()" [disabled]="!userIsOwner" *pngxIfPermissions="{ action: PermissionAction.Delete, type: PermissionType.Document }">
     <i-bs width="1.2em" height="1.2em" name="trash"></i-bs><span class="d-none d-lg-inline ps-1" i18n>Delete</span>
   </button>
 
-  <div class="btn-group me-2">
+  <div class="btn-group">
     <a [href]="downloadUrl" class="btn btn-sm btn-outline-primary">
       <i-bs width="1.2em" height="1.2em" name="download"></i-bs><span class="d-none d-lg-inline ps-1" i18n>Download</span>
     </a>
@@ -38,24 +38,31 @@
   </div>
 
   <div class="ms-auto" ngbDropdown>
-    <button class="btn btn-sm btn-outline-primary me-2" id="actionsDropdown" ngbDropdownToggle>
+    <button class="btn btn-sm btn-outline-primary" id="actionsDropdown" ngbDropdownToggle>
       <i-bs name="three-dots"></i-bs>
       <div class="d-none d-sm-inline">&nbsp;<ng-container i18n>Actions</ng-container></div>
     </button>
     <div ngbDropdownMenu aria-labelledby="actionsDropdown" class="shadow">
       <button ngbDropdownItem (click)="redoOcr()" [disabled]="!userCanEdit">
-        <i-bs width="1em" height="1em" name="arrow-counterclockwise"></i-bs><span class="ps-1" i18n>Redo OCR</span>
+        <i-bs width="1em" height="1em" name="arrow-counterclockwise"></i-bs>&nbsp;<span i18n>Redo OCR</span>
       </button>
 
       <button ngbDropdownItem (click)="moreLike()">
-        <i-bs width="1em" height="1em" name="diagram-3"></i-bs><span class="ps-1" i18n>More like this</span>
+        <i-bs width="1em" height="1em" name="diagram-3"></i-bs>&nbsp;<span i18n>More like this</span>
+      </button>
+
+      <button ngbDropdownItem (click)="splitDocument()" [disabled]="contentRenderType !== ContentRenderType.PDF || previewNumPages < 2">
+        <i-bs width="1em" height="1em" name="scissors"></i-bs>&nbsp;<span i18n>Split</span>
+      </button>
+
+      <button ngbDropdownItem (click)="rotateDocument()" [disabled]="!userIsOwner || contentRenderType !== ContentRenderType.PDF">
+        <i-bs name="arrow-clockwise"></i-bs>&nbsp;<ng-container i18n>Rotate</ng-container>
       </button>
     </div>
   </div>
 
   <pngx-custom-fields-dropdown
     *pngxIfPermissions="{ action: PermissionAction.View, type: PermissionType.CustomField }"
-    class="me-2"
     [documentId]="documentId"
     [disabled]="!userIsOwner"
     [existingFields]="document?.custom_fields"
@@ -142,14 +149,12 @@
                       [error]="getCustomFieldError(i)"></pngx-input-number>
                     }
                     @case (CustomFieldDataType.Monetary) {
-                      <pngx-input-number formControlName="value"
+                      <pngx-input-monetary formControlName="value"
                       [title]="getCustomFieldFromInstance(fieldInstance)?.name"
                       [removable]="userIsOwner"
                       (removed)="removeField(fieldInstance)"
                       [horizontal]="true"
-                      [showAdd]="false"
-                      [step]=".01"
-                      [error]="getCustomFieldError(i)"></pngx-input-number>
+                      [error]="getCustomFieldError(i)"></pngx-input-monetary>
                     }
                     @case (CustomFieldDataType.Boolean) {
                       <pngx-input-check formControlName="value"

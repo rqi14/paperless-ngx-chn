@@ -206,12 +206,12 @@ for details.
 
 ## Permissions
 
-As of version 1.14.0 Paperless-ngx added core support for user / group permissions. Permissions is
-based around 'global' permissions as well as 'object-level' permissions. Global permissions designate
-which parts of the application a user can access (e.g. Documents, Tags, Settings) and object-level
-determine which objects are visible or editable. All objects have an 'owner' and 'view' and 'edit'
-permissions which can be granted to other users or groups. The paperless-ngx permissions system uses
-the built-in user model of the backend framework, Django.
+Permissions in Paperless-ngx are based around ['global' permissions](#global-permissions) as well as
+['object-level' permissions](#object-permissions). Global permissions determine which parts of the
+application a user can access (e.g. Documents, Tags, Settings) and object-level determine which
+objects are visible or editable. All objects have an 'owner' and 'view' and 'edit' permissions which
+can be granted to other users or groups. The paperless-ngx permissions system uses the built-in user
+model of the backend framework, Django.
 
 !!! tip
 
@@ -219,41 +219,68 @@ the built-in user model of the backend framework, Django.
     for a Tag will _not_ affect the permissions of documents that have the Tag.
 
 Permissions can be set using the new "Permissions" tab when editing documents, or bulk-applied
-in the UI by selecting documents and choosing the "Permissions" button. Owner can also optionally
-be set for documents uploaded via the API. Documents consumed via the consumption dir currently
-do not have an owner set.
-
-!!! note
-
-    After migration to version 1.14.0 all existing documents, tags etc. will have no explicit owner
-    set which means they will be visible / editable by all users. Once an object has an owner set,
-    only the owner can explicitly grant / revoke permissions.
-
-!!! note
-
-    When first migrating to permissions it is recommended to use a 'superuser' account (which
-    would usually have been setup during installation) to ensure you have full permissions.
-
-    Note that superusers have access to all objects.
+in the UI by selecting documents and choosing the "Permissions" button.
 
 ### Default permissions
 
-Default permissions for documents can be set using workflows.
+[Workflows](#workflows) provide advanced ways to control permissions.
 
 For objects created via the web UI (tags, doc types, etc.) the default is to set the current user
-as owner and no extra permissions, but you explicitly set these under Settings > Permissions.
+as owner and no extra permissions, but you can explicitly set these under Settings > Permissions.
+
+Documents consumed via the consumption directory do not have an owner or additional permissions set by default, but again, can be controlled with [Workflows](#workflows).
 
 ### Users and Groups
 
-Paperless-ngx versions after 1.14.0 allow creating and editing users and groups via the 'frontend' UI.
-These can be found under Settings > Users & Groups, assuming the user has access. If a user is designated
+Paperless-ngx supports editing users and groups via the 'frontend' UI, which can be found under
+Settings > Users & Groups, assuming the user has access. If a user is designated
 as a member of a group those permissions will be inherited and this is reflected in the UI. Explicit
 permissions can be granted to limit access to certain parts of the UI (and corresponding API endpoints).
+
+!!! note
+
+    Superusers can access all parts of the front and backend application as well as any and all objects.
+
+#### Detailed Explanation of Global Permissions {#global-permissions}
+
+Global permissions define what areas of the app and API endpoints the user can access. For example, they
+determine if a user can create, edit, delete or view _any_ documents, but individual documents themselves
+still have "object-level" permissions.
+
+| Type          | Details                                                                                                                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin         | _View_ or higher permissions grants access to the logs view as well as the system status.                                                                                                           |
+| AppConfig     | _Change_ or higher permissions grants access to the "Application Configuration" area.                                                                                                               |
+| Correspondent | Grants global permissions to add, edit, delete or view Correspondents.                                                                                                                              |
+| CustomField   | Grants global permissions to add, edit, delete or view Custom Fields.                                                                                                                               |
+| Document      | Grants global permissions to add, edit, delete or view Documents.                                                                                                                                   |
+| DocumentType  | Grants global permissions to add, edit, delete or view Document Types.                                                                                                                              |
+| Group         | Grants global permissions to add, edit, delete or view Groups.                                                                                                                                      |
+| MailAccount   | Grants global permissions to add, edit, delete or view Mail Accounts.                                                                                                                               |
+| MailRule      | Grants global permissions to add, edit, delete or view Mail Rules.                                                                                                                                  |
+| Note          | Grants global permissions to add, edit, delete or view Notes.                                                                                                                                       |
+| PaperlessTask | Grants global permissions to view or dismiss (_Change_) File Tasks.                                                                                                                                 |
+| SavedView     | Grants global permissions to add, edit, delete or view Saved Views.                                                                                                                                 |
+| ShareLink     | Grants global permissions to add, delete or view Share Links.                                                                                                                                       |
+| StoragePath   | Grants global permissions to add, edit, delete or view Storage Paths.                                                                                                                               |
+| Tag           | Grants global permissions to add, edit, delete or view Tags.                                                                                                                                        |
+| UISettings    | Grants global permissions to add, edit, delete or view the UI settings that are used by the web app.<br/>Users expected to access the web UI should usually be granted at least _View_ permissions. |
+| User          | Grants global permissions to add, edit, delete or view Users.                                                                                                                                       |
+| Workflow      | Grants global permissions to add, edit, delete or view Workflows.<br/>Note that Workflows are global, in other words all users who can access workflows have access to the same set of them.        |
+
+#### Detailed Explanation of Object Permissions {#object-permissions}
+
+| Type  | Details                                                                                                                                                                                                                                                                                                                                  |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner | By default objects are only visible and editable by their owner.<br/>Only the object owner can grant permissions to other users or groups.<br/>Additionally, only document owners can create share links and add / remove custom fields.<br/>For backwards compatibility objects can have no owner which makes them visible to any user. |
+| View  | Confers the ability to view (not edit) a document, tag, etc.<br/>Users without 'view' (or higher) permissions will be shown _'Private'_ in place of the object name for example when viewing a document with a tag for which the user doesn't have permissions.                                                                          |
+| Edit  | Confers the ability to edit (and view) a document, tag, etc.                                                                                                                                                                                                                                                                             |
 
 ### Password reset
 
 In order to enable the password reset feature you will need to setup an SMTP backend, see
-[`PAPERLESS_EMAIL_HOST`](configuration.md#PAPERLESS_EMAIL_HOST)
+[`PAPERLESS_EMAIL_HOST`](configuration.md#PAPERLESS_EMAIL_HOST). If your installation does not have
+[`PAPERLESS_URL`](configuration.md#PAPERLESS_URL) set, the reset link included in emails will use the server host.
 
 ## Workflows
 
@@ -328,13 +355,20 @@ Workflows allow you to filter by:
 
 ### Workflow Actions
 
-There is currently one type of workflow action, "Assignment", which can assign:
+There are currently two types of workflow actions, "Assignment", which can assign:
 
 - Title, see [title placeholders](usage.md#title-placeholders) below
 - Tags, correspondent, document type and storage path
 - Document owner
 - View and / or edit permissions to users or groups
 - Custom fields. Note that no value for the field will be set
+
+and "Removal" actions, which can remove either all of or specific sets of the following:
+
+- Tags, correspondents, document types or storage paths
+- Document owner
+- View and / or edit permissions
+- Custom fields
 
 #### Title placeholders
 
@@ -406,7 +440,7 @@ The following custom field types are supported:
 - `URL`: a valid url
 - `Integer`: integer number e.g. 12
 - `Number`: float number e.g. 12.3456
-- `Monetary`: float number with exactly two decimals, e.g. 12.30
+- `Monetary`: [ISO 4217 currency code](https://en.wikipedia.org/wiki/ISO_4217#List_of_ISO_4217_currency_codes) and a number with exactly two decimals, e.g. USD12.30
 - `Document Link`: reference(s) to other document(s) displayed as links, automatically creates a symmetrical link in reverse
 
 ## Share Links
@@ -421,6 +455,18 @@ Paperless-ngx added the ability to create shareable links to files in version 2.
 !!! tip
 
     If your paperless-ngx instance is behind a reverse-proxy you may want to create an exception to bypass any authentication layers that are part of your setup in order to make links truly publicly-accessible. Of course, do so with caution.
+
+## PDF Actions
+
+Paperless-ngx supports 3 basic editing operations for PDFs (these operations cannot be performed on non-PDF files):
+
+- Merging documents: available when selecting multiple documents for 'bulk editing'
+- Rotating documents: available when selecting multiple documents for 'bulk editing' and from an individual document's details page.
+- Splitting documents: available from an individual document's details page
+
+!!! important
+
+    Note that rotation alters the Paperless-ngx original file.
 
 ## Best practices {#basic-searching}
 

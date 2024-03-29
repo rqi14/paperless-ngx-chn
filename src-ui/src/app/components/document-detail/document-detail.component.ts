@@ -67,6 +67,8 @@ import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
 import { CustomFieldInstance } from 'src/app/data/custom-field-instance'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { PDFDocumentProxy } from '../common/pdf-viewer/typings'
+import { SplitConfirmDialogComponent } from '../common/confirm-dialog/split-confirm-dialog/split-confirm-dialog.component'
+import { RotateConfirmDialogComponent } from '../common/confirm-dialog/rotate-confirm-dialog/rotate-confirm-dialog.component'
 
 enum DocumentDetailNavIDs {
   Details = 1,
@@ -634,11 +636,14 @@ export class DocumentDetailComponent
           // in case data changed while saving eg removing inbox_tags
           this.documentForm.patchValue(docValues)
           this.store.next(this.documentForm.value)
+          this.openDocumentService.setDirty(this.document, false)
           this.toastService.showInfo($localize`Document saved successfully.`)
-          close && this.close()
           this.networkActive = false
           this.error = null
-          this.openDocumentService.refreshDocument(this.documentId)
+          close &&
+            this.close(() =>
+              this.openDocumentService.refreshDocument(this.documentId)
+            )
         },
         error: (error) => {
           this.networkActive = false
@@ -693,12 +698,13 @@ export class DocumentDetailComponent
       })
   }
 
-  close() {
+  close(closedCallback: () => void = null) {
     this.openDocumentService
       .closeDocument(this.document)
       .pipe(first())
       .subscribe((closed) => {
         if (!closed) return
+        if (closedCallback) closedCallback()
         if (this.documentListViewService.activeSavedViewId) {
           this.router.navigate([
             'view',
@@ -1035,5 +1041,84 @@ export class DocumentDetailComponent
     )
     this.updateFormForCustomFields(true)
     this.documentForm.updateValueAndValidity()
+  }
+
+  splitDocument() {
+    let modal = this.modalService.open(SplitConfirmDialogComponent, {
+      backdrop: 'static',
+    })
+    modal.componentInstance.title = $localize`Split confirm`
+    modal.componentInstance.messageBold = $localize`This operation will split the selected document(s) into new documents.`
+    modal.componentInstance.btnCaption = $localize`Proceed`
+    modal.componentInstance.documentID = this.document.id
+    modal.componentInstance.confirmClicked
+      .pipe(takeUntil(this.unsubscribeNotifier))
+      .subscribe(() => {
+        modal.componentInstance.buttonsEnabled = false
+        this.documentsService
+          .bulkEdit([this.document.id], 'split', {
+            pages: modal.componentInstance.pagesString,
+          })
+          .pipe(first(), takeUntil(this.unsubscribeNotifier))
+          .subscribe({
+            next: () => {
+              this.toastService.showInfo(
+                $localize`Split operation will begin in the background.`
+              )
+              modal.close()
+            },
+            error: (error) => {
+              if (modal) {
+                modal.componentInstance.buttonsEnabled = true
+              }
+              this.toastService.showError(
+                $localize`Error executing split operation`,
+                error
+              )
+            },
+          })
+      })
+  }
+
+  rotateDocument() {
+    let modal = this.modalService.open(RotateConfirmDialogComponent, {
+      backdrop: 'static',
+    })
+    modal.componentInstance.title = $localize`Rotate confirm`
+    modal.componentInstance.messageBold = $localize`This operation will permanently rotate the current document.`
+    modal.componentInstance.message = $localize`This will alter the original copy.`
+    modal.componentInstance.btnCaption = $localize`Proceed`
+    modal.componentInstance.documentID = this.document.id
+    modal.componentInstance.showPDFNote = false
+    modal.componentInstance.confirmClicked
+      .pipe(takeUntil(this.unsubscribeNotifier))
+      .subscribe(() => {
+        modal.componentInstance.buttonsEnabled = false
+        this.documentsService
+          .bulkEdit([this.document.id], 'rotate', {
+            degrees: modal.componentInstance.degrees,
+          })
+          .pipe(first(), takeUntil(this.unsubscribeNotifier))
+          .subscribe({
+            next: () => {
+              this.toastService.show({
+                content: $localize`Rotation will begin in the background. Close and re-open the document after the operation has completed to see the changes.`,
+                delay: 8000,
+                action: this.close.bind(this),
+                actionName: $localize`Close`,
+              })
+              modal.close()
+            },
+            error: (error) => {
+              if (modal) {
+                modal.componentInstance.buttonsEnabled = true
+              }
+              this.toastService.showError(
+                $localize`Error executing rotate operation`,
+                error
+              )
+            },
+          })
+      })
   }
 }

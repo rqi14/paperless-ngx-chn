@@ -76,7 +76,10 @@ const mock = () => {
   let storage: { [key: string]: string } = {}
   return {
     getItem: (key: string) => (key in storage ? storage[key] : null),
-    setItem: (key: string, value: string) => (storage[key] = value || ''),
+    setItem: (key: string, value: string) => {
+      if (value.length > 1000000) throw new Error('localStorage overflow')
+      storage[key] = value || ''
+    },
     removeItem: (key: string) => delete storage[key],
     clear: () => (storage = {}),
   }
@@ -94,6 +97,10 @@ Object.defineProperty(navigator, 'clipboard', {
 })
 Object.defineProperty(navigator, 'canShare', { value: () => true })
 Object.defineProperty(window, 'ResizeObserver', { value: mock() })
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { reload: jest.fn() },
+})
 
 HTMLCanvasElement.prototype.getContext = <
   typeof HTMLCanvasElement.prototype.getContext
