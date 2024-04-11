@@ -71,7 +71,17 @@ if ! docker stats --no-stream &> /dev/null ; then
 	sleep 3
 fi
 
-default_time_zone=$(timedatectl show -p Timezone --value)
+# Added handling for timezone for busybox based linux, not having timedatectl available (i.e. QNAP QTS)
+# if neither timedatectl nor /etc/TZ is succeeding, defaulting to GMT.
+if  command -v timedatectl &> /dev/null ; then
+	default_time_zone=$(timedatectl show -p Timezone --value)
+elif [ -f /etc/TZ ] && [ -f /etc/tzlist ] ; then
+	TZ=$(cat /etc/TZ)
+	default_time_zone=$(grep -B 1 -m 1 "$TZ" /etc/tzlist | head -1 | cut -f 2 -d =)
+else
+	echo "WARN: unable to detect timezone, defaulting to Etc/UTC"
+	default_time_zone="Etc/UTC"
+fi
 
 set -e
 
@@ -335,7 +345,7 @@ read -r -a OCR_LANGUAGES_ARRAY <<< "${_split_langs}"
 	fi
 	echo "PAPERLESS_TIME_ZONE=$TIME_ZONE"
 	echo "PAPERLESS_OCR_LANGUAGE=$OCR_LANGUAGE"
-	echo "PAPERLESS_SECRET_KEY=$SECRET_KEY"
+	echo "PAPERLESS_SECRET_KEY='$SECRET_KEY'"
 	if [[ ! ${DEFAULT_LANGUAGES[*]} =~ ${OCR_LANGUAGES_ARRAY[*]} ]] ; then
 		echo "PAPERLESS_OCR_LANGUAGES=${OCR_LANGUAGES_ARRAY[*]}"
 	fi

@@ -163,14 +163,23 @@ class SetPermissionsMixin:
         set_permissions_for_object(permissions, object)
 
 
-class OwnedObjectSerializer(serializers.ModelSerializer, SetPermissionsMixin):
+class SerializerWithPerms(serializers.Serializer):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
-        full_perms = kwargs.pop("full_perms", False)
+        self.full_perms = kwargs.pop("full_perms", False)
+        super().__init__(*args, **kwargs)
+
+
+class OwnedObjectSerializer(
+    SerializerWithPerms,
+    serializers.ModelSerializer,
+    SetPermissionsMixin,
+):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         try:
-            if full_perms:
+            if self.full_perms:
                 self.fields.pop("user_can_change")
                 self.fields.pop("is_shared_by_requester")
             else:
@@ -537,7 +546,7 @@ class CustomFieldInstanceSerializer(serializers.ModelSerializer):
                 except Exception:
                     # If that fails, try to validate as a monetary string
                     RegexValidator(
-                        regex=r"^[A-Z][A-Z][A-Z]\d+(\.\d{2,2})$",
+                        regex=r"^[A-Z]{3}-?\d+(\.\d{2,2})$",
                         message="Must be a two-decimal number with optional currency code e.g. GBP123.45",
                     )(data["value"])
             elif field.data_type == CustomField.FieldDataType.STRING:
@@ -857,7 +866,11 @@ class DocumentListSerializer(serializers.Serializer):
         return documents
 
 
-class BulkEditSerializer(DocumentListSerializer, SetPermissionsMixin):
+class BulkEditSerializer(
+    SerializerWithPerms,
+    DocumentListSerializer,
+    SetPermissionsMixin,
+):
     method = serializers.ChoiceField(
         choices=[
             "set_correspondent",
@@ -1113,6 +1126,14 @@ class PostDocumentSerializer(serializers.Serializer):
         max_value=Document.ARCHIVE_SERIAL_NUMBER_MAX,
     )
 
+    custom_fields = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=CustomField.objects.all(),
+        label="Custom fields",
+        write_only=True,
+        required=False,
+    )
+
     def validate_document(self, document):
         document_data = document.file.read()
         mime_type = magic.from_buffer(document_data, mime=True)
@@ -1145,6 +1166,12 @@ class PostDocumentSerializer(serializers.Serializer):
     def validate_tags(self, tags):
         if tags:
             return [tag.id for tag in tags]
+        else:
+            return None
+
+    def validate_custom_fields(self, custom_fields):
+        if custom_fields:
+            return [custom_field.id for custom_field in custom_fields]
         else:
             return None
 
@@ -1342,7 +1369,7 @@ class ShareLinkSerializer(OwnedObjectSerializer):
         return super().create(validated_data)
 
 
-class BulkEditObjectsSerializer(serializers.Serializer, SetPermissionsMixin):
+class BulkEditObjectsSerializer(SerializerWithPerms, SetPermissionsMixin):
     objects = serializers.ListField(
         required=True,
         allow_empty=False,

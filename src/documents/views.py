@@ -55,7 +55,6 @@ from rest_framework.exceptions import NotFound
 from rest_framework.filters import OrderingFilter
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import CreateModelMixin
 from rest_framework.mixins import DestroyModelMixin
 from rest_framework.mixins import ListModelMixin
 from rest_framework.mixins import RetrieveModelMixin
@@ -201,7 +200,7 @@ class IndexView(TemplateView):
         return context
 
 
-class PassUserMixin(CreateModelMixin):
+class PassUserMixin(GenericAPIView):
     """
     Pass a user object to serializer
     """
@@ -873,7 +872,7 @@ class SavedViewViewSet(ModelViewSet, PassUserMixin):
         serializer.save(owner=self.request.user)
 
 
-class BulkEditView(GenericAPIView, PassUserMixin):
+class BulkEditView(PassUserMixin):
     permission_classes = (IsAuthenticated,)
     serializer_class = BulkEditSerializer
     parser_classes = (parsers.JSONParser,)
@@ -930,6 +929,7 @@ class PostDocumentView(GenericAPIView):
         title = serializer.validated_data.get("title")
         created = serializer.validated_data.get("created")
         archive_serial_number = serializer.validated_data.get("archive_serial_number")
+        custom_field_ids = serializer.validated_data.get("custom_fields")
 
         t = int(mktime(datetime.now().timetuple()))
 
@@ -957,6 +957,7 @@ class PostDocumentView(GenericAPIView):
             created=created,
             asn=archive_serial_number,
             owner_id=request.user.id,
+            custom_field_ids=custom_field_ids,
         )
 
         async_task = consume_file.delay(
@@ -1448,7 +1449,7 @@ def serve_file(doc: Document, use_archive: bool, disposition: str):
     return response
 
 
-class BulkEditObjectsView(GenericAPIView, PassUserMixin):
+class BulkEditObjectsView(PassUserMixin):
     permission_classes = (IsAuthenticated,)
     serializer_class = BulkEditObjectsSerializer
     parser_classes = (parsers.JSONParser,)
@@ -1580,7 +1581,7 @@ class CustomFieldViewSet(ModelViewSet):
     queryset = CustomField.objects.all().order_by("-created")
 
 
-class SystemStatusView(GenericAPIView, PassUserMixin):
+class SystemStatusView(PassUserMixin):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, format=None):
