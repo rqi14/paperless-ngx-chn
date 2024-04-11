@@ -1,10 +1,12 @@
 <pngx-page-header [(title)]="title">
   @if (contentRenderType === ContentRenderType.PDF && !useNativePdfViewer) {
-    <div class="input-group input-group-sm d-none d-md-flex">
-      <div class="input-group-text" i18n>Page</div>
-      <input class="form-control flex-grow-0 w-auto" type="number" min="1" [max]="previewNumPages" [(ngModel)]="previewCurrentPage" />
-      <div class="input-group-text" i18n>of {{previewNumPages}}</div>
-    </div>
+    @if (previewNumPages) {
+      <div class="input-group input-group-sm d-none d-md-flex">
+        <div class="input-group-text" i18n>Page</div>
+          <input class="form-control flex-grow-0 w-auto" type="number" min="1" [max]="previewNumPages" [(ngModel)]="previewCurrentPage" />
+        <div class="input-group-text" i18n>of {{previewNumPages}}</div>
+      </div>
+    }
     <div class="input-group input-group-sm me-md-5 d-none d-md-flex">
       <button class="btn btn-outline-secondary" (click)="decreaseZoom()" i18n>-</button>
       <select class="form-select" (change)="onZoomSelect($event)">
@@ -51,7 +53,7 @@
         <i-bs width="1em" height="1em" name="diagram-3"></i-bs>&nbsp;<span i18n>More like this</span>
       </button>
 
-      <button ngbDropdownItem (click)="splitDocument()" [disabled]="contentRenderType !== ContentRenderType.PDF || previewNumPages < 2">
+      <button ngbDropdownItem (click)="splitDocument()" [disabled]="contentRenderType !== ContentRenderType.PDF || previewNumPages === 1">
         <i-bs width="1em" height="1em" name="scissors"></i-bs>&nbsp;<span i18n>Split</span>
       </button>
 
