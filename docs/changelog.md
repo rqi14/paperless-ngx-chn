@@ -1,12 +1,57 @@
 # Changelog
 
+## paperless-ngx 2.8.5
+
+### Bug Fixes
+
+- Fix: restore search highlighting on large cards results [@shamoon](https://github.com/shamoon) ([#6728](https://github.com/paperless-ngx/paperless-ngx/pull/6728))
+- Fix: global search filtering links broken in 2.8.4 [@shamoon](https://github.com/shamoon) ([#6726](https://github.com/paperless-ngx/paperless-ngx/pull/6726))
+- Fix: some buttons incorrectly aligned in 2.8.4 [@shamoon](https://github.com/shamoon) ([#6715](https://github.com/paperless-ngx/paperless-ngx/pull/6715))
+- Fix: don't format ASN as number on dashboard [@shamoon](https://github.com/shamoon) ([#6708](https://github.com/paperless-ngx/paperless-ngx/pull/6708))
+
+### All App Changes
+
+<details>
+<summary>4 changes</summary>
+
+- Fix: restore search highlighting on large cards results [@shamoon](https://github.com/shamoon) ([#6728](https://github.com/paperless-ngx/paperless-ngx/pull/6728))
+- Fix: global search filtering links broken in 2.8.4 [@shamoon](https://github.com/shamoon) ([#6726](https://github.com/paperless-ngx/paperless-ngx/pull/6726))
+- Fix: some buttons incorrectly aligned in 2.8.4 [@shamoon](https://github.com/shamoon) ([#6715](https://github.com/paperless-ngx/paperless-ngx/pull/6715))
+- Fix: don't format ASN as number on dashboard [@shamoon](https://github.com/shamoon) ([#6708](https://github.com/paperless-ngx/paperless-ngx/pull/6708))
+</details>
+
+## paperless-ngx 2.8.4
+
+### Features
+
+- Enhancement: display current ASN in statistics [@darmiel](https://github.com/darmiel) ([#6692](https://github.com/paperless-ngx/paperless-ngx/pull/6692))
+- Enhancement: global search tweaks [@shamoon](https://github.com/shamoon) ([#6674](https://github.com/paperless-ngx/paperless-ngx/pull/6674))
+
+### Bug Fixes
+
+- Security: Correctly disable in pdfjs [@shamoon](https://github.com/shamoon) ([#6702](https://github.com/paperless-ngx/paperless-ngx/pull/6702))
+- Fix: history timestamp tooltip illegible in dark mode [@shamoon](https://github.com/shamoon) ([#6696](https://github.com/paperless-ngx/paperless-ngx/pull/6696))
+- Fix: only count inbox documents from inbox tags with permissions [@shamoon](https://github.com/shamoon) ([#6670](https://github.com/paperless-ngx/paperless-ngx/pull/6670))
+
+### All App Changes
+
+<details>
+<summary>5 changes</summary>
+
+- Enhancement: global search tweaks [@shamoon](https://github.com/shamoon) ([#6674](https://github.com/paperless-ngx/paperless-ngx/pull/6674))
+- Security: Correctly disable in pdfjs [@shamoon](https://github.com/shamoon) ([#6702](https://github.com/paperless-ngx/paperless-ngx/pull/6702))
+- Fix: history timestamp tooltip illegible in dark mode [@shamoon](https://github.com/shamoon) ([#6696](https://github.com/paperless-ngx/paperless-ngx/pull/6696))
+- Enhancement: display current ASN in statistics [@darmiel](https://github.com/darmiel) ([#6692](https://github.com/paperless-ngx/paperless-ngx/pull/6692))
+- Fix: only count inbox documents from inbox tags with permissions [@shamoon](https://github.com/shamoon) ([#6670](https://github.com/paperless-ngx/paperless-ngx/pull/6670))
+</details>
+
 ## paperless-ngx 2.8.3
 
 ### Bug Fixes
 
 - Fix: respect superuser for document history [@shamoon](https://github.com/shamoon) ([#6661](https://github.com/paperless-ngx/paperless-ngx/pull/6661))
 - Fix: allow 0 in monetary field [@shamoon](https://github.com/shamoon) ([#6658](https://github.com/paperless-ngx/paperless-ngx/pull/6658))
-- Fix: custom field removal doesnt always trigger change detection [@shamoon](https://github.com/shamoon) ([#6653](https://github.com/paperless-ngx/paperless-ngx/pull/6653))
+- Fix: custom field removal doesn't always trigger change detection [@shamoon](https://github.com/shamoon) ([#6653](https://github.com/paperless-ngx/paperless-ngx/pull/6653))
 - Fix: Downgrade and lock lxml [@stumpylog](https://github.com/stumpylog) ([#6655](https://github.com/paperless-ngx/paperless-ngx/pull/6655))
 - Fix: correctly handle global search esc key when open and button foucsed [@shamoon](https://github.com/shamoon) ([#6644](https://github.com/paperless-ngx/paperless-ngx/pull/6644))
 - Fix: consistent monetary field display in list and cards [@shamoon](https://github.com/shamoon) ([#6645](https://github.com/paperless-ngx/paperless-ngx/pull/6645))
@@ -24,7 +69,7 @@
 
 - Fix: respect superuser for document history [@shamoon](https://github.com/shamoon) ([#6661](https://github.com/paperless-ngx/paperless-ngx/pull/6661))
 - Fix: allow 0 in monetary field [@shamoon](https://github.com/shamoon) ([#6658](https://github.com/paperless-ngx/paperless-ngx/pull/6658))
-- Fix: custom field removal doesnt always trigger change detection [@shamoon](https://github.com/shamoon) ([#6653](https://github.com/paperless-ngx/paperless-ngx/pull/6653))
+- Fix: custom field removal doesn't always trigger change detection [@shamoon](https://github.com/shamoon) ([#6653](https://github.com/paperless-ngx/paperless-ngx/pull/6653))
 - Fix: correctly handle global search esc key when open and button foucsed [@shamoon](https://github.com/shamoon) ([#6644](https://github.com/paperless-ngx/paperless-ngx/pull/6644))
 - Fix: consistent monetary field display in list and cards [@shamoon](https://github.com/shamoon) ([#6645](https://github.com/paperless-ngx/paperless-ngx/pull/6645))
 - Fix: doc links and more illegible in light mode [@shamoon](https://github.com/shamoon) ([#6643](https://github.com/paperless-ngx/paperless-ngx/pull/6643))
