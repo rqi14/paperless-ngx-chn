@@ -27,6 +27,9 @@ from rest_framework import fields
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
 
+if settings.AUDIT_LOG_ENABLED:
+    from auditlog.context import set_actor
+
 from documents import bulk_edit
 from documents.data_models import DocumentSource
 from documents.models import Correspondent
@@ -90,7 +93,9 @@ class MatchingModelSerializer(serializers.ModelSerializer):
         owner = (
             data["owner"]
             if "owner" in data
-            else self.user if hasattr(self, "user") else None
+            else self.user
+            if hasattr(self, "user")
+            else None
         )
         pk = self.instance.pk if hasattr(self.instance, "pk") else None
         if ("name" in data or "owner" in data) and self.Meta.model.objects.filter(
@@ -286,7 +291,7 @@ class OwnedObjectSerializer(
 
 
 class CorrespondentSerializer(MatchingModelSerializer, OwnedObjectSerializer):
-    last_correspondence = serializers.DateTimeField(read_only=True)
+    last_correspondence = serializers.DateTimeField(read_only=True, required=False)
 
     class Meta:
         model = Correspondent
@@ -546,7 +551,7 @@ class CustomFieldInstanceSerializer(serializers.ModelSerializer):
                 except Exception:
                     # If that fails, try to validate as a monetary string
                     RegexValidator(
-                        regex=r"^[A-Z]{3}-?\d+(\.\d{2,2})$",
+                        regex=r"^[A-Z]{3}-?\d+(\.\d{1,2})$",
                         message="Must be a two-decimal number with optional currency code e.g. GBP123.45",
                     )(data["value"])
             elif field.data_type == CustomField.FieldDataType.STRING:
@@ -746,7 +751,11 @@ class DocumentSerializer(
                     for tag in instance.tags.all()
                     if tag not in inbox_tags_not_being_added
                 ]
-        super().update(instance, validated_data)
+        if settings.AUDIT_LOG_ENABLED:
+            with set_actor(self.user):
+                super().update(instance, validated_data)
+        else:
+            super().update(instance, validated_data)
         return instance
 
     def __init__(self, *args, **kwargs):
@@ -791,6 +800,34 @@ class DocumentSerializer(
         )
 
 
+class SearchResultSerializer(DocumentSerializer):
+    def to_representation(self, instance):
+        doc = (
+            Document.objects.select_related(
+                "correspondent",
+                "storage_path",
+                "document_type",
+                "owner",
+            )
+            .prefetch_related("tags", "custom_fields", "notes")
+            .get(id=instance["id"])
+        )
+        notes = ",".join(
+            [str(c.note) for c in doc.notes.all()],
+        )
+        r = super().to_representation(doc)
+        r["__search_hit__"] = {
+            "score": instance.score,
+            "highlights": instance.highlights("content", text=doc.content),
+            "note_highlights": (
+                instance.highlights("notes", text=notes) if doc else None
+            ),
+            "rank": instance.rank,
+        }
+
+        return r
+
+
 class SavedViewFilterRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavedViewFilterRule
@@ -810,11 +847,32 @@ class SavedViewSerializer(OwnedObjectSerializer):
             "sort_field",
             "sort_reverse",
             "filter_rules",
+            "page_size",
+            "display_mode",
+            "display_fields",
             "owner",
             "permissions",
             "user_can_change",
             "set_permissions",
         ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "display_fields" in attrs and attrs["display_fields"] is not None:
+            for field in attrs["display_fields"]:
+                if (
+                    SavedView.DisplayFields.CUSTOM_FIELD[:-2] in field
+                ):  # i.e. check for 'custom_field_' prefix
+                    field_id = int(re.search(r"\d+", field)[0])
+                    if not CustomField.objects.filter(id=field_id).exists():
+                        raise serializers.ValidationError(
+                            f"Invalid field: {field}",
+                        )
+                elif field not in SavedView.DisplayFields.values:
+                    raise serializers.ValidationError(
+                        f"Invalid field: {field}",
+                    )
+        return attrs
 
     def update(self, instance, validated_data):
         if "filter_rules" in validated_data:
@@ -879,12 +937,14 @@ class BulkEditSerializer(
             "add_tag",
             "remove_tag",
             "modify_tags",
+            "modify_custom_fields",
             "delete",
-            "redo_ocr",
+            "reprocess",
             "set_permissions",
             "rotate",
             "merge",
             "split",
+            "delete_pages",
         ],
         label="Method",
         write_only=True,
@@ -903,6 +963,17 @@ class BulkEditSerializer(
                 f"Some tags in {name} don't exist or were specified twice.",
             )
 
+    def _validate_custom_field_id_list(self, custom_fields, name="custom_fields"):
+        if not isinstance(custom_fields, list):
+            raise serializers.ValidationError(f"{name} must be a list")
+        if not all(isinstance(i, int) for i in custom_fields):
+            raise serializers.ValidationError(f"{name} must be a list of integers")
+        count = CustomField.objects.filter(id__in=custom_fields).count()
+        if not count == len(custom_fields):
+            raise serializers.ValidationError(
+                f"Some custom fields in {name} don't exist or were specified twice.",
+            )
+
     def validate_method(self, method):
         if method == "set_correspondent":
             return bulk_edit.set_correspondent
@@ -916,10 +987,12 @@ class BulkEditSerializer(
             return bulk_edit.remove_tag
         elif method == "modify_tags":
             return bulk_edit.modify_tags
+        elif method == "modify_custom_fields":
+            return bulk_edit.modify_custom_fields
         elif method == "delete":
             return bulk_edit.delete
-        elif method == "redo_ocr":
-            return bulk_edit.redo_ocr
+        elif method == "redo_ocr" or method == "reprocess":
+            return bulk_edit.reprocess
         elif method == "set_permissions":
             return bulk_edit.set_permissions
         elif method == "rotate":
@@ -928,6 +1001,8 @@ class BulkEditSerializer(
             return bulk_edit.merge
         elif method == "split":
             return bulk_edit.split
+        elif method == "delete_pages":
+            return bulk_edit.delete_pages
         else:
             raise serializers.ValidationError("Unsupported method.")
 
@@ -991,6 +1066,23 @@ class BulkEditSerializer(
         else:
             raise serializers.ValidationError("remove_tags not specified")
 
+    def _validate_parameters_modify_custom_fields(self, parameters):
+        if "add_custom_fields" in parameters:
+            self._validate_custom_field_id_list(
+                parameters["add_custom_fields"],
+                "add_custom_fields",
+            )
+        else:
+            raise serializers.ValidationError("add_custom_fields not specified")
+
+        if "remove_custom_fields" in parameters:
+            self._validate_custom_field_id_list(
+                parameters["remove_custom_fields"],
+                "remove_custom_fields",
+            )
+        else:
+            raise serializers.ValidationError("remove_custom_fields not specified")
+
     def _validate_owner(self, owner):
         ownerUser = User.objects.get(pk=owner)
         if ownerUser is None:
@@ -1039,6 +1131,14 @@ class BulkEditSerializer(
         except ValueError:
             raise serializers.ValidationError("invalid pages specified")
 
+    def _validate_parameters_delete_pages(self, parameters):
+        if "pages" not in parameters:
+            raise serializers.ValidationError("pages not specified")
+        if not isinstance(parameters["pages"], list):
+            raise serializers.ValidationError("pages must be a list")
+        if not all(isinstance(i, int) for i in parameters["pages"]):
+            raise serializers.ValidationError("pages must be a list of integers")
+
     def validate(self, attrs):
         method = attrs["method"]
         parameters = attrs["parameters"]
@@ -1053,6 +1153,8 @@ class BulkEditSerializer(
             self._validate_parameters_modify_tags(parameters)
         elif method == bulk_edit.set_storage_path:
             self._validate_storage_path(parameters)
+        elif method == bulk_edit.modify_custom_fields:
+            self._validate_parameters_modify_custom_fields(parameters)
         elif method == bulk_edit.set_permissions:
             self._validate_parameters_set_permissions(parameters)
         elif method == bulk_edit.rotate:
@@ -1063,6 +1165,12 @@ class BulkEditSerializer(
                     "Split method only supports one document",
                 )
             self._validate_parameters_split(parameters)
+        elif method == bulk_edit.delete_pages:
+            if len(attrs["documents"]) > 1:
+                raise serializers.ValidationError(
+                    "Delete pages method only supports one document",
+                )
+            self._validate_parameters_delete_pages(parameters)
 
         return attrs
 

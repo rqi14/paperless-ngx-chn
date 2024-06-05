@@ -107,7 +107,6 @@ class BarcodePlugin(ConsumeTaskPlugin):
         if settings.CONSUMER_ENABLE_BARCODES and (
             separator_pages := self.get_separation_pages()
         ):
-
             # We have pages to split against
 
             # Note this does NOT use the base_temp_dir, as that will be removed
@@ -330,10 +329,10 @@ class BarcodePlugin(ConsumeTaskPlugin):
                             break
 
                     if tag:
-                        tag = Tag.objects.get_or_create(
+                        tag, _ = Tag.objects.get_or_create(
                             name__iexact=tag,
                             defaults={"name": tag},
-                        )[0]
+                        )
 
                         logger.debug(
                             f"Found Tag Barcode '{raw}', substituted "
