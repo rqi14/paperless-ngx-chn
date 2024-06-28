@@ -219,10 +219,10 @@ database, classification model, etc).
 
     Defaults to "../data/", relative to the "src" directory.
 
-#### [`PAPERLESS_TRASH_DIR=<path>`](#PAPERLESS_TRASH_DIR) {#PAPERLESS_TRASH_DIR}
+#### [`PAPERLESS_EMPTY_TRASH_DIR=<path>`](#PAPERLESS_EMPTY_TRASH_DIR) {#PAPERLESS_EMPTY_TRASH_DIR}
 
-: Instead of removing deleted documents, they are moved to this
-directory.
+: When documents are deleted (e.g. after emptying the trash) the original files will be moved here
+instead of being removed from the filesystem. Only the original version is kept.
 
     This must be writeable by the user running paperless. When running
     inside docker, ensure that this path is within a permanent volume
@@ -230,7 +230,9 @@ directory.
 
     Note that the directory must exist prior to using this setting.
 
-    Defaults to empty (i.e. really delete documents).
+    Defaults to empty (i.e. really delete files).
+
+    This setting was previously named PAPERLESS_TRASH_DIR.
 
 #### [`PAPERLESS_MEDIA_ROOT=<path>`](#PAPERLESS_MEDIA_ROOT) {#PAPERLESS_MEDIA_ROOT}
 
@@ -592,7 +594,7 @@ system. See the corresponding
 
 #### [`PAPERLESS_DISABLE_REGULAR_LOGIN=<bool>`](#PAPERLESS_DISABLE_REGULAR_LOGIN) {#PAPERLESS_DISABLE_REGULAR_LOGIN}
 
-: Disables the regular frontend username / password login, i.e. once you have setup SSO. Note that this setting does not disable the Django admin login. To prevent logins directly to Django, consider blocking `/admin/` in your [web server or reverse proxy configuration](https://github.com/paperless-ngx/paperless-ngx/wiki/Using-a-Reverse-Proxy-with-Paperless-ngx).
+: Disables the regular frontend username / password login, i.e. once you have setup SSO. Note that this setting does not disable the Django admin login nor logging in with local credentials via the API. To prevent access to the Django admin, consider blocking `/admin/` in your [web server or reverse proxy configuration](https://github.com/paperless-ngx/paperless-ngx/wiki/Using-a-Reverse-Proxy-with-Paperless-ngx).
 
     Defaults to False
 
@@ -1361,6 +1363,20 @@ processing. This only has an effect if
 `PAPERLESS_CONSUMER_ENABLE_COLLATE_DOUBLE_SIDED` has been enabled.
 
     Defaults to false.
+
+## Trash
+
+#### [`PAPERLESS_EMPTY_TRASH_DELAY=<num>`](#PAPERLESS_EMPTY_TRASH_DELAY) {#PAPERLESS_EMPTY_TRASH_DELAY}
+
+: Sets how long in days documents remain in the 'trash' before they are permanently deleted.
+
+    Defaults to 30 days, minimum of 1 day.
+
+#### [`PAPERLESS_EMPTY_TRASH_TASK_CRON=<cron expression>`](#PAPERLESS_EMPTY_TRASH_TASK_CRON) {#PAPERLESS_EMPTY_TRASH_TASK_CRON}
+
+: Configures the schedule to empty the trash of expired deleted documents.
+
+    Defaults to `0 1 * * *`, once per day.
 
 ## Binaries
 

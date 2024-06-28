@@ -21,7 +21,7 @@ RUN set -eux \
 # Comments:
 #  - pipenv dependencies are not left in the final image
 #  - pipenv can't touch the final image somehow
-FROM --platform=$BUILDPLATFORM docker.io/python:3.11-alpine as pipenv-base
+FROM --platform=$BUILDPLATFORM docker.io/python:3.11-alpine AS pipenv-base
 
 WORKDIR /usr/src/pipenv
 
@@ -29,7 +29,7 @@ COPY Pipfile* ./
 
 RUN set -eux \
   && echo "Installing pipenv" \
-    && python3 -m pip install --no-cache-dir --upgrade pipenv==2023.12.1 \
+    && python3 -m pip install --no-cache-dir --upgrade pipenv==2024.0.1 \
   && echo "Generating requirement.txt" \
     && pipenv requirements > requirements.txt
 
@@ -37,7 +37,7 @@ RUN set -eux \
 # Purpose: The final image
 # Comments:
 #  - Don't leave anything extra in here
-FROM docker.io/python:3.11-slim-bookworm as main-app
+FROM docker.io/python:3.11-slim-bookworm AS main-app
 
 LABEL org.opencontainers.image.authors="paperless-ngx team <hello@paperless-ngx.com>"
 LABEL org.opencontainers.image.documentation="https://docs.paperless-ngx.com/"
@@ -132,17 +132,17 @@ RUN set -eux \
         && dpkg --install ./qpdf_${QPDF_VERSION}-1_${TARGETARCH}.deb \
       && echo "Installing Ghostscript ${GS_VERSION}" \
         && curl --fail --silent --show-error --location \
-          --output libgs10_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
-          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/libgs10_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
+          --output libgs10_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
+          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/libgs10_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
         && curl --fail --silent --show-error --location \
-          --output ghostscript_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
-          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/ghostscript_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
+          --output ghostscript_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
+          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/ghostscript_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
         && curl --fail --silent --show-error --location \
-          --output libgs10-common_${GS_VERSION}.dfsg.git20240518-1_all.deb \
-          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/libgs10-common_${GS_VERSION}.dfsg.git20240518-1_all.deb \
-        && dpkg --install ./libgs10-common_${GS_VERSION}.dfsg.git20240518-1_all.deb \
-        && dpkg --install ./libgs10_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
-        && dpkg --install ./ghostscript_${GS_VERSION}.dfsg.git20240518-1_${TARGETARCH}.deb \
+          --output libgs10-common_${GS_VERSION}.dfsg-1_all.deb \
+          https://github.com/paperless-ngx/builder/releases/download/ghostscript-${GS_VERSION}/libgs10-common_${GS_VERSION}.dfsg-1_all.deb \
+        && dpkg --install ./libgs10-common_${GS_VERSION}.dfsg-1_all.deb \
+        && dpkg --install ./libgs10_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
+        && dpkg --install ./ghostscript_${GS_VERSION}.dfsg-1_${TARGETARCH}.deb \
       && echo "Installing jbig2enc" \
         && curl --fail --silent --show-error --location \
           --output jbig2enc_${JBIG2ENC_VERSION}-1_${TARGETARCH}.deb \
