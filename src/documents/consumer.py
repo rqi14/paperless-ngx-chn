@@ -317,7 +317,7 @@ class ConsumerPlugin(
         """
         with open(self.input_doc.original_file, "rb") as f:
             checksum = hashlib.md5(f.read()).hexdigest()
-        existing_doc = Document.objects.filter(
+        existing_doc = Document.global_objects.filter(
             Q(checksum=checksum) | Q(archive_checksum=checksum),
         )
         if existing_doc.exists():
@@ -358,7 +358,9 @@ class ConsumerPlugin(
                 f"[{Document.ARCHIVE_SERIAL_NUMBER_MIN:,}, "
                 f"{Document.ARCHIVE_SERIAL_NUMBER_MAX:,}]",
             )
-        if Document.objects.filter(archive_serial_number=self.metadata.asn).exists():
+        if Document.global_objects.filter(
+            archive_serial_number=self.metadata.asn,
+        ).exists():
             self._fail(
                 ConsumerStatusShortMessage.ASN_ALREADY_EXISTS,
                 f"Not consuming {self.filename}: Given ASN {self.metadata.asn} already exists!",
@@ -447,6 +449,9 @@ class ConsumerPlugin(
         script_env["DOCUMENT_THUMBNAIL_URL"] = reverse(
             "document-thumb",
             kwargs={"pk": document.pk},
+        )
+        script_env["DOCUMENT_OWNER"] = (
+            document.owner.get_username() if document.owner else ""
         )
         script_env["DOCUMENT_CORRESPONDENT"] = str(document.correspondent)
         script_env["DOCUMENT_TAGS"] = str(

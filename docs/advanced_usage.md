@@ -36,7 +36,7 @@ The following algorithms are available:
 - **Regular expression:** Parses the match as a regular expression and
   tries to find a match within the document.
 - **Fuzzy match:** Uses a partial matching based on locating the tag text
-  inside the document, using a [partial ratio](https://maxbachmann.github.io/RapidFuzz/Usage/fuzz.html#partial-ratio)
+  inside the document, using a [partial ratio](https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html#partial-ratio)
 - **Auto:** Tries to automatically match new documents. This does not
   require you to set a match. See the [notes below](#automatic-matching).
 
@@ -187,6 +187,7 @@ variables:
 | `DOCUMENT_THUMBNAIL_PATH`    | Path to the generated thumbnail                |
 | `DOCUMENT_DOWNLOAD_URL`      | URL for document download                      |
 | `DOCUMENT_THUMBNAIL_URL`     | URL for the document thumbnail                 |
+| `DOCUMENT_OWNER`             | Username of the document owner (if any)        |
 | `DOCUMENT_CORRESPONDENT`     | Assigned correspondent (if any)                |
 | `DOCUMENT_TAGS`              | Comma separated list of tags applied (if any)  |
 | `DOCUMENT_ORIGINAL_FILENAME` | Filename of original document                  |
@@ -687,4 +688,5 @@ More details about configuration option for various providers can be found in th
 
 ### Disabling Regular Login
 
-Once external auth is set up, 'regular' login can be disabled with the [PAPERLESS_DISABLE_REGULAR_LOGIN](configuration.md#PAPERLESS_DISABLE_REGULAR_LOGIN) setting.
+Once external auth is set up, 'regular' login can be disabled with the [PAPERLESS_DISABLE_REGULAR_LOGIN](configuration.md#PAPERLESS_DISABLE_REGULAR_LOGIN) setting and / or users can be automatically
+redirected with the [PAPERLESS_REDIRECT_LOGIN_TO_SSO](configuration.md#PAPERLESS_REDIRECT_LOGIN_TO_SSO) setting.

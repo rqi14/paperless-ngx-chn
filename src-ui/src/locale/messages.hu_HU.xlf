@@ -273,11 +273,11 @@
         <source>Document <x id="PH" equiv-text="status.filename"/> was added to Paperless-ngx.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">85</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">94</context>
         </context-group>
         <target state="translated">A <x id="PH" equiv-text="status.filename"/> dokumentum hozzá lett adva a Paperless-ngx-hez.</target>
       </trans-unit>
@@ -285,7 +285,7 @@
         <source>Open document</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">87</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/dashboard/widgets/saved-view-widget/saved-view-widget.component.html</context>
@@ -309,7 +309,7 @@
         <source>Could not add <x id="PH" equiv-text="status.filename"/>: <x id="PH_1" equiv-text="status.message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">107</context>
+          <context context-type="linenumber">109</context>
         </context-group>
         <target state="translated">Nem tudta hozzáadni a <x id="PH" equiv-text="status.filename"/>: <x id="PH_1" equiv-text="status.message"/></target>
       </trans-unit>
@@ -317,7 +317,7 @@
         <source>Document <x id="PH" equiv-text="status.filename"/> is being processed by Paperless-ngx.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">122</context>
+          <context context-type="linenumber">124</context>
         </context-group>
         <target state="translated">A <x id="PH" equiv-text="status.filename"/> dokumentumot a Paperless-ngx feldolgozza.</target>
       </trans-unit>
@@ -325,7 +325,7 @@
         <source>Dashboard</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">129</context>
+          <context context-type="linenumber">131</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
@@ -345,7 +345,7 @@
         <source>Documents</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">140</context>
+          <context context-type="linenumber">142</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
@@ -381,7 +381,7 @@
         <source>Settings</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">152</context>
+          <context context-type="linenumber">154</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
@@ -397,11 +397,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">228</context>
+          <context context-type="linenumber">235</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">230</context>
+          <context context-type="linenumber">237</context>
         </context-group>
         <target state="translated">Beállítások</target>
       </trans-unit>
@@ -409,7 +409,7 @@
         <source>Prev</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">158</context>
+          <context context-type="linenumber">160</context>
         </context-group>
         <target state="translated">Előző</target>
       </trans-unit>
@@ -417,7 +417,7 @@
         <source>Next</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">159</context>
+          <context context-type="linenumber">161</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
@@ -429,7 +429,7 @@
         <source>End</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">160</context>
+          <context context-type="linenumber">162</context>
         </context-group>
         <target state="translated">Vége</target>
       </trans-unit>
@@ -437,7 +437,7 @@
         <source>The dashboard can be used to show saved views, such as an &apos;Inbox&apos;. Those settings are found under Settings &gt; Saved Views once you have created some.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">166</context>
+          <context context-type="linenumber">168</context>
         </context-group>
         <target state="translated">A irányítópult mentett nézetek, például a "Beérkezett üzenetek" megjelenítésére is használható. Ezeket a beállításokat a Beállítások &gt; Mentett nézetek menüpont alatt találja, ha már létrehozott néhányat.</target>
       </trans-unit>
@@ -445,7 +445,7 @@
         <source>Drag-and-drop documents here to start uploading or place them in the consume folder. You can also drag-and-drop documents anywhere on all other pages of the web app. Once you do, Paperless-ngx will start training its machine learning algorithms.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">173</context>
+          <context context-type="linenumber">175</context>
         </context-group>
         <target state="translated">Húzza ide a dokumentumokat a feltöltés megkezdéséhez, vagy helyezze el őket a Feldolgozási mappában. A webes alkalmazás minden más oldalán is bárhová áthúzhatja a dokumentumokat. Amint ezt megteszi, a Paperless-ngx elkezdi a gépi tanulási algoritmusok futtatását.</target>
       </trans-unit>
@@ -453,7 +453,7 @@
         <source>The documents list shows all of your documents and allows for filtering as well as bulk-editing. There are three different view styles: list, small cards and large cards. A list of documents currently opened for editing is shown in the sidebar.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">178</context>
+          <context context-type="linenumber">180</context>
         </context-group>
         <target state="translated">A dokumentumok listája mutatja az összes dokumentumot, és lehetővé teszi a szűrést, valamint a tömeges szerkesztést. Három különböző nézeti stílus áll rendelkezésre: lista, kis kártyák és nagy kártyák. Az oldalsávban megjelenik az éppen szerkesztésre megnyitott dokumentumok listája.</target>
       </trans-unit>
@@ -461,7 +461,7 @@
         <source>The filtering tools allow you to quickly find documents using various searches, dates, tags, etc.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">185</context>
+          <context context-type="linenumber">187</context>
         </context-group>
         <target state="translated">A szűrőeszközök lehetővé teszik a dokumentumok gyors megtalálását különböző keresések, dátumok, címkék stb. segítségével.</target>
       </trans-unit>
@@ -469,7 +469,7 @@
         <source>Any combination of filters can be saved as a &apos;view&apos; which can then be displayed on the dashboard and / or sidebar.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">191</context>
+          <context context-type="linenumber">193</context>
         </context-group>
         <target state="translated">A szűrők bármely kombinációja elmenthető "nézetként", amely aztán megjeleníthető a műszerfalon és/vagy az oldalsávban.</target>
       </trans-unit>
@@ -477,7 +477,7 @@
         <source>Tags, correspondents, document types and storage paths can all be managed using these pages. They can also be created from the document edit view.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">196</context>
+          <context context-type="linenumber">198</context>
         </context-group>
         <target state="translated">A címkék, levelezők, dokumentumtípusok és tárolási útvonalak mind kezelhetők ezekkel az oldalakkal. Ezek a dokumentumszerkesztési nézetből is létrehozhatók.</target>
       </trans-unit>
@@ -485,7 +485,7 @@
         <source>Manage e-mail accounts and rules for automatically importing documents.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">204</context>
+          <context context-type="linenumber">206</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
@@ -497,7 +497,7 @@
         <source>Workflows give you more control over the document pipeline.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">212</context>
+          <context context-type="linenumber">214</context>
         </context-group>
         <target state="needs-translation">Workflows give you more control over the document pipeline.</target>
       </trans-unit>
@@ -505,7 +505,7 @@
         <source>File Tasks shows you documents that have been consumed, are waiting to be, or may have failed during the process.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">220</context>
+          <context context-type="linenumber">222</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
@@ -517,7 +517,7 @@
         <source>Check out the settings for various tweaks to the web app and toggle settings for saved views.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">228</context>
+          <context context-type="linenumber">230</context>
         </context-group>
         <target state="translated">Nézze meg a beállításokat a webes alkalmazás különböző finomításaihoz, és kapcsolja be a mentett nézetek beállításait.</target>
       </trans-unit>
@@ -525,7 +525,7 @@
         <source>Thank you! 🙏</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">236</context>
+          <context context-type="linenumber">238</context>
         </context-group>
         <target state="translated">Köszönöm! 🙏</target>
       </trans-unit>
@@ -533,7 +533,7 @@
         <source>There are &lt;em&gt;tons&lt;/em&gt; more features and info we didn&apos;t cover here, but this should get you started. Check out the documentation or visit the project on GitHub to learn more or to report issues.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">238</context>
+          <context context-type="linenumber">240</context>
         </context-group>
         <target state="translated">Vannak &lt;em&gt;tonna&lt;/em&gt; további funkciók és információk, amelyeket itt nem mutattunk be, de kezdheti ezekkel. Nézze meg a dokumentációt, vagy látogasson el a projekthez a GitHubon, ha többet szeretne megtudni, vagy ha problémákat szeretne jelenteni.</target>
       </trans-unit>
@@ -541,7 +541,7 @@
         <source>Lastly, on behalf of every contributor to this community-supported project, thank you for using Paperless-ngx!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/app.component.ts</context>
-          <context context-type="linenumber">240</context>
+          <context context-type="linenumber">242</context>
         </context-group>
         <target state="translated">Végezetül, a közösség által támogatott projekt minden közreműködője nevében köszönjük, hogy használod a Paperless-ngx-et!</target>
       </trans-unit>
@@ -585,7 +585,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">337</context>
+          <context context-type="linenumber">347</context>
         </context-group>
         <target state="translated">Eldob</target>
       </trans-unit>
@@ -605,7 +605,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">36</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
@@ -645,7 +645,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">329</context>
+          <context context-type="linenumber">339</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/save-view-config-dialog/save-view-config-dialog.component.html</context>
@@ -709,11 +709,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">263</context>
+          <context context-type="linenumber">270</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">266</context>
+          <context context-type="linenumber">273</context>
         </context-group>
         <target state="translated">Naplók</target>
       </trans-unit>
@@ -756,6 +756,10 @@
           <context context-type="linenumber">23</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">45</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
           <context context-type="linenumber">92</context>
         </context-group>
@@ -785,7 +789,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">346</context>
+          <context context-type="linenumber">356</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
@@ -793,7 +797,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">101</context>
+          <context context-type="linenumber">105</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -1081,14 +1085,6 @@
         </context-group>
         <target state="translated">Megerősítő párbeszédpanelek megjelenítése</target>
       </trans-unit>
-      <trans-unit id="6906812245033969309" datatype="html">
-        <source>Deleting documents will always ask for confirmation.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/admin/settings/settings.component.html</context>
-          <context context-type="linenumber">195</context>
-        </context-group>
-        <target state="translated">A dokumentumok törlése mindig megerősítést kér.</target>
-      </trans-unit>
       <trans-unit id="290238406234356122" datatype="html">
         <source>Apply on close</source>
         <context-group purpose="location">
@@ -1157,7 +1153,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">209</context>
+          <context context-type="linenumber">211</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/document.ts</context>
@@ -1197,7 +1193,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">305</context>
+          <context context-type="linenumber">315</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -1209,11 +1205,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">81</context>
+          <context context-type="linenumber">85</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -1500,6 +1496,10 @@
           <context context-type="linenumber">42</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
           <context context-type="linenumber">23</context>
         </context-group>
@@ -1525,11 +1525,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">22</context>
+          <context context-type="linenumber">23</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">69</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -1560,12 +1560,32 @@
           <context context-type="linenumber">369</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">76</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">57</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">86</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
           <context context-type="linenumber">38</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
           <context context-type="linenumber">76</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/mail-rule-edit-dialog/mail-rule-edit-dialog.component.ts</context>
@@ -1581,7 +1601,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="linenumber">19</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/share-links-dropdown/share-links-dropdown.component.html</context>
@@ -1601,11 +1621,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">42</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">84</context>
+          <context context-type="linenumber">88</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -1753,7 +1773,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">35</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component.html</context>
@@ -1909,11 +1929,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">251</context>
+          <context context-type="linenumber">258</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">253</context>
+          <context context-type="linenumber">260</context>
         </context-group>
         <target state="translated">Fájl feladatok</target>
       </trans-unit>
@@ -1922,6 +1942,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
           <context context-type="linenumber">9</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">8</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -1946,6 +1970,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/tasks/tasks.component.html</context>
           <context context-type="linenumber">36</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">35</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.html</context>
@@ -2005,7 +2033,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">66</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -2057,7 +2085,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">236</context>
+          <context context-type="linenumber">238</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/document.ts</context>
@@ -2225,6 +2253,242 @@
         </context-group>
         <target state="translated">sikertelen</target>
       </trans-unit>
+      <trans-unit id="3418677553313974490" datatype="html">
+        <source>Trash</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">2</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
+          <context context-type="linenumber">218</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
+          <context context-type="linenumber">221</context>
+        </context-group>
+        <target state="needs-translation">Trash</target>
+      </trans-unit>
+      <trans-unit id="3818027200170621545" datatype="html">
+        <source>Manage trashed documents that are pending deletion.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">4</context>
+        </context-group>
+        <target state="needs-translation">Manage trashed documents that are pending deletion.</target>
+      </trans-unit>
+      <trans-unit id="3186604097120837257" datatype="html">
+        <source>Restore selected</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">11</context>
+        </context-group>
+        <target state="needs-translation">Restore selected</target>
+      </trans-unit>
+      <trans-unit id="8831459317888986184" datatype="html">
+        <source>Delete selected</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+        <target state="needs-translation">Delete selected</target>
+      </trans-unit>
+      <trans-unit id="8597030111956627342" datatype="html">
+        <source>Empty trash</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+        <target state="needs-translation">Empty trash</target>
+      </trans-unit>
+      <trans-unit id="991066160113599649" datatype="html">
+        <source>Remaining</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">36</context>
+        </context-group>
+        <target state="needs-translation">Remaining</target>
+      </trans-unit>
+      <trans-unit id="7494361412465596264" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ getDaysRemaining(document) }}"/> days</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">58</context>
+        </context-group>
+        <target state="needs-translation"><x id="INTERPOLATION" equiv-text="{{ getDaysRemaining(document) }}"/> days</target>
+      </trans-unit>
+      <trans-unit id="6770769801335635194" datatype="html">
+        <source>Restore</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+        <target state="needs-translation">Restore</target>
+      </trans-unit>
+      <trans-unit id="2308646316372333720" datatype="html">
+        <source>{VAR_PLURAL, plural, =1 {One document in trash} other {<x id="INTERPOLATION"/> total documents in trash}}</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.html</context>
+          <context context-type="linenumber">89</context>
+        </context-group>
+        <target state="needs-translation">{VAR_PLURAL, plural, =1 {One document in trash} other {<x id="INTERPOLATION"/> total documents in trash}}</target>
+      </trans-unit>
+      <trans-unit id="9021887951960049161" datatype="html">
+        <source>Confirm delete</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">53</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">80</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">203</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">320</context>
+        </context-group>
+        <target state="translated">Törlés megerősítése</target>
+      </trans-unit>
+      <trans-unit id="1373208150912772963" datatype="html">
+        <source>This operation will permanently delete this document.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+        <target state="needs-translation">This operation will permanently delete this document.</target>
+      </trans-unit>
+      <trans-unit id="5641451190833696892" datatype="html">
+        <source>This operation cannot be undone.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">55</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">84</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
+          <context context-type="linenumber">116</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
+          <context context-type="linenumber">166</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/custom-fields/custom-fields.component.ts</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.ts</context>
+          <context context-type="linenumber">114</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.ts</context>
+          <context context-type="linenumber">173</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
+          <context context-type="linenumber">322</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.ts</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+        <target state="translated">Ezt a műveletet nem lehet visszacsinálni.</target>
+      </trans-unit>
+      <trans-unit id="1980187861066369604" datatype="html">
+        <source>Document deleted</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+        <target state="needs-translation">Document deleted</target>
+      </trans-unit>
+      <trans-unit id="7295637485862454066" datatype="html">
+        <source>Error deleting document</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">69</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
+          <context context-type="linenumber">799</context>
+        </context-group>
+        <target state="translated">Hiba a dokumentum törlésében</target>
+      </trans-unit>
+      <trans-unit id="7266264608936522311" datatype="html">
+        <source>This operation will permanently delete the selected documents.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">82</context>
+        </context-group>
+        <target state="needs-translation">This operation will permanently delete the selected documents.</target>
+      </trans-unit>
+      <trans-unit id="6804051092296228130" datatype="html">
+        <source>This operation will permanently delete all documents in the trash.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+        <target state="needs-translation">This operation will permanently delete all documents in the trash.</target>
+      </trans-unit>
+      <trans-unit id="6996183233986182894" datatype="html">
+        <source>Document(s) deleted</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">94</context>
+        </context-group>
+        <target state="needs-translation">Document(s) deleted</target>
+      </trans-unit>
+      <trans-unit id="6962724852893361467" datatype="html">
+        <source>Error deleting document(s)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">101</context>
+        </context-group>
+        <target state="needs-translation">Error deleting document(s)</target>
+      </trans-unit>
+      <trans-unit id="7534569062269274401" datatype="html">
+        <source>Document restored</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">113</context>
+        </context-group>
+        <target state="needs-translation">Document restored</target>
+      </trans-unit>
+      <trans-unit id="9136016619414048201" datatype="html">
+        <source>Error restoring document</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">117</context>
+        </context-group>
+        <target state="needs-translation">Error restoring document</target>
+      </trans-unit>
+      <trans-unit id="960063472770266304" datatype="html">
+        <source>Document(s) restored</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">127</context>
+        </context-group>
+        <target state="needs-translation">Document(s) restored</target>
+      </trans-unit>
+      <trans-unit id="8405416976953346141" datatype="html">
+        <source>Error restoring document(s)</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/admin/trash/trash.component.ts</context>
+          <context context-type="linenumber">133</context>
+        </context-group>
+        <target state="needs-translation">Error restoring document(s)</target>
+      </trans-unit>
       <trans-unit id="8119815638230251386" datatype="html">
         <source>Users &amp; Groups</source>
         <context-group purpose="location">
@@ -2233,11 +2497,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">242</context>
+          <context context-type="linenumber">249</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">244</context>
+          <context context-type="linenumber">251</context>
         </context-group>
         <target state="translated">Felhasználók &amp; Csoportok</target>
       </trans-unit>
@@ -2282,6 +2546,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/user-edit-dialog/user-edit-dialog.component.html</context>
           <context context-type="linenumber">13</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
+          <context context-type="linenumber">22</context>
         </context-group>
         <target state="translated">Felhasználónév</target>
       </trans-unit>
@@ -2337,11 +2605,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">36</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">82</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.html</context>
@@ -2441,42 +2709,6 @@
         </context-group>
         <target state="translated">Ez a művelet véglegesen törli ezt a felhasználói fiókot.</target>
       </trans-unit>
-      <trans-unit id="5641451190833696892" datatype="html">
-        <source>This operation cannot be undone.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
-          <context context-type="linenumber">116</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/admin/users-groups/users-groups.component.ts</context>
-          <context context-type="linenumber">166</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">714</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/custom-fields/custom-fields.component.ts</context>
-          <context context-type="linenumber">73</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.ts</context>
-          <context context-type="linenumber">114</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.ts</context>
-          <context context-type="linenumber">173</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">322</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/workflows/workflows.component.ts</context>
-          <context context-type="linenumber">97</context>
-        </context-group>
-        <target state="translated">Ezt a műveletet nem lehet visszacsinálni.</target>
-      </trans-unit>
       <trans-unit id="1181910457994920507" datatype="html">
         <source>Proceed</source>
         <context-group purpose="location">
@@ -2497,23 +2729,23 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1151</context>
+          <context context-type="linenumber">1152</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1192</context>
+          <context context-type="linenumber">1193</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">755</context>
+          <context context-type="linenumber">758</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">788</context>
+          <context context-type="linenumber">791</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">807</context>
+          <context context-type="linenumber">810</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/custom-fields/custom-fields.component.ts</context>
@@ -2641,11 +2873,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">272</context>
+          <context context-type="linenumber">279</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">275</context>
+          <context context-type="linenumber">282</context>
         </context-group>
         <target state="translated">Dokumentáció</target>
       </trans-unit>
@@ -2717,7 +2949,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">191</context>
+          <context context-type="linenumber">193</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.html</context>
@@ -2813,7 +3045,7 @@
         <source>Administration</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">229</context>
         </context-group>
         <target state="translated">Adminisztráció</target>
       </trans-unit>
@@ -2821,11 +3053,11 @@
         <source>Configuration</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">235</context>
+          <context context-type="linenumber">242</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">237</context>
+          <context context-type="linenumber">244</context>
         </context-group>
         <target state="needs-translation">Configuration</target>
       </trans-unit>
@@ -2833,7 +3065,7 @@
         <source>GitHub</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">282</context>
+          <context context-type="linenumber">289</context>
         </context-group>
         <target state="translated">GitHub</target>
       </trans-unit>
@@ -2841,7 +3073,7 @@
         <source>is available.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">291,292</context>
+          <context context-type="linenumber">298,299</context>
         </context-group>
         <target state="translated">rendelkezésre áll.</target>
       </trans-unit>
@@ -2849,7 +3081,7 @@
         <source>Click to view.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">292</context>
+          <context context-type="linenumber">299</context>
         </context-group>
         <target state="translated">Kattintson a megtekintéshez.</target>
       </trans-unit>
@@ -2857,7 +3089,7 @@
         <source>Paperless-ngx can automatically check for updates</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">296</context>
+          <context context-type="linenumber">303</context>
         </context-group>
         <target state="translated">A Paperless-ngx automatikusan ellenőrizni tudja a frissítéseket</target>
       </trans-unit>
@@ -2865,7 +3097,7 @@
         <source> How does this work? </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">303,305</context>
+          <context context-type="linenumber">310,312</context>
         </context-group>
         <target state="translated"> Hogyan működik ez? </target>
       </trans-unit>
@@ -2873,7 +3105,7 @@
         <source>Update available</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/app-frame/app-frame.component.html</context>
-          <context context-type="linenumber">316</context>
+          <context context-type="linenumber">323</context>
         </context-group>
         <target state="translated">Frissítés elérhető</target>
       </trans-unit>
@@ -3140,6 +3372,10 @@
           <context context-type="linenumber">26</context>
         </context-group>
         <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
+          <context context-type="linenumber">776</context>
+        </context-group>
+        <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
           <context context-type="linenumber">401</context>
         </context-group>
@@ -3158,6 +3394,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
           <context context-type="linenumber">579</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
+          <context context-type="linenumber">712</context>
         </context-group>
         <target state="translated">Megerősítés</target>
       </trans-unit>
@@ -3229,11 +3469,19 @@
         </context-group>
         <target state="needs-translation">Regenerate all metadata</target>
       </trans-unit>
+      <trans-unit id="5612366187076076264" datatype="html">
+        <source>Delete original documents after successful merge</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/confirm-dialog/merge-confirm-dialog/merge-confirm-dialog.component.html</context>
+          <context context-type="linenumber">32</context>
+        </context-group>
+        <target state="needs-translation">Delete original documents after successful merge</target>
+      </trans-unit>
       <trans-unit id="5138283234724909648" datatype="html">
         <source>Note that only PDFs will be included.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/confirm-dialog/merge-confirm-dialog/merge-confirm-dialog.component.html</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">34</context>
         </context-group>
         <target state="needs-translation">Note that only PDFs will be included.</target>
       </trans-unit>
@@ -3253,6 +3501,14 @@
         </context-group>
         <target state="needs-translation">Add Split</target>
       </trans-unit>
+      <trans-unit id="492847770415850840" datatype="html">
+        <source>Delete original document after successful split</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/confirm-dialog/split-confirm-dialog/split-confirm-dialog.component.html</context>
+          <context context-type="linenumber">49</context>
+        </context-group>
+        <target state="needs-translation">Delete original document after successful split</target>
+      </trans-unit>
       <trans-unit id="2509141182388535183" datatype="html">
         <source>View</source>
         <context-group purpose="location">
@@ -3265,7 +3521,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">10</context>
+          <context context-type="linenumber">20</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-card-large/document-card-large.component.html</context>
@@ -3357,7 +3613,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">247</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/document.ts</context>
@@ -3497,11 +3753,19 @@
         </context-group>
         <target state="translated">Az adattípus nem módosítható a mező létrehozása után</target>
       </trans-unit>
+      <trans-unit id="4910631867841099191" datatype="html">
+        <source>Add option</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.html</context>
+          <context context-type="linenumber">20</context>
+        </context-group>
+        <target state="needs-translation">Add option</target>
+      </trans-unit>
       <trans-unit id="528950215505228201" datatype="html">
         <source>Create new custom field</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.ts</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">80</context>
         </context-group>
         <target state="translated">Új egyéni mező létrehozása</target>
       </trans-unit>
@@ -3509,7 +3773,7 @@
         <source>Edit custom field</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">84</context>
         </context-group>
         <target state="translated">Egyéni mező szerkesztése</target>
       </trans-unit>
@@ -3697,7 +3961,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">68</context>
         </context-group>
         <target state="translated">Fiók</target>
       </trans-unit>
@@ -4401,13 +4665,13 @@
         </context-group>
         <target state="needs-translation">Content matching pattern</target>
       </trans-unit>
-      <trans-unit id="1333789258712064056" datatype="html">
-        <source>Has tags</source>
+      <trans-unit id="3484236514968690689" datatype="html">
+        <source>Has any of tags</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/edit-dialog/workflow-edit-dialog/workflow-edit-dialog.component.html</context>
           <context context-type="linenumber">143</context>
         </context-group>
-        <target state="needs-translation">Has tags</target>
+        <target state="needs-translation">Has any of tags</target>
       </trans-unit>
       <trans-unit id="5281365940563983618" datatype="html">
         <source>Has correspondent</source>
@@ -4693,11 +4957,11 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">6</context>
+          <context context-type="linenumber">16</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">27</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.html</context>
@@ -4878,7 +5142,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/select/select.component.ts</context>
-          <context context-type="linenumber">158</context>
+          <context context-type="linenumber">163</context>
         </context-group>
         <target state="translated">Szűrje meg a dokumentumokat ezzel a <x id="PH" equiv-text="this.title"/>címmel</target>
       </trans-unit>
@@ -4971,7 +5235,7 @@
         <source>Private</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/select/select.component.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">62</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/tag/tag.component.html</context>
@@ -4991,7 +5255,7 @@
         <source>No items found</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/input/select/select.component.ts</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">97</context>
         </context-group>
         <target state="translated">Nincs találat</target>
       </trans-unit>
@@ -5033,6 +5297,10 @@
           <context context-type="sourcefile">src/app/components/common/page-header/page-header.component.html</context>
           <context context-type="linenumber">9</context>
         </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
+          <context context-type="linenumber">4</context>
+        </context-group>
         <target state="needs-translation">What's this?</target>
       </trans-unit>
       <trans-unit id="2827984212740060090" datatype="html">
@@ -5040,6 +5308,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/page-header/page-header.component.html</context>
           <context context-type="linenumber">15</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
+          <context context-type="linenumber">9</context>
         </context-group>
         <target state="needs-translation">Read more</target>
       </trans-unit>
@@ -5123,11 +5395,19 @@
         </context-group>
         <target state="translated">Elrejteni a tulajdonjog nélkülit</target>
       </trans-unit>
+      <trans-unit id="941924371433275463" datatype="html">
+        <source>Global permissions define what areas of the app and API endpoints users can access.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
+          <context context-type="linenumber">8</context>
+        </context-group>
+        <target state="needs-translation">Global permissions define what areas of the app and API endpoints users can access.</target>
+      </trans-unit>
       <trans-unit id="8650499415827640724" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">5</context>
+          <context context-type="linenumber">15</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/system-status-dialog/system-status-dialog.component.html</context>
@@ -5139,7 +5419,7 @@
         <source>Add</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">7</context>
+          <context context-type="linenumber">17</context>
         </context-group>
         <target state="translated">Add</target>
       </trans-unit>
@@ -5147,7 +5427,7 @@
         <source>Change</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/common/permissions-select/permissions-select.component.html</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <target state="translated">Változás</target>
       </trans-unit>
@@ -5356,6 +5636,10 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
           <context context-type="linenumber">6</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/data/custom-field.ts</context>
+          <context context-type="linenumber">50</context>
         </context-group>
         <target state="translated">Kiválaszt</target>
       </trans-unit>
@@ -5711,7 +5995,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">275</context>
+          <context context-type="linenumber">277</context>
         </context-group>
         <target state="translated">Szűrés kapcsolattartó szerint</target>
       </trans-unit>
@@ -5727,7 +6011,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">310</context>
+          <context context-type="linenumber">312</context>
         </context-group>
         <target state="translated">Szűrés dokumentumtípus szerint</target>
       </trans-unit>
@@ -5743,7 +6027,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">317</context>
+          <context context-type="linenumber">319</context>
         </context-group>
         <target state="translated">Szűrés tárolási útvonal szerint</target>
       </trans-unit>
@@ -6038,7 +6322,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1169</context>
+          <context context-type="linenumber">1170</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/guards/dirty-saved-view.guard.ts</context>
@@ -6070,7 +6354,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">188</context>
+          <context context-type="linenumber">190</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.ts</context>
@@ -6114,7 +6398,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">179</context>
+          <context context-type="linenumber">180</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.html</context>
@@ -6142,7 +6426,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">220</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.html</context>
@@ -6170,7 +6454,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">227</context>
+          <context context-type="linenumber">229</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.html</context>
@@ -6186,7 +6470,7 @@
         <source>Content</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">201</context>
+          <context context-type="linenumber">211</context>
         </context-group>
         <target state="translated">Tartalom</target>
       </trans-unit>
@@ -6194,7 +6478,7 @@
         <source>Metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">210</context>
+          <context context-type="linenumber">220</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/metadata-collapse/metadata-collapse.component.ts</context>
@@ -6206,7 +6490,7 @@
         <source>Date modified</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">217</context>
+          <context context-type="linenumber">227</context>
         </context-group>
         <target state="translated">Módosított dátum</target>
       </trans-unit>
@@ -6214,7 +6498,7 @@
         <source>Date added</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">221</context>
+          <context context-type="linenumber">231</context>
         </context-group>
         <target state="translated">Hozzáadás dátuma</target>
       </trans-unit>
@@ -6222,7 +6506,7 @@
         <source>Media filename</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">225</context>
+          <context context-type="linenumber">235</context>
         </context-group>
         <target state="translated">Média fájlnév</target>
       </trans-unit>
@@ -6230,7 +6514,7 @@
         <source>Original filename</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">229</context>
+          <context context-type="linenumber">239</context>
         </context-group>
         <target state="translated">Eredeti fájlnév</target>
       </trans-unit>
@@ -6238,7 +6522,7 @@
         <source>Original MD5 checksum</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">233</context>
+          <context context-type="linenumber">243</context>
         </context-group>
         <target state="translated">Eredeti MD5 ellenőrző összeg</target>
       </trans-unit>
@@ -6246,7 +6530,7 @@
         <source>Original file size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">237</context>
+          <context context-type="linenumber">247</context>
         </context-group>
         <target state="translated">Eredeti fájlméret</target>
       </trans-unit>
@@ -6254,7 +6538,7 @@
         <source>Original mime type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">241</context>
+          <context context-type="linenumber">251</context>
         </context-group>
         <target state="translated">Eredeti mime típus</target>
       </trans-unit>
@@ -6262,7 +6546,7 @@
         <source>Archive MD5 checksum</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">246</context>
+          <context context-type="linenumber">256</context>
         </context-group>
         <target state="translated">Archívum MD5 ellenőrző összege</target>
       </trans-unit>
@@ -6270,7 +6554,7 @@
         <source>Archive file size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">252</context>
+          <context context-type="linenumber">262</context>
         </context-group>
         <target state="translated">Archivált fájl mérete</target>
       </trans-unit>
@@ -6278,7 +6562,7 @@
         <source>Original document metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">261</context>
+          <context context-type="linenumber">271</context>
         </context-group>
         <target state="translated">Eredeti dokumentum metaadatai</target>
       </trans-unit>
@@ -6286,7 +6570,7 @@
         <source>Archived document metadata</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">264</context>
+          <context context-type="linenumber">274</context>
         </context-group>
         <target state="translated">Archivált dokumentum metaadatok</target>
       </trans-unit>
@@ -6294,7 +6578,7 @@
         <source>Preview</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">271</context>
+          <context context-type="linenumber">281</context>
         </context-group>
         <target state="translated">Előnézet</target>
       </trans-unit>
@@ -6302,7 +6586,7 @@
         <source>Notes <x id="START_BLOCK_IF" equiv-text="@if (document?.notes.length) {"/><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;badge text-bg-secondary ms-1&quot;&gt;"/><x id="INTERPOLATION" equiv-text="ngth}}"/><x id="CLOSE_TAG_SPAN" ctype="x-span"/><x id="CLOSE_BLOCK_IF" equiv-text="}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">283,286</context>
+          <context context-type="linenumber">293,296</context>
         </context-group>
         <target state="needs-translation">Notes <x id="START_BLOCK_IF" equiv-text="@if (document?.notes.length) {"/><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;badge text-bg-secondary ms-1&quot;&gt;"/><x id="INTERPOLATION" equiv-text="ngth}}"/><x id="CLOSE_TAG_SPAN" ctype="x-span"/><x id="CLOSE_BLOCK_IF" equiv-text="}"/></target>
       </trans-unit>
@@ -6310,7 +6594,7 @@
         <source>History</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">294</context>
+          <context context-type="linenumber">304</context>
         </context-group>
         <target state="needs-translation">History</target>
       </trans-unit>
@@ -6318,7 +6602,7 @@
         <source>Save &amp; next</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">331</context>
+          <context context-type="linenumber">341</context>
         </context-group>
         <target state="translated">Mentés &amp; következő</target>
       </trans-unit>
@@ -6326,7 +6610,7 @@
         <source>Save &amp; close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">334</context>
+          <context context-type="linenumber">344</context>
         </context-group>
         <target state="translated">Mentés &amp; bezárás</target>
       </trans-unit>
@@ -6334,7 +6618,7 @@
         <source>Enter Password</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.html</context>
-          <context context-type="linenumber">385</context>
+          <context context-type="linenumber">395</context>
         </context-group>
         <target state="translated">Jelszó megadása</target>
       </trans-unit>
@@ -6454,53 +6738,37 @@
         </context-group>
         <target state="translated">Dokumentum mentési hiba</target>
       </trans-unit>
-      <trans-unit id="9021887951960049161" datatype="html">
-        <source>Confirm delete</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">776</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">203</context>
-        </context-group>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/manage/management-list/management-list.component.ts</context>
-          <context context-type="linenumber">320</context>
-        </context-group>
-        <target state="translated">Törlés megerősítése</target>
-      </trans-unit>
-      <trans-unit id="5382975254277698192" datatype="html">
-        <source>Do you really want to delete document &quot;<x id="PH" equiv-text="this.document.title"/>&quot;?</source>
+      <trans-unit id="8410796510716511826" datatype="html">
+        <source>Do you really want to move the document &quot;<x id="PH" equiv-text="this.document.title"/>&quot; to the trash?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">777</context>
         </context-group>
-        <target state="translated">Tényleg törölni szeretné a "<x id="PH" equiv-text="this.document.title"/>" dokumentumot?</target>
+        <target state="needs-translation">Do you really want to move the document "<x id="PH" equiv-text="this.document.title"/>" to the trash?</target>
       </trans-unit>
-      <trans-unit id="6691075929777935948" datatype="html">
-        <source>The files for this document will be deleted permanently. This operation cannot be undone.</source>
+      <trans-unit id="282586936710748252" datatype="html">
+        <source>Documents can be restored prior to permanent deletion.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">778</context>
         </context-group>
-        <target state="translated">A dokumentum fájljai véglegesen törlésre kerülnek. Ez a művelet nem vonható vissza.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
+          <context context-type="linenumber">714</context>
+        </context-group>
+        <target state="needs-translation">Documents can be restored prior to permanent deletion.</target>
       </trans-unit>
-      <trans-unit id="719892092227206532" datatype="html">
-        <source>Delete document</source>
+      <trans-unit id="2048798344356757326" datatype="html">
+        <source>Move to trash</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
           <context context-type="linenumber">780</context>
         </context-group>
-        <target state="translated">Dokumentum törlése</target>
-      </trans-unit>
-      <trans-unit id="7295637485862454066" datatype="html">
-        <source>Error deleting document</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">799</context>
+          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
+          <context context-type="linenumber">716</context>
         </context-group>
-        <target state="translated">Hiba a dokumentum törlésében</target>
+        <target state="needs-translation">Move to trash</target>
       </trans-unit>
       <trans-unit id="619486176823357521" datatype="html">
         <source>Reprocess confirm</source>
@@ -6510,7 +6778,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">751</context>
+          <context context-type="linenumber">754</context>
         </context-group>
         <target state="needs-translation">Reprocess confirm</target>
       </trans-unit>
@@ -6574,7 +6842,7 @@
         <source>Split operation will begin in the background.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1128</context>
+          <context context-type="linenumber">1129</context>
         </context-group>
         <target state="needs-translation">Split operation will begin in the background.</target>
       </trans-unit>
@@ -6582,7 +6850,7 @@
         <source>Error executing split operation</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1137</context>
+          <context context-type="linenumber">1138</context>
         </context-group>
         <target state="needs-translation">Error executing split operation</target>
       </trans-unit>
@@ -6590,11 +6858,11 @@
         <source>Rotate confirm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1149</context>
+          <context context-type="linenumber">1150</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">784</context>
+          <context context-type="linenumber">787</context>
         </context-group>
         <target state="needs-translation">Rotate confirm</target>
       </trans-unit>
@@ -6602,7 +6870,7 @@
         <source>This operation will permanently rotate the original version of the current document.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1150</context>
+          <context context-type="linenumber">1151</context>
         </context-group>
         <target state="needs-translation">This operation will permanently rotate the original version of the current document.</target>
       </trans-unit>
@@ -6610,7 +6878,7 @@
         <source>Rotation will begin in the background. Close and re-open the document after the operation has completed to see the changes.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1166</context>
+          <context context-type="linenumber">1167</context>
         </context-group>
         <target state="needs-translation">Rotation will begin in the background. Close and re-open the document after the operation has completed to see the changes.</target>
       </trans-unit>
@@ -6618,7 +6886,7 @@
         <source>Error executing rotate operation</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1178</context>
+          <context context-type="linenumber">1179</context>
         </context-group>
         <target state="needs-translation">Error executing rotate operation</target>
       </trans-unit>
@@ -6626,7 +6894,7 @@
         <source>Delete pages confirm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1190</context>
+          <context context-type="linenumber">1191</context>
         </context-group>
         <target state="needs-translation">Delete pages confirm</target>
       </trans-unit>
@@ -6634,7 +6902,7 @@
         <source>This operation will permanently delete the selected pages from the original document.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1191</context>
+          <context context-type="linenumber">1192</context>
         </context-group>
         <target state="needs-translation">This operation will permanently delete the selected pages from the original document.</target>
       </trans-unit>
@@ -6642,7 +6910,7 @@
         <source>Delete pages operation will begin in the background. Close and re-open or reload this document after the operation has completed to see the changes.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1206</context>
+          <context context-type="linenumber">1207</context>
         </context-group>
         <target state="needs-translation">Delete pages operation will begin in the background. Close and re-open or reload this document after the operation has completed to see the changes.</target>
       </trans-unit>
@@ -6650,7 +6918,7 @@
         <source>Error executing delete pages operation</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-detail/document-detail.component.ts</context>
-          <context context-type="linenumber">1215</context>
+          <context context-type="linenumber">1216</context>
         </context-group>
         <target state="needs-translation">Error executing delete pages operation</target>
       </trans-unit>
@@ -7000,35 +7268,19 @@
         </context-group>
         <target state="needs-translation">This operation will assign the custom fields <x id="PH" equiv-text="this._localizeList(           changedCustomFields.itemsToAdd         )"/> and remove the custom fields <x id="PH_1" equiv-text="this._localizeList(           changedCustomFields.itemsToRemove         )"/> on <x id="PH_2" equiv-text="this.list.selected.size"/> selected document(s).</target>
       </trans-unit>
-      <trans-unit id="749430623564850405" datatype="html">
-        <source>Delete confirm</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">712</context>
-        </context-group>
-        <target state="translated">Törlés megerősítése</target>
-      </trans-unit>
-      <trans-unit id="4303174930844518780" datatype="html">
-        <source>This operation will permanently delete <x id="PH" equiv-text="this.list.selected.size"/> selected document(s).</source>
+      <trans-unit id="8615059324209654051" datatype="html">
+        <source>Move <x id="PH" equiv-text="this.list.selected.size"/> selected document(s) to the trash?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
           <context context-type="linenumber">713</context>
         </context-group>
-        <target state="translated">Ez a művelet véglegesen törli a <x id="PH" equiv-text="this.list.selected.size"/> kiválasztott dokumentum(ok)at.</target>
-      </trans-unit>
-      <trans-unit id="6734339521247847366" datatype="html">
-        <source>Delete document(s)</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">716</context>
-        </context-group>
-        <target state="translated">Dokumentum(ok) törlése</target>
+        <target state="needs-translation">Move <x id="PH" equiv-text="this.list.selected.size"/> selected document(s) to the trash?</target>
       </trans-unit>
       <trans-unit id="8585195717323764335" datatype="html">
         <source>This operation will permanently recreate the archive files for <x id="PH" equiv-text="this.list.selected.size"/> selected document(s).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">752</context>
+          <context context-type="linenumber">755</context>
         </context-group>
         <target state="needs-translation">This operation will permanently recreate the archive files for <x id="PH" equiv-text="this.list.selected.size"/> selected document(s).</target>
       </trans-unit>
@@ -7036,7 +7288,7 @@
         <source>The archive files will be re-generated with the current settings.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">753</context>
+          <context context-type="linenumber">756</context>
         </context-group>
         <target state="needs-translation">The archive files will be re-generated with the current settings.</target>
       </trans-unit>
@@ -7044,7 +7296,7 @@
         <source>This operation will permanently rotate the original version of <x id="PH" equiv-text="this.list.selected.size"/> document(s).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">785</context>
+          <context context-type="linenumber">788</context>
         </context-group>
         <target state="needs-translation">This operation will permanently rotate the original version of <x id="PH" equiv-text="this.list.selected.size"/> document(s).</target>
       </trans-unit>
@@ -7052,7 +7304,7 @@
         <source>This will alter the original copy.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">786</context>
+          <context context-type="linenumber">789</context>
         </context-group>
         <target state="needs-translation">This will alter the original copy.</target>
       </trans-unit>
@@ -7060,7 +7312,7 @@
         <source>Merge confirm</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">805</context>
+          <context context-type="linenumber">808</context>
         </context-group>
         <target state="needs-translation">Merge confirm</target>
       </trans-unit>
@@ -7068,7 +7320,7 @@
         <source>This operation will merge <x id="PH" equiv-text="this.list.selected.size"/> selected documents into a new document.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">806</context>
+          <context context-type="linenumber">809</context>
         </context-group>
         <target state="needs-translation">This operation will merge <x id="PH" equiv-text="this.list.selected.size"/> selected documents into a new document.</target>
       </trans-unit>
@@ -7076,7 +7328,7 @@
         <source>Merged document will be queued for consumption.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/bulk-editor/bulk-editor.component.ts</context>
-          <context context-type="linenumber">819</context>
+          <context context-type="linenumber">825</context>
         </context-group>
         <target state="needs-translation">Merged document will be queued for consumption.</target>
       </trans-unit>
@@ -7088,7 +7340,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">286</context>
+          <context context-type="linenumber">288</context>
         </context-group>
         <target state="translated">Szűrés címke szerint</target>
       </trans-unit>
@@ -7312,7 +7564,7 @@
         <source>Sort by ASN</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">166</context>
+          <context context-type="linenumber">167</context>
         </context-group>
         <target state="translated">Rendezés ASN szerint</target>
       </trans-unit>
@@ -7320,7 +7572,7 @@
         <source>ASN</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">170</context>
+          <context context-type="linenumber">171</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/filter-editor/filter-editor.component.ts</context>
@@ -7340,7 +7592,7 @@
         <source>Sort by correspondent</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">175</context>
+          <context context-type="linenumber">176</context>
         </context-group>
         <target state="translated">Rendezés kapcsolattartó szerint</target>
       </trans-unit>
@@ -7348,7 +7600,7 @@
         <source>Sort by title</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">184</context>
+          <context context-type="linenumber">185</context>
         </context-group>
         <target state="translated">Cím szerint rendezni</target>
       </trans-unit>
@@ -7356,7 +7608,7 @@
         <source>Sort by owner</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">196</context>
+          <context context-type="linenumber">198</context>
         </context-group>
         <target state="translated">Rendezés tulajdonos szerint</target>
       </trans-unit>
@@ -7364,7 +7616,7 @@
         <source>Owner</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">200</context>
+          <context context-type="linenumber">202</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/document.ts</context>
@@ -7380,7 +7632,7 @@
         <source>Sort by notes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">207</context>
         </context-group>
         <target state="translated">Rendezés jegyzetek szerint</target>
       </trans-unit>
@@ -7388,7 +7640,7 @@
         <source>Sort by document type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">214</context>
+          <context context-type="linenumber">216</context>
         </context-group>
         <target state="translated">Rendezés dokumentumtípus szerint</target>
       </trans-unit>
@@ -7396,7 +7648,7 @@
         <source>Sort by storage path</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">225</context>
         </context-group>
         <target state="translated">Rendezés tárolási útvonal szerint</target>
       </trans-unit>
@@ -7404,7 +7656,7 @@
         <source>Sort by created date</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">232</context>
+          <context context-type="linenumber">234</context>
         </context-group>
         <target state="translated">Létrehozás dátuma szerint rendezni</target>
       </trans-unit>
@@ -7412,7 +7664,7 @@
         <source>Sort by added date</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">241</context>
+          <context context-type="linenumber">243</context>
         </context-group>
         <target state="translated">Rendezés hozzáadott dátum szerint</target>
       </trans-unit>
@@ -7420,7 +7672,7 @@
         <source> Shared </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">248,250</context>
+          <context context-type="linenumber">250,252</context>
         </context-group>
         <target state="needs-translation"> Shared </target>
       </trans-unit>
@@ -7428,7 +7680,7 @@
         <source>Edit document</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">282</context>
+          <context context-type="linenumber">284</context>
         </context-group>
         <target state="translated">Dokumentum szerkesztése</target>
       </trans-unit>
@@ -7436,7 +7688,7 @@
         <source>Yes</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">333</context>
+          <context context-type="linenumber">335</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/pipes/yes-no.pipe.ts</context>
@@ -7448,7 +7700,7 @@
         <source>No</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/document-list/document-list.component.html</context>
-          <context context-type="linenumber">333</context>
+          <context context-type="linenumber">335</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/pipes/yes-no.pipe.ts</context>
@@ -7920,7 +8172,7 @@
         <source>No mail accounts defined.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">48</context>
+          <context context-type="linenumber">50</context>
         </context-group>
         <target state="translated">Nincsenek e-mail fiókok definiálva.</target>
       </trans-unit>
@@ -7928,7 +8180,7 @@
         <source>Mail rules</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">58</context>
         </context-group>
         <target state="translated">Mail szabályok</target>
       </trans-unit>
@@ -7936,15 +8188,23 @@
         <source>Add Rule</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">60</context>
         </context-group>
         <target state="translated">Szabály hozzáadása</target>
+      </trans-unit>
+      <trans-unit id="2535466903620876415" datatype="html">
+        <source>Sort Order</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+        <target state="needs-translation">Sort Order</target>
       </trans-unit>
       <trans-unit id="6751234988479444294" datatype="html">
         <source>No mail rules defined.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/components/manage/mail/mail.component.html</context>
-          <context context-type="linenumber">92</context>
+          <context context-type="linenumber">96</context>
         </context-group>
         <target state="translated">Nincsenek meghatározott levelezési szabályok.</target>
       </trans-unit>
@@ -8432,7 +8692,7 @@
         <source>Boolean</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">17</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <target state="translated">Boolean</target>
       </trans-unit>
@@ -8440,7 +8700,7 @@
         <source>Date</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">22</context>
         </context-group>
         <target state="translated">Dátum</target>
       </trans-unit>
@@ -8448,7 +8708,7 @@
         <source>Integer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">26</context>
         </context-group>
         <target state="translated">Egész szám</target>
       </trans-unit>
@@ -8456,7 +8716,7 @@
         <source>Number</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">30</context>
         </context-group>
         <target state="translated">Szám</target>
       </trans-unit>
@@ -8464,7 +8724,7 @@
         <source>Monetary</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">33</context>
+          <context context-type="linenumber">34</context>
         </context-group>
         <target state="translated">Monetáris</target>
       </trans-unit>
@@ -8472,7 +8732,7 @@
         <source>Text</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">37</context>
+          <context context-type="linenumber">38</context>
         </context-group>
         <target state="translated">Szöveg</target>
       </trans-unit>
@@ -8480,7 +8740,7 @@
         <source>Url</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">42</context>
         </context-group>
         <target state="translated">Url</target>
       </trans-unit>
@@ -8488,7 +8748,7 @@
         <source>Document Link</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/data/custom-field.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">46</context>
         </context-group>
         <target state="translated">Dokumentum link</target>
       </trans-unit>
@@ -9357,7 +9617,7 @@
         <source>Successfully completed one-time migratration of settings to the database!</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/services/settings.service.ts</context>
-          <context context-type="linenumber">554</context>
+          <context context-type="linenumber">567</context>
         </context-group>
         <target state="translated">Sikeresen befejeződött a beállítások egyszeri migrálása az adatbázisba!</target>
       </trans-unit>
@@ -9365,7 +9625,7 @@
         <source>Unable to migrate settings to the database, please try saving manually.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/services/settings.service.ts</context>
-          <context context-type="linenumber">555</context>
+          <context context-type="linenumber">568</context>
         </context-group>
         <target state="translated">Nem sikerült a beállításokat az adatbázisba migrálni, kérjük, próbálja meg manuálisan menteni.</target>
       </trans-unit>
@@ -9373,7 +9633,7 @@
         <source>You can restart the tour from the settings page.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/services/settings.service.ts</context>
-          <context context-type="linenumber">625</context>
+          <context context-type="linenumber">638</context>
         </context-group>
         <target state="translated">A túrát a beállítások oldalról indíthatja újra.</target>
       </trans-unit>
