@@ -641,6 +641,38 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["id"], doc3.id)
 
+    def test_custom_field_select_filter(self):
+        """
+        GIVEN:
+            - Documents with select custom field values
+        WHEN:
+            - API request with custom field filtering is made
+        THEN:
+            - Only docs with selected custom field values are returned
+        """
+        doc1 = Document.objects.create(checksum="1", content="test 1")
+        Document.objects.create(checksum="2", content="test 2")
+        custom_field_select = CustomField.objects.create(
+            name="Test Custom Field Select",
+            data_type=CustomField.FieldDataType.SELECT,
+            extra_data={
+                "select_options": ["Option 1", "Choice 2"],
+            },
+        )
+        CustomFieldInstance.objects.create(
+            document=doc1,
+            field=custom_field_select,
+            value_select=1,
+        )
+
+        r = self.client.get("/api/documents/?custom_fields__icontains=choice")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(r.data["count"], 1)
+
+        r = self.client.get("/api/documents/?custom_fields__icontains=option")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(r.data["count"], 0)
+
     def test_document_checksum_filter(self):
         Document.objects.create(
             title="none1",
@@ -922,7 +954,7 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["documents_total"], 3)
         self.assertEqual(response.data["documents_inbox"], 1)
-        self.assertEqual(response.data["inbox_tag"], tag_inbox.pk)
+        self.assertEqual(response.data["inbox_tags"], [tag_inbox.pk])
         self.assertEqual(
             response.data["document_file_type_counts"][0]["mime_type_count"],
             2,
@@ -943,7 +975,7 @@ class TestDocumentApi(DirectoriesMixin, DocumentConsumeDelayMixin, APITestCase):
         response = self.client.get("/api/statistics/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["documents_inbox"], None)
-        self.assertEqual(response.data["inbox_tag"], None)
+        self.assertEqual(response.data["inbox_tags"], None)
 
     def test_statistics_multiple_users(self):
         """

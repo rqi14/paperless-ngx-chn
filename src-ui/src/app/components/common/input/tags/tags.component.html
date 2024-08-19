@@ -32,7 +32,7 @@
             </div>
           </ng-template>
         </ng-select>
-        @if (allowCreate) {
+        @if (allowCreate && !hideAddButton) {
           <button class="btn btn-outline-secondary" type="button" (click)="createTag()" [disabled]="disabled">
             <i-bs width="1.2em" height="1.2em" name="plus"></i-bs>
           </button>
@@ -49,7 +49,7 @@
       @if (getSuggestions().length > 0) {
         <small class="position-absolute top-100">
           <span i18n>Suggestions:</span>&nbsp;
-          @for (tag of getSuggestions(); track tag) {
+          @for (tag of getSuggestions(); track tag.id) {
             <a (click)="addTag(tag.id)" [routerLink]="[]">{{tag?.name}}</a>&nbsp;
           }
         </small>
