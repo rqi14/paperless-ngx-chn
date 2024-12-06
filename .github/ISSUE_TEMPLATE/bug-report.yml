@@ -98,7 +98,7 @@ body:
       label: Browser
       description: Which browser you are using, if relevant.
       placeholder: e.g. Chrome, Safari
-  - type: input
+  - type: textarea
     id: config-changes
     attributes:
       label: Configuration changes
@@ -109,6 +109,8 @@ body:
       label: Please confirm the following
       options:
         - label: I believe this issue is a bug that affects all users of Paperless-ngx, not something specific to my installation.
+          required: true
+        - label: This issue is not about the OCR or archive creation of a specific file(s). Otherwise, please see above regarding OCR tools.
           required: true
         - label: I have already searched for relevant existing issues and discussions before opening this report.
           required: true

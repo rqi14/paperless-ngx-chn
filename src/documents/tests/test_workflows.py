@@ -306,11 +306,11 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
     def test_workflow_match_multiple(self):
         """
         GIVEN:
-            - Multiple existing workflow
+            - Multiple existing workflows
         WHEN:
             - File that matches is consumed
         THEN:
-            - Template overrides are applied with subsequent templates overwriting previous values
+            - Workflow overrides are applied with subsequent workflows overwriting previous values
             or merging if multiple
         """
         trigger1 = WorkflowTrigger.objects.create(
@@ -373,12 +373,12 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
                     None,
                 )
                 document = Document.objects.first()
-                # template 1
+                # workflow 1
                 self.assertEqual(document.document_type, self.dt)
-                # template 2
+                # workflow 2
                 self.assertEqual(document.correspondent, self.c2)
                 self.assertEqual(document.storage_path, self.sp)
-                # template 1 & 2
+                # workflow 1 & 2
                 self.assertEqual(
                     list(document.tags.all()),
                     [self.t1, self.t2, self.t3],
@@ -1758,3 +1758,52 @@ class TestWorkflows(DirectoriesMixin, FileSystemAssertsMixin, APITestCase):
         info = cm.output[0]
         expected_str = f"Document matched {trigger} from {w}"
         self.assertIn(expected_str, info)
+
+    def test_workflow_with_tag_actions_doesnt_overwrite_other_actions(self):
+        """
+        GIVEN:
+            - Document updated workflow filtered by has tag with two actions, first adds owner, second removes a tag
+        WHEN:
+            - File that matches is consumed
+        THEN:
+            - Both actions are applied correctly
+        """
+        trigger = WorkflowTrigger.objects.create(
+            type=WorkflowTrigger.WorkflowTriggerType.DOCUMENT_UPDATED,
+        )
+        trigger.filter_has_tags.add(self.t1)
+        action1 = WorkflowAction.objects.create(
+            assign_owner=self.user2,
+        )
+        action2 = WorkflowAction.objects.create(
+            type=WorkflowAction.WorkflowActionType.REMOVAL,
+        )
+        action2.remove_tags.add(self.t1)
+        w = Workflow.objects.create(
+            name="Workflow Add Owner and Remove Tag",
+            order=0,
+        )
+        w.triggers.add(trigger)
+        w.actions.add(action1)
+        w.actions.add(action2)
+        w.save()
+
+        doc = Document.objects.create(
+            title="sample test",
+            correspondent=self.c,
+            original_filename="sample.pdf",
+        )
+
+        superuser = User.objects.create_superuser("superuser")
+        self.client.force_authenticate(user=superuser)
+
+        self.client.patch(
+            f"/api/documents/{doc.id}/",
+            {"tags": [self.t1.id, self.t2.id]},
+            format="json",
+        )
+
+        doc.refresh_from_db()
+        self.assertEqual(doc.owner, self.user2)
+        self.assertEqual(doc.tags.all().count(), 1)
+        self.assertIn(self.t2, doc.tags.all())

@@ -3,12 +3,11 @@ import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from django.conf import settings
 from pdf2image import convert_from_path
-from pdf2image.exceptions import PDFPageCountError
 from pikepdf import Page
+from pikepdf import PasswordError
 from pikepdf import Pdf
 from PIL import Image
 
@@ -81,7 +80,7 @@ class BarcodePlugin(ConsumeTaskPlugin):
         self._tiff_conversion_done = False
         self.barcodes: list[Barcode] = []
 
-    def run(self) -> Optional[str]:
+    def run(self) -> str | None:
         # Some operations may use PIL, override pixel setting if needed
         maybe_override_pixel_limit()
 
@@ -231,13 +230,41 @@ class BarcodePlugin(ConsumeTaskPlugin):
             logger.debug("Scanning for barcodes using ZXING")
 
         try:
-            pages_from_path = convert_from_path(
-                self.pdf_file,
-                dpi=settings.CONSUMER_BARCODE_DPI,
-                output_folder=self.temp_dir.name,
+            # Read number of pages from pdf
+            with Pdf.open(self.pdf_file) as pdf:
+                num_of_pages = len(pdf.pages)
+            logger.debug(f"PDF has {num_of_pages} pages")
+
+            # Get limit from configuration
+            barcode_max_pages = (
+                num_of_pages
+                if settings.CONSUMER_BARCODE_MAX_PAGES == 0
+                else settings.CONSUMER_BARCODE_MAX_PAGES
             )
 
-            for current_page_number, page in enumerate(pages_from_path):
+            if barcode_max_pages < num_of_pages:  # pragma: no cover
+                logger.debug(
+                    f"Barcodes detection will be limited to the first {barcode_max_pages} pages",
+                )
+
+            # Loop al page
+            for current_page_number in range(min(num_of_pages, barcode_max_pages)):
+                logger.debug(f"Processing page {current_page_number}")
+
+                # Convert page to image
+                page = convert_from_path(
+                    self.pdf_file,
+                    dpi=settings.CONSUMER_BARCODE_DPI,
+                    output_folder=self.temp_dir.name,
+                    first_page=current_page_number + 1,
+                    last_page=current_page_number + 1,
+                )[0]
+
+                # Remember filename, since it is lost by upscaling
+                page_filepath = Path(page.filename)
+                logger.debug(f"Image is at {page_filepath}")
+
+                # Upscale image if configured
                 factor = settings.CONSUMER_BARCODE_UPSCALE
                 if factor > 1.0:
                     logger.debug(
@@ -248,14 +275,18 @@ class BarcodePlugin(ConsumeTaskPlugin):
                         (int(round(x * factor)), (int(round(y * factor)))),
                     )
 
+                # Detect barcodes
                 for barcode_value in reader(page):
                     self.barcodes.append(
                         Barcode(current_page_number, barcode_value),
                     )
 
+                # Delete temporary image file
+                page_filepath.unlink()
+
         # Password protected files can't be checked
         # This is the exception raised for those
-        except PDFPageCountError as e:
+        except PasswordError as e:
             logger.warning(
                 f"File is likely password protected, not checking for barcodes: {e}",
             )
@@ -267,7 +298,7 @@ class BarcodePlugin(ConsumeTaskPlugin):
             )
 
     @property
-    def asn(self) -> Optional[int]:
+    def asn(self) -> int | None:
         """
         Search the parsed barcodes for any ASNs.
         The first barcode that starts with CONSUMER_ASN_BARCODE_PREFIX
@@ -302,7 +333,7 @@ class BarcodePlugin(ConsumeTaskPlugin):
         return asn
 
     @property
-    def tags(self) -> Optional[list[int]]:
+    def tags(self) -> list[int] | None:
         """
         Search the parsed barcodes for any tags.
         Returns the detected tag ids (or empty list)
@@ -356,7 +387,12 @@ class BarcodePlugin(ConsumeTaskPlugin):
         """
         # filter all barcodes for the separator string
         # get the page numbers of the separating barcodes
-        separator_pages = {bc.page: False for bc in self.barcodes if bc.is_separator}
+        retain = settings.CONSUMER_BARCODE_RETAIN_SPLIT_PAGES
+        separator_pages = {
+            bc.page: retain
+            for bc in self.barcodes
+            if bc.is_separator and (not retain or (retain and bc.page > 0))
+        }  # as below, dont include the first page if retain is enabled
         if not settings.CONSUMER_ENABLE_ASN_BARCODE:
             return separator_pages
 

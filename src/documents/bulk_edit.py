@@ -3,7 +3,6 @@ import itertools
 import logging
 import os
 import tempfile
-from typing import Optional
 
 from celery import chain
 from celery import chord
@@ -160,13 +159,20 @@ def modify_custom_fields(doc_ids: list[int], add_custom_fields, remove_custom_fi
 
 @shared_task
 def delete(doc_ids: list[int]):
-    Document.objects.filter(id__in=doc_ids).delete()
+    try:
+        Document.objects.filter(id__in=doc_ids).delete()
 
-    from documents import index
+        from documents import index
 
-    with index.open_index_writer() as writer:
-        for id in doc_ids:
-            index.remove_document_by_id(writer, id)
+        with index.open_index_writer() as writer:
+            for id in doc_ids:
+                index.remove_document_by_id(writer, id)
+    except Exception as e:
+        if "Data too long for column" in str(e):
+            logger.warning(
+                "Detected a possible incompatible database column. See https://docs.paperless-ngx.com/troubleshooting/#convert-uuid-field",
+            )
+        logger.error(f"Error deleting documents: {e!s}")
 
     return "OK"
 
@@ -242,7 +248,7 @@ def rotate(doc_ids: list[int], degrees: int):
 
 def merge(
     doc_ids: list[int],
-    metadata_document_id: Optional[int] = None,
+    metadata_document_id: int | None = None,
     delete_originals: bool = False,
     user: User = None,
 ):
@@ -387,6 +393,8 @@ def delete_pages(doc_ids: list[int], pages: list[int]):
             pdf.remove_unreferenced_resources()
             pdf.save()
             doc.checksum = hashlib.md5(doc.source_path.read_bytes()).hexdigest()
+            if doc.page_count is not None:
+                doc.page_count = doc.page_count - len(pages)
             doc.save()
             update_document_archive_file.delay(document_id=doc.id)
             logger.info(f"Deleted pages {pages} from document {doc.id}")

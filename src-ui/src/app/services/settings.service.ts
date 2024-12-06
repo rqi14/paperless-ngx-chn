@@ -144,6 +144,12 @@ const LANGUAGE_OPTIONS = [
     dateInputFormat: 'yyyy/mm/dd',
   },
   {
+    code: 'ko-kr',
+    name: $localize`Korean`,
+    englishName: 'Korean',
+    dateInputFormat: 'yyyy-mm-dd',
+  },
+  {
     code: 'lb-lu',
     name: $localize`Luxembourgish`,
     englishName: 'Luxembourgish',
@@ -268,7 +274,7 @@ export class SettingsService {
   public get allDisplayFields(): Array<{ id: DisplayField; name: string }> {
     return this._allDisplayFields
   }
-  public displayFieldsInitialized: boolean = false
+  public displayFieldsInit: EventEmitter<boolean> = new EventEmitter()
 
   constructor(
     rendererFactory: RendererFactory2,
@@ -339,6 +345,7 @@ export class SettingsService {
             DisplayField.CREATED,
             DisplayField.ADDED,
             DisplayField.ASN,
+            DisplayField.PAGE_COUNT,
             DisplayField.SHARED,
           ].includes(field.id)
         ) {
@@ -375,10 +382,10 @@ export class SettingsService {
             }
           })
         )
-        this.displayFieldsInitialized = true
+        this.displayFieldsInit.emit(true)
       })
     } else {
-      this.displayFieldsInitialized = true
+      this.displayFieldsInit.emit(true)
     }
   }
 

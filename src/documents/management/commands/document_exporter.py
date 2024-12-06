@@ -6,9 +6,11 @@ import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Optional
 
 import tqdm
+from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.models import SocialApp
+from allauth.socialaccount.models import SocialToken
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
@@ -183,7 +185,7 @@ class Command(CryptMixin, BaseCommand):
         self.zip_export: bool = options["zip"]
         self.data_only: bool = options["data_only"]
         self.no_progress_bar: bool = options["no_progress_bar"]
-        self.passphrase: Optional[str] = options.get("passphrase")
+        self.passphrase: str | None = options.get("passphrase")
 
         self.files_in_export_dir: set[Path] = set()
         self.exported_files: set[str] = set()
@@ -265,6 +267,9 @@ class Command(CryptMixin, BaseCommand):
             "app_configs": ApplicationConfiguration.objects.all(),
             "notes": Note.objects.all(),
             "documents": Document.objects.order_by("id").all(),
+            "social_accounts": SocialAccount.objects.all(),
+            "social_apps": SocialApp.objects.all(),
+            "social_tokens": SocialToken.objects.all(),
         }
 
         if settings.AUDIT_LOG_ENABLED:
@@ -427,7 +432,7 @@ class Command(CryptMixin, BaseCommand):
         document: Document,
         base_name: str,
         document_dict: dict,
-    ) -> tuple[Path, Optional[Path], Optional[Path]]:
+    ) -> tuple[Path, Path | None, Path | None]:
         """
         Generates the targets for a given document, including the original file, archive file and thumbnail (depending on settings).
         """
@@ -461,8 +466,8 @@ class Command(CryptMixin, BaseCommand):
         self,
         document: Document,
         original_target: Path,
-        thumbnail_target: Optional[Path],
-        archive_target: Optional[Path],
+        thumbnail_target: Path | None,
+        archive_target: Path | None,
     ) -> None:
         """
         Copies files from the document storage location to the specified target location.
@@ -512,7 +517,7 @@ class Command(CryptMixin, BaseCommand):
     def check_and_copy(
         self,
         source: Path,
-        source_checksum: Optional[str],
+        source_checksum: str | None,
         target: Path,
     ):
         """
@@ -558,15 +563,14 @@ class Command(CryptMixin, BaseCommand):
                 crypt_fields = crypt_config["fields"]
                 for manifest_record in manifest[exporter_key]:
                     for field in crypt_fields:
-                        manifest_record["fields"][field] = self.encrypt_string(
-                            value=manifest_record["fields"][field],
-                        )
+                        if manifest_record["fields"][field]:
+                            manifest_record["fields"][field] = self.encrypt_string(
+                                value=manifest_record["fields"][field],
+                            )
 
-        elif MailAccount.objects.count() > 0:
+        elif MailAccount.objects.count() > 0 or SocialToken.objects.count() > 0:
             self.stdout.write(
                 self.style.NOTICE(
-                    "You have configured mail accounts, "
-                    "but no passphrase was given. "
-                    "Passwords will be in plaintext",
+                    "No passphrase was given, sensitive fields will be in plaintext",
                 ),
             )

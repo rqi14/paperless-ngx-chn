@@ -3,7 +3,6 @@ import logging
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 
 import tqdm
 from django.conf import settings
@@ -35,6 +34,7 @@ from documents.settings import EXPORTER_ARCHIVE_NAME
 from documents.settings import EXPORTER_CRYPTO_SETTINGS_NAME
 from documents.settings import EXPORTER_FILE_NAME
 from documents.settings import EXPORTER_THUMBNAIL_NAME
+from documents.signals.handlers import update_cf_instance_documents
 from documents.signals.handlers import update_filename_and_move_files
 from documents.utils import copy_file_with_basic_stats
 from paperless import version
@@ -228,8 +228,8 @@ class Command(CryptMixin, BaseCommand):
         self.data_only: bool = options["data_only"]
         self.no_progress_bar: bool = options["no_progress_bar"]
         self.passphrase: str | None = options.get("passphrase")
-        self.version: Optional[str] = None
-        self.salt: Optional[str] = None
+        self.version: str | None = None
+        self.salt: str | None = None
         self.manifest_paths = []
         self.manifest = []
 
@@ -243,6 +243,7 @@ class Command(CryptMixin, BaseCommand):
 
         self.decrypt_secret_fields()
 
+        # see /src/documents/signals/handlers.py
         with (
             disable_signal(
                 post_save,
@@ -253,6 +254,16 @@ class Command(CryptMixin, BaseCommand):
                 m2m_changed,
                 receiver=update_filename_and_move_files,
                 sender=Document.tags.through,
+            ),
+            disable_signal(
+                post_save,
+                receiver=update_filename_and_move_files,
+                sender=CustomFieldInstance,
+            ),
+            disable_signal(
+                post_save,
+                receiver=update_cf_instance_documents,
+                sender=CustomField,
             ),
         ):
             if settings.AUDIT_LOG_ENABLED:
@@ -415,9 +426,10 @@ class Command(CryptMixin, BaseCommand):
                 ):
                     had_at_least_one_record = True
                     for field in crypt_fields:
-                        record["fields"][field] = self.decrypt_string(
-                            value=record["fields"][field],
-                        )
+                        if record["fields"][field]:
+                            record["fields"][field] = self.decrypt_string(
+                                value=record["fields"][field],
+                            )
 
             if had_at_least_one_record:
                 # It's annoying, but the DB is loaded from the JSON directly

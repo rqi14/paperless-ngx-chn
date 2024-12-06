@@ -7,14 +7,14 @@ name = "pypi"
 dateparser = "~=1.2"
 # WARNING: django does not use semver.
 #          Only patch versions are guaranteed to not introduce breaking changes.
-django = "~=4.2.15"
+django = "~=5.1.1"
 django-allauth = {extras = ["socialaccount"], version = "*"}
 django-auditlog = "*"
 django-celery-results = "*"
 django-compression-middleware = "*"
 django-cors-headers = "*"
 django-extensions = "*"
-django-filter = "~=24.2"
+django-filter = "~=24.3"
 django-guardian = "*"
 django-multiselectfield = "*"
 django-soft-delete = "*"
@@ -30,12 +30,14 @@ filelock = "*"
 flower = "*"
 gotenberg-client = "*"
 gunicorn = "*"
+httpx-oauth = "*"
 imap-tools = "*"
 inotifyrecursive = "~=0.3"
+jinja2 = "~=3.1"
 langdetect = "*"
 mysqlclient = "*"
 nltk = "*"
-ocrmypdf = "~=15.4"
+ocrmypdf = "~=16.5"
 pathvalidate = "*"
 pdf2image = "*"
 psycopg = {version = "*", extras = ["c"]}
@@ -54,16 +56,17 @@ tqdm = "*"
 # See https://github.com/paperless-ngx/paperless-ngx/issues/5494
 uvicorn = {extras = ["standard"], version = "==0.25.0"}
 watchdog = "~=4.0"
-whitenoise = "~=6.7"
+whitenoise = "~=6.8"
 whoosh = "~=2.7"
 zxing-cpp = {version = "*", platform_machine = "== 'x86_64'"}
+
 
 [dev-packages]
 # Linting
 pre-commit = "*"
 ruff = "*"
-# Testing
 factory-boy = "*"
+# Testing
 pytest = "*"
 pytest-cov = "*"
 pytest-django = "*"

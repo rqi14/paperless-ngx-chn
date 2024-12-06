@@ -1,6 +1,7 @@
 import json
 from datetime import date
 
+from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -739,6 +740,42 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
         self.assertEqual(CustomFieldInstance.objects.count(), 0)
         self.assertEqual(len(doc.custom_fields.all()), 0)
 
+    def test_custom_field_value_documentlink_validation(self):
+        """
+        GIVEN:
+            - Document & custom field exist
+        WHEN:
+            - API request to set a field value to a document that does not exist
+        THEN:
+            - HTTP 400 is returned
+            - No field instance is created or attached to the document
+        """
+
+        doc = Document.objects.create(
+            title="WOW",
+            content="the content",
+            checksum="123",
+            mime_type="application/pdf",
+        )
+        custom_field_documentlink = CustomField.objects.create(
+            name="Test Custom Field Doc Link",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        resp = self.client.patch(
+            f"/api/documents/{doc.id}/",
+            data={
+                "custom_fields": [
+                    {"field": custom_field_documentlink.id, "value": [999]},
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(CustomFieldInstance.objects.count(), 0)
+        self.assertEqual(len(doc.custom_fields.all()), 0)
+
     def test_custom_field_not_null(self):
         """
         GIVEN:
@@ -933,3 +970,51 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
         results = response.data["results"]
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["name"], custom_field_int.name)
+
+    def test_custom_fields_document_count(self):
+        custom_field_string = CustomField.objects.create(
+            name="Test Custom Field String",
+            data_type=CustomField.FieldDataType.STRING,
+        )
+        doc = Document.objects.create(
+            title="WOW",
+            content="the content",
+            checksum="123",
+            mime_type="application/pdf",
+            owner=self.user,
+        )
+
+        response = self.client.get(
+            f"{self.ENDPOINT}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data["results"]
+        self.assertEqual(results[0]["document_count"], 0)
+
+        CustomFieldInstance.objects.create(
+            document=doc,
+            field=custom_field_string,
+            value_text="test value",
+        )
+
+        response = self.client.get(
+            f"{self.ENDPOINT}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data["results"]
+        self.assertEqual(results[0]["document_count"], 1)
+
+        # Test as user without access to the document
+        non_superuser = User.objects.create_user(username="non_superuser")
+        non_superuser.user_permissions.add(
+            *Permission.objects.all(),
+        )
+        non_superuser.save()
+        self.client.force_authenticate(user=non_superuser)
+        self.client.force_login(user=non_superuser)
+        response = self.client.get(
+            f"{self.ENDPOINT}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        results = response.data["results"]
+        self.assertEqual(results[0]["document_count"], 0)

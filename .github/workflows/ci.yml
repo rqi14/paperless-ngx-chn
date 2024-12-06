@@ -16,9 +16,9 @@ on:
 env:
   # This is the version of pipenv all the steps will use
   # If changing this, change Dockerfile
-  DEFAULT_PIP_ENV_VERSION: "2024.0.1"
+  DEFAULT_PIP_ENV_VERSION: "2024.0.3"
   # This is the default version of Python to use in most steps which aren't specific
-  DEFAULT_PYTHON_VERSION: "3.10"
+  DEFAULT_PYTHON_VERSION: "3.11"
 
 jobs:
   pre-commit:
@@ -30,7 +30,7 @@ jobs:
       github.repository
 
     name: Linting Checks
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       -
         name: Checkout repository
@@ -46,7 +46,7 @@ jobs:
 
   documentation:
     name: "Build & Deploy Documentation"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - pre-commit
     steps:
@@ -95,12 +95,12 @@ jobs:
 
   tests-backend:
     name: "Backend Tests (Python ${{ matrix.python-version }})"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - pre-commit
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12']
       fail-fast: false
     steps:
       -
@@ -170,7 +170,7 @@ jobs:
 
   install-frontend-depedendencies:
     name: "Install Frontend Dependencies"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - pre-commit
     steps:
@@ -201,7 +201,7 @@ jobs:
 
   tests-frontend:
     name: "Frontend Tests (Node ${{ matrix.node-version }} - ${{ matrix.shard-index }}/${{ matrix.shard-count }})"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - install-frontend-depedendencies
     strategy:
@@ -260,8 +260,8 @@ jobs:
           retention-days: 7
 
   tests-coverage-upload:
-    name: "Upload Coverage"
-    runs-on: ubuntu-22.04
+    name: "Upload to Codecov"
+    runs-on: ubuntu-24.04
     needs:
       - tests-backend
       - tests-frontend
@@ -306,10 +306,34 @@ jobs:
           # future expansion
           flags: backend
           directory: src/
+      -
+        name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: 'src-ui/package-lock.json'
+      -
+        name: Cache frontend dependencies
+        id: cache-frontend-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache
+          key: ${{ runner.os }}-frontenddeps-${{ hashFiles('src-ui/package-lock.json') }}
+      -
+        name: Re-link Angular cli
+        run: cd src-ui && npm link @angular/cli
+      -
+        name: Build frontend and upload analysis
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: cd src-ui && ng build --configuration=production
 
   build-docker-image:
     name: Build Docker image for ${{ github.ref_name }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/feature-') || startsWith(github.ref, 'refs/heads/fix-') || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/beta' || contains(github.ref, 'beta.rc') || startsWith(github.ref, 'refs/tags/v'))
     concurrency:
       group: ${{ github.workflow }}-build-docker-image-${{ github.ref_name }}
@@ -437,7 +461,7 @@ jobs:
     needs:
       - build-docker-image
       - documentation
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       -
         name: Checkout
@@ -458,12 +482,6 @@ jobs:
         name: Install Python dependencies
         run: |
           pipenv --python ${{ steps.setup-python.outputs.python-version }} sync --dev
-      -
-        name: Patch whitenoise
-        run: |
-          curl --fail --silent --show-error --location --output 484.patch https://github.com/evansd/whitenoise/pull/484.patch
-          patch -d $(pipenv --venv)/lib/python3.10/site-packages --verbose -p2 < 484.patch
-          rm 484.patch
       -
         name: Install system dependencies
         run: |
@@ -551,7 +569,7 @@ jobs:
 
   publish-release:
     name: "Publish Release"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     outputs:
       prerelease: ${{ steps.get_version.outputs.prerelease }}
       changelog: ${{ steps.create-release.outputs.body }}
@@ -601,7 +619,7 @@ jobs:
 
   append-changelog:
     name: "Append Changelog"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - publish-release
     if: needs.publish-release.outputs.prerelease == 'false'
@@ -631,7 +649,9 @@ jobs:
           git checkout ${{ needs.publish-release.outputs.version }}-changelog
           echo -e "# Changelog\n\n${{ needs.publish-release.outputs.changelog }}\n" > changelog-new.md
           echo "Manually linking usernames"
-          sed -i -r 's|@(.+?) \(\[#|[@\1](https://github.com/\1) ([#|ig' changelog-new.md
+          sed -i -r 's|@([a-zA-Z0-9_]+) \(\[#|[@\1](https://github.com/\1) ([#|g' changelog-new.md
+          echo "Removing unneeded comment tags"
+          sed -i -r 's|@<!---->|@|g' changelog-new.md
           CURRENT_CHANGELOG=`tail --lines +2 changelog.md`
           echo -e "$CURRENT_CHANGELOG" >> changelog-new.md
           mv changelog-new.md changelog.md
