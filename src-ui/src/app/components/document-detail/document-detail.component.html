@@ -190,7 +190,8 @@
                     @case (CustomFieldDataType.Select) {
                       <pngx-input-select formControlName="value"
                       [title]="getCustomFieldFromInstance(fieldInstance)?.name"
-                      [itemsArray]="getCustomFieldFromInstance(fieldInstance)?.extra_data.select_options"
+                      [items]="getCustomFieldFromInstance(fieldInstance)?.extra_data.select_options"
+                      bindLabel="label"
                       [allowNull]="true"
                       [horizontal]="true"
                       [removable]="userIsOwner"
@@ -344,20 +345,22 @@
       @if (!hasNext()) {
         <button type="button" class="order-2 btn btn-sm btn-outline-primary" (click)="save(true)" i18n [disabled]="!userCanEdit || networkActive || (isDirty$ | async) !== true">Save &amp; close</button>
       }
+      <button type="button" class="order-0 btn btn-sm btn-outline-secondary" (click)="discard()" i18n [disabled]="!userCanEdit || networkActive || (isDirty$ | async) !== true">Discard</button>
     </ng-container>
-    <button type="button" class="order-0 btn btn-sm btn-outline-secondary" (click)="discard()" i18n [disabled]="!userCanEdit || networkActive || (isDirty$ | async) !== true">Discard</button>
   </div>
 </ng-template>
 
 <ng-template #previewContent>
-  @if (!metadata) {
-    <div class="w-100 h-100 d-flex align-items-center justify-content-center">
+  <div class="thumb-preview position-absolute pe-none" [class.fade]="previewLoaded">
+    <img *ngIf="showThumbnailOverlay" [src]="thumbUrl | safeUrl" class="" width="100%" height="auto" alt="Document loading..." i18n-alt />
+    <div class="position-absolute top-0 start-0 m-2 p-2 d-flex align-items-center justify-content-center">
       <div>
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
         <ng-container i18n>Loading...</ng-container>
       </div>
     </div>
-  } @else {
+  </div>
+  @if (document) {
     @switch (archiveContentRenderType) {
       @case (ContentRenderType.PDF) {
         @if (!useNativePdfViewer) {
@@ -379,12 +382,21 @@
         }
       }
       @case (ContentRenderType.Text) {
-        <div class="preview-sticky bg-light p-3 overflow-auto" width="100%">{{previewText}}</div>
+        <div class="preview-sticky bg-light p-3 overflow-auto whitespace-preserve" width="100%">{{previewText}}</div>
       }
       @case (ContentRenderType.Image) {
         <div class="preview-sticky">
           <img [src]="previewUrl | safeUrl" width="100%" height="100%" alt="{{title}}" />
         </div>
+      }
+      @case (ContentRenderType.TIFF) {
+        @if (!tiffError) {
+          <div class="preview-sticky">
+            <img [src]="tiffURL" width="100%" height="100%" alt="{{title}}" />
+          </div>
+        } @else {
+          <div class="preview-sticky bg-light p-3 overflow-auto whitespace-preserve" width="100%">{{tiffError}}</div>
+        }
       }
       @case (ContentRenderType.Other) {
         <object [data]="previewUrl | safeUrl" class="preview-sticky" width="100%"></object>

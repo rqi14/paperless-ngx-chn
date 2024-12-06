@@ -16,9 +16,10 @@ import { EditDialogComponent } from '../edit-dialog.component'
 import { MailRuleService } from 'src/app/services/rest/mail-rule.service'
 import { MailRule } from 'src/app/data/mail-rule'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
-import { CustomField } from 'src/app/data/custom-field'
+import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
 import {
   DocumentSource,
+  ScheduleDateField,
   WorkflowTrigger,
   WorkflowTriggerType,
 } from 'src/app/data/workflow-trigger'
@@ -48,6 +49,25 @@ export const DOCUMENT_SOURCE_OPTIONS = [
   },
 ]
 
+export const SCHEDULE_DATE_FIELD_OPTIONS = [
+  {
+    id: ScheduleDateField.Added,
+    name: $localize`Added`,
+  },
+  {
+    id: ScheduleDateField.Created,
+    name: $localize`Created`,
+  },
+  {
+    id: ScheduleDateField.Modified,
+    name: $localize`Modified`,
+  },
+  {
+    id: ScheduleDateField.CustomField,
+    name: $localize`Custom Field`,
+  },
+]
+
 export const WORKFLOW_TYPE_OPTIONS = [
   {
     id: WorkflowTriggerType.Consumption,
@@ -61,6 +81,10 @@ export const WORKFLOW_TYPE_OPTIONS = [
     id: WorkflowTriggerType.DocumentUpdated,
     name: $localize`Document Updated`,
   },
+  {
+    id: WorkflowTriggerType.Scheduled,
+    name: $localize`Scheduled`,
+  },
 ]
 
 export const WORKFLOW_ACTION_OPTIONS = [
@@ -71,6 +95,14 @@ export const WORKFLOW_ACTION_OPTIONS = [
   {
     id: WorkflowActionType.Removal,
     name: $localize`Removal`,
+  },
+  {
+    id: WorkflowActionType.Email,
+    name: $localize`Email`,
+  },
+  {
+    id: WorkflowActionType.Webhook,
+    name: $localize`Webhook`,
   },
 ]
 
@@ -96,6 +128,7 @@ export class WorkflowEditDialogComponent
   storagePaths: StoragePath[]
   mailRules: MailRule[]
   customFields: CustomField[]
+  dateCustomFields: CustomField[]
 
   expandedItem: number = null
 
@@ -135,7 +168,12 @@ export class WorkflowEditDialogComponent
     customFieldsService
       .listAll()
       .pipe(first())
-      .subscribe((result) => (this.customFields = result.results))
+      .subscribe((result) => {
+        this.customFields = result.results
+        this.dateCustomFields = this.customFields?.filter(
+          (f) => f.data_type === CustomFieldDataType.Date
+        )
+      })
   }
 
   getCreateTitle() {
@@ -314,6 +352,15 @@ export class WorkflowEditDialogComponent
         filter_has_document_type: new FormControl(
           trigger.filter_has_document_type
         ),
+        schedule_offset_days: new FormControl(trigger.schedule_offset_days),
+        schedule_is_recurring: new FormControl(trigger.schedule_is_recurring),
+        schedule_recurring_interval_days: new FormControl(
+          trigger.schedule_recurring_interval_days
+        ),
+        schedule_date_field: new FormControl(trigger.schedule_date_field),
+        schedule_date_custom_field: new FormControl(
+          trigger.schedule_date_custom_field
+        ),
       }),
       { emitEvent }
     )
@@ -363,6 +410,22 @@ export class WorkflowEditDialogComponent
         remove_all_custom_fields: new FormControl(
           action.remove_all_custom_fields
         ),
+        email: new FormGroup({
+          id: new FormControl(action.email?.id),
+          subject: new FormControl(action.email?.subject),
+          body: new FormControl(action.email?.body),
+          to: new FormControl(action.email?.to),
+          include_document: new FormControl(!!action.email?.include_document),
+        }),
+        webhook: new FormGroup({
+          id: new FormControl(action.webhook?.id),
+          url: new FormControl(action.webhook?.url),
+          use_params: new FormControl(action.webhook?.use_params),
+          params: new FormControl(action.webhook?.params),
+          body: new FormControl(action.webhook?.body),
+          headers: new FormControl(action.webhook?.headers),
+          include_document: new FormControl(!!action.webhook?.include_document),
+        }),
       }),
       { emitEvent }
     )
@@ -388,6 +451,10 @@ export class WorkflowEditDialogComponent
     return WORKFLOW_TYPE_OPTIONS
   }
 
+  get scheduleDateFieldOptions() {
+    return SCHEDULE_DATE_FIELD_OPTIONS
+  }
+
   getTriggerTypeOptionName(type: WorkflowTriggerType): string {
     return this.triggerTypeOptions.find((t) => t.id === type)?.name ?? ''
   }
@@ -408,6 +475,11 @@ export class WorkflowEditDialogComponent
       matching_algorithm: MATCH_NONE,
       match: '',
       is_insensitive: true,
+      schedule_offset_days: 0,
+      schedule_is_recurring: false,
+      schedule_recurring_interval_days: 1,
+      schedule_date_field: ScheduleDateField.Added,
+      schedule_date_custom_field: null,
     }
     this.object.triggers.push(trigger)
     this.createTriggerField(trigger)
@@ -455,6 +527,22 @@ export class WorkflowEditDialogComponent
       remove_all_permissions: false,
       remove_custom_fields: [],
       remove_all_custom_fields: false,
+      email: {
+        id: null,
+        subject: null,
+        body: null,
+        to: null,
+        include_document: false,
+      },
+      webhook: {
+        id: null,
+        url: null,
+        use_params: true,
+        params: null,
+        body: null,
+        headers: null,
+        include_document: false,
+      },
     }
     this.object.actions.push(action)
     this.createActionField(action)
@@ -484,5 +572,19 @@ export class WorkflowEditDialogComponent
     this.actionFields.controls.forEach((c) =>
       c.get('id').setValue(null, { emitEvent: false })
     )
+  }
+
+  save(): void {
+    this.objectForm
+      .get('actions')
+      .value.forEach((action: WorkflowAction, i) => {
+        if (action.type !== WorkflowActionType.Webhook) {
+          action.webhook = null
+        }
+        if (action.type !== WorkflowActionType.Email) {
+          action.email = null
+        }
+      })
+    super.save()
   }
 }

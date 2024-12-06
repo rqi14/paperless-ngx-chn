@@ -46,6 +46,12 @@ export class DocumentLinkComponent
   @Input()
   parentDocumentID: number
 
+  @Input()
+  minimal: boolean = false
+
+  @Input()
+  placeholder: string = $localize`Search for documents`
+
   constructor(private documentsService: DocumentService) {
     super()
   }
@@ -108,7 +114,7 @@ export class DocumentLinkComponent
 
   unselect(document: Document): void {
     this.selectedDocuments = this.selectedDocuments.filter(
-      (d) => d.id !== document.id
+      (d) => d && d.id !== document.id
     )
     this.onChange(this.selectedDocuments.map((d) => d.id))
   }

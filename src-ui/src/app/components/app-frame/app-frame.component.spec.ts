@@ -115,7 +115,7 @@ describe('AppFrameComponent', () => {
         {
           provide: SavedViewService,
           useValue: {
-            initialize: () => {},
+            reload: () => {},
             listAll: () =>
               of({
                 all: [saved_views.map((v) => v.id)],
@@ -170,7 +170,7 @@ describe('AppFrameComponent', () => {
       .mockReturnValue('Hello World')
     jest.spyOn(permissionsService, 'currentUserCan').mockReturnValue(true)
 
-    savedViewSpy = jest.spyOn(savedViewService, 'initialize')
+    savedViewSpy = jest.spyOn(savedViewService, 'reload')
 
     fixture = TestBed.createComponent(AppFrameComponent)
     component = fixture.componentInstance
@@ -343,6 +343,7 @@ describe('AppFrameComponent', () => {
     component.editProfile()
     expect(modalSpy).toHaveBeenCalledWith(ProfileEditDialogComponent, {
       backdrop: 'static',
+      size: 'xl',
     })
   })
 

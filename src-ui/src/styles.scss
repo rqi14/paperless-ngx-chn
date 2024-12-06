@@ -21,7 +21,8 @@ $form-file-button-hover-bg: var(--pngx-bg-alt);
 
 // Paperless-ngx styles
 body {
-  font-size: 0.875rem;
+  --pngx-body-font-size: 0.875rem;
+  font-size: var(--pngx-body-font-size);
   height: 100vh;
 }
 
@@ -369,6 +370,10 @@ textarea,
   cursor: not-allowed;
 }
 
+.cursor-pointer {
+  cursor: pointer;
+}
+
 ul.pagination {
   margin-bottom: 0;
 }
@@ -485,9 +490,23 @@ ul.pagination {
 
 .doc-img-container {
   border: none !important;
-  border-top-left-radius: .25rem;
-  border-top-right-radius: .25rem;
   overflow: hidden;
+
+  .doc-img {
+    overflow: visible;
+  }
+}
+
+.card-selected {
+  border-color:var(--bs-primary);
+
+  .document-card-check {
+    display: block !important;
+  }
+
+  .doc-img-container {
+    background-color: var(--pngx-primary-faded);
+  }
 }
 
 table.table {
@@ -543,11 +562,6 @@ table.table {
     border-color: var(--bs-border-color);
     color: var(--bs-body-color);
   }
-}
-
-.popover-hidden .popover {
-    opacity: 0;
-    pointer-events: none;
 }
 
 // Tour
@@ -649,12 +663,20 @@ code {
   filter: invert(0.5) saturate(0);
 }
 
+.accordion-button {
+  font-size: var(--pngx-body-font-size);
+}
+
 .me-1px {
   margin-right: 1px !important;
 }
 
 .cdk-drag-placeholder {
   opacity: .5;
+}
+
+.whitespace-preserve {
+  white-space: preserve;
 }
 
 /* Animate items as they're being sorted. */
@@ -678,5 +700,50 @@ code {
       opacity: 1;
       pointer-events: initial;
     }
+  }
+}
+
+// pdfjs
+canvas.hiddenCanvasElement {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: -1;
+  height: 0;
+  width: 0;
+}
+
+// bs icons
+i-bs svg {
+  vertical-align: text-bottom;
+}
+
+.document-card {
+  .card-footer i-bs svg {
+    vertical-align: middle;
+  }
+}
+
+// fixes for buttons in preview popup
+.btn-group pngx-preview-popup:not(:last-child) {
+  // Prevent double borders when buttons are next to each other
+  > .btn {
+    margin-left: calc(#{$btn-border-width} * -1);
+  }
+  > .btn {
+    @include border-end-radius(0);
+  }
+}
+.btn-group pngx-preview-popup:not(:first-child) {
+  > .btn {
+    @include border-start-radius(0);
+  }
+}
+.btn-group pngx-preview-popup {
+  position: relative;
+  flex: 1 1 auto;
+
+  > .btn {
+    display: block;
   }
 }

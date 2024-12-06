@@ -10,8 +10,6 @@ from datetime import timedelta
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Union
 
 import magic
 import pathvalidate
@@ -20,6 +18,7 @@ from celery import shared_task
 from celery.canvas import Signature
 from django.conf import settings
 from django.db import DatabaseError
+from django.utils import timezone
 from django.utils.timezone import is_naive
 from django.utils.timezone import make_aware
 from imap_tools import AND
@@ -30,6 +29,7 @@ from imap_tools import MailboxFolderSelectError
 from imap_tools import MailBoxUnencrypted
 from imap_tools import MailMessage
 from imap_tools import MailMessageFlags
+from imap_tools import errors
 from imap_tools.mailbox import MailBoxTls
 from imap_tools.query import LogicOperator
 
@@ -43,6 +43,9 @@ from documents.tasks import consume_file
 from paperless_mail.models import MailAccount
 from paperless_mail.models import MailRule
 from paperless_mail.models import ProcessedMail
+from paperless_mail.oauth import PaperlessMailOAuth2Manager
+from paperless_mail.preprocessor import MailMessageDecryptor
+from paperless_mail.preprocessor import MailMessagePreprocessor
 
 # Apple Mail sets multiple IMAP KEYWORD and the general "\Flagged" FLAG
 # imaplib => conn.fetch(b"<message_id>", "FLAGS")
@@ -82,7 +85,7 @@ class BaseMailAction:
     read mails when the action is to mark mails as read).
     """
 
-    def get_criteria(self) -> Union[dict, LogicOperator]:
+    def get_criteria(self) -> dict | LogicOperator:
         """
         Returns filtering criteria/query for this mail action.
         """
@@ -266,7 +269,14 @@ def apply_mail_action(
             M.folder.set(rule.folder)
 
             action = get_rule_action(rule, supports_gmail_labels)
-            action.post_consume(M, message_uid, rule.action_parameter)
+            try:
+                action.post_consume(M, message_uid, rule.action_parameter)
+            except errors.ImapToolsError:
+                logger = logging.getLogger("paperless_mail")
+                logger.exception(
+                    "Error while processing mail action during post_consume",
+                )
+                raise
 
         ProcessedMail.objects.create(
             owner=rule.owner,
@@ -426,11 +436,32 @@ class MailAccountHandler(LoggingMixin):
 
     logging_name = "paperless_mail"
 
+    _message_preprocessor_types: list[type[MailMessagePreprocessor]] = [
+        MailMessageDecryptor,
+    ]
+
     def __init__(self) -> None:
         super().__init__()
         self.renew_logging_group()
+        self._init_preprocessors()
 
-    def _correspondent_from_name(self, name: str) -> Optional[Correspondent]:
+    def _init_preprocessors(self):
+        self._message_preprocessors: list[MailMessagePreprocessor] = []
+        for preprocessor_type in self._message_preprocessor_types:
+            self._init_preprocessor(preprocessor_type)
+
+    def _init_preprocessor(self, preprocessor_type):
+        if preprocessor_type.able_to_run():
+            try:
+                self._message_preprocessors.append(preprocessor_type())
+            except Exception as e:
+                self.log.warning(
+                    f"Error while initializing preprocessor {preprocessor_type.NAME}: {e}",
+                )
+        else:
+            self.log.debug(f"Skipping mail preprocessor {preprocessor_type.NAME}")
+
+    def _correspondent_from_name(self, name: str) -> Correspondent | None:
         try:
             return Correspondent.objects.get_or_create(name=name)[0]
         except DatabaseError as e:
@@ -442,7 +473,7 @@ class MailAccountHandler(LoggingMixin):
         message: MailMessage,
         att: MailAttachment,
         rule: MailRule,
-    ) -> Optional[str]:
+    ) -> str | None:
         if rule.assign_title_from == MailRule.TitleSource.FROM_SUBJECT:
             return message.subject
 
@@ -461,7 +492,7 @@ class MailAccountHandler(LoggingMixin):
         self,
         message: MailMessage,
         rule: MailRule,
-    ) -> Optional[Correspondent]:
+    ) -> Correspondent | None:
         c_from = rule.assign_correspondent_from
 
         if c_from == MailRule.CorrespondentSource.FROM_NOTHING:
@@ -501,6 +532,17 @@ class MailAccountHandler(LoggingMixin):
                 account.imap_port,
                 account.imap_security,
             ) as M:
+                if (
+                    account.is_token
+                    and account.expiration is not None
+                    and account.expiration < timezone.now()
+                ):
+                    manager = PaperlessMailOAuth2Manager()
+                    if manager.refresh_account_oauth_token(account):
+                        account.refresh_from_db()
+                    else:
+                        return total_processed_files
+
                 supports_gmail_labels = "X-GM-EXT-1" in M.client.capabilities
                 supports_auth_plain = "AUTH=PLAIN" in M.client.capabilities
 
@@ -515,6 +557,9 @@ class MailAccountHandler(LoggingMixin):
                 )
 
                 for rule in account.rules.order_by("order"):
+                    if not rule.enabled:
+                        self.log.debug(f"Rule {rule}: Skipping disabled rule")
+                        continue
                     try:
                         total_processed_files += self._handle_mail_rule(
                             M,
@@ -535,19 +580,28 @@ class MailAccountHandler(LoggingMixin):
 
         return total_processed_files
 
+    def _preprocess_message(self, message: MailMessage):
+        for preprocessor in self._message_preprocessors:
+            message = preprocessor.run(message)
+        return message
+
     def _handle_mail_rule(
         self,
         M: MailBox,
         rule: MailRule,
         supports_gmail_labels: bool,
     ):
-        self.log.debug(f"Rule {rule}: Selecting folder {rule.folder}")
-
+        folders = [rule.folder]
+        # In case of MOVE, make sure also the destination exists
+        if rule.action == MailRule.MailAction.MOVE:
+            folders.insert(0, rule.action_parameter)
         try:
-            M.folder.set(rule.folder)
+            for folder in folders:
+                self.log.debug(f"Rule {rule}: Selecting folder {folder}")
+                M.folder.set(folder)
         except MailboxFolderSelectError as err:
             self.log.error(
-                f"Unable to access folder {rule.folder}, attempting folder listing",
+                f"Unable to access folder {folder}, attempting folder listing",
             )
             try:
                 for folder_info in M.folder.list():
@@ -559,7 +613,7 @@ class MailAccountHandler(LoggingMixin):
                 )
 
             raise MailError(
-                f"Rule {rule}: Folder {rule.folder} "
+                f"Rule {rule}: Folder {folder} "
                 f"does not exist in account {rule.account}",
             ) from err
 
@@ -613,6 +667,8 @@ class MailAccountHandler(LoggingMixin):
         return total_processed_files
 
     def _handle_message(self, message, rule: MailRule) -> int:
+        message = self._preprocess_message(message)
+
         processed_elements = 0
 
         # Skip Message handling when only attachments are to be processed but
@@ -656,6 +712,43 @@ class MailAccountHandler(LoggingMixin):
 
         return processed_elements
 
+    def filename_inclusion_matches(
+        self,
+        filter_attachment_filename_include: str | None,
+        filename: str,
+    ) -> bool:
+        if filter_attachment_filename_include:
+            filter_attachment_filename_inclusions = (
+                filter_attachment_filename_include.split(",")
+            )
+
+            # Force the filename and pattern to the lowercase
+            # as this is system dependent otherwise
+            filename = filename.lower()
+            for filename_include in filter_attachment_filename_inclusions:
+                if filename_include and fnmatch(filename, filename_include.lower()):
+                    return True
+            return False
+        return True
+
+    def filename_exclusion_matches(
+        self,
+        filter_attachment_filename_exclude: str | None,
+        filename: str,
+    ) -> bool:
+        if filter_attachment_filename_exclude:
+            filter_attachment_filename_exclusions = (
+                filter_attachment_filename_exclude.split(",")
+            )
+
+            # Force the filename and pattern to the lowercase
+            # as this is system dependent otherwise
+            filename = filename.lower()
+            for filename_exclude in filter_attachment_filename_exclusions:
+                if filename_exclude and fnmatch(filename, filename_exclude.lower()):
+                    return True
+        return False
+
     def _process_attachments(
         self,
         message: MailMessage,
@@ -680,9 +773,9 @@ class MailAccountHandler(LoggingMixin):
                 )
                 continue
 
-            if rule.filter_attachment_filename_include and not fnmatch(
-                att.filename.lower(),
-                rule.filter_attachment_filename_include.lower(),
+            if not self.filename_inclusion_matches(
+                rule.filter_attachment_filename_include,
+                att.filename,
             ):
                 # Force the filename and pattern to the lowercase
                 # as this is system dependent otherwise
@@ -692,12 +785,10 @@ class MailAccountHandler(LoggingMixin):
                     f"does not match pattern {rule.filter_attachment_filename_include}",
                 )
                 continue
-            elif rule.filter_attachment_filename_exclude and fnmatch(
-                att.filename.lower(),
-                rule.filter_attachment_filename_exclude.lower(),
+            elif self.filename_exclusion_matches(
+                rule.filter_attachment_filename_exclude,
+                att.filename,
             ):
-                # Force the filename and pattern to the lowercase
-                # as this is system dependent otherwise
                 self.log.debug(
                     f"Rule {rule}: "
                     f"Skipping attachment {att.filename} "

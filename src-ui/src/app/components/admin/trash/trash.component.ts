@@ -4,9 +4,10 @@ import { Document } from 'src/app/data/document'
 import { ToastService } from 'src/app/services/toast.service'
 import { TrashService } from 'src/app/services/trash.service'
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component'
-import { Subject, takeUntil } from 'rxjs'
+import { delay, Subject, takeUntil, tap } from 'rxjs'
 import { SettingsService } from 'src/app/services/settings.service'
 import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { Router } from '@angular/router'
 
 @Component({
   selector: 'pngx-trash',
@@ -20,13 +21,15 @@ export class TrashComponent implements OnDestroy {
   public page: number = 1
   public totalDocuments: number
   public isLoading: boolean = false
+  public reveal: boolean = false
   unsubscribeNotifier: Subject<void> = new Subject()
 
   constructor(
     private trashService: TrashService,
     private toastService: ToastService,
     private modalService: NgbModal,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private router: Router
   ) {
     this.reload()
   }
@@ -38,12 +41,20 @@ export class TrashComponent implements OnDestroy {
 
   reload() {
     this.isLoading = true
-    this.trashService.getTrash(this.page).subscribe((r) => {
-      this.documentsInTrash = r.results
-      this.totalDocuments = r.count
-      this.isLoading = false
-      this.selectedDocuments.clear()
-    })
+    this.trashService
+      .getTrash(this.page)
+      .pipe(
+        tap((r) => {
+          this.documentsInTrash = r.results
+          this.totalDocuments = r.count
+          this.selectedDocuments.clear()
+        }),
+        delay(100)
+      )
+      .subscribe(() => {
+        this.reveal = true
+        this.isLoading = false
+      })
   }
 
   delete(document: Document) {
@@ -110,7 +121,14 @@ export class TrashComponent implements OnDestroy {
   restore(document: Document) {
     this.trashService.restoreDocuments([document.id]).subscribe({
       next: () => {
-        this.toastService.showInfo($localize`Document restored`)
+        this.toastService.show({
+          content: $localize`Document restored`,
+          delay: 5000,
+          actionName: $localize`Open document`,
+          action: () => {
+            this.router.navigate(['documents', document.id])
+          },
+        })
         this.reload()
       },
       error: (err) => {

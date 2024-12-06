@@ -41,6 +41,7 @@ import { DocumentCardSmallComponent } from './components/document-list/document-
 import { BulkEditorComponent } from './components/document-list/bulk-editor/bulk-editor.component'
 import { NgxFileDropModule } from 'ngx-file-drop'
 import { TextComponent } from './components/common/input/text/text.component'
+import { TextAreaComponent } from './components/common/input/textarea/textarea.component'
 import { SelectComponent } from './components/common/input/select/select.component'
 import { CheckComponent } from './components/common/input/check/check.component'
 import { UrlComponent } from './components/common/input/url/url.component'
@@ -108,6 +109,7 @@ import { FileDropComponent } from './components/file-drop/file-drop.component'
 import { CustomFieldsComponent } from './components/manage/custom-fields/custom-fields.component'
 import { CustomFieldEditDialogComponent } from './components/common/edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component'
 import { CustomFieldsDropdownComponent } from './components/common/custom-fields-dropdown/custom-fields-dropdown.component'
+import { CustomFieldsQueryDropdownComponent } from './components/common/custom-fields-query-dropdown/custom-fields-query-dropdown.component'
 import { ProfileEditDialogComponent } from './components/common/profile-edit-dialog/profile-edit-dialog.component'
 import { PdfViewerModule } from 'ng2-pdf-viewer'
 import { DocumentLinkComponent } from './components/common/input/document-link/document-link.component'
@@ -129,6 +131,8 @@ import { GlobalSearchComponent } from './components/app-frame/global-search/glob
 import { HotkeyDialogComponent } from './components/common/hotkey-dialog/hotkey-dialog.component'
 import { DeletePagesConfirmDialogComponent } from './components/common/confirm-dialog/delete-pages-confirm-dialog/delete-pages-confirm-dialog.component'
 import { TrashComponent } from './components/admin/trash/trash.component'
+import { EntriesComponent } from './components/common/input/entries/entries.component'
+import { SavedViewsComponent } from './components/manage/saved-views/saved-views.component'
 import {
   airplane,
   archive,
@@ -141,6 +145,7 @@ import {
   arrowRightShort,
   arrowUpRight,
   asterisk,
+  braces,
   bodyText,
   boxArrowUp,
   boxArrowUpRight,
@@ -172,6 +177,7 @@ import {
   download,
   envelope,
   envelopeAt,
+  envelopeAtFill,
   exclamationCircleFill,
   exclamationTriangle,
   exclamationTriangleFill,
@@ -181,6 +187,7 @@ import {
   fileEarmarkFill,
   fileEarmarkLock,
   fileEarmarkMinus,
+  fileEarmarkRichtext,
   files,
   fileText,
   filter,
@@ -188,6 +195,7 @@ import {
   folderFill,
   funnel,
   gear,
+  google,
   grid,
   gripVertical,
   hash,
@@ -198,6 +206,8 @@ import {
   link,
   listTask,
   listUl,
+  microsoft,
+  nodePlus,
   pencil,
   people,
   peopleFill,
@@ -226,7 +236,9 @@ import {
   trash,
   uiRadios,
   upcScan,
+  windowStack,
   x,
+  xCircle,
   xLg,
 } from 'ngx-bootstrap-icons'
 
@@ -242,6 +254,7 @@ const icons = {
   arrowRightShort,
   arrowUpRight,
   asterisk,
+  braces,
   bodyText,
   boxArrowUp,
   boxArrowUpRight,
@@ -273,6 +286,7 @@ const icons = {
   download,
   envelope,
   envelopeAt,
+  envelopeAtFill,
   exclamationCircleFill,
   exclamationTriangle,
   exclamationTriangleFill,
@@ -282,6 +296,7 @@ const icons = {
   fileEarmarkFill,
   fileEarmarkLock,
   fileEarmarkMinus,
+  fileEarmarkRichtext,
   files,
   fileText,
   filter,
@@ -289,6 +304,7 @@ const icons = {
   folderFill,
   funnel,
   gear,
+  google,
   grid,
   gripVertical,
   hash,
@@ -299,6 +315,8 @@ const icons = {
   link,
   listTask,
   listUl,
+  microsoft,
+  nodePlus,
   pencil,
   people,
   peopleFill,
@@ -327,7 +345,9 @@ const icons = {
   trash,
   uiRadios,
   upcScan,
+  windowStack,
   x,
+  xCircle,
   xLg,
 }
 
@@ -347,6 +367,7 @@ import localeFr from '@angular/common/locales/fr'
 import localeHu from '@angular/common/locales/hu'
 import localeIt from '@angular/common/locales/it'
 import localeJa from '@angular/common/locales/ja'
+import localeKo from '@angular/common/locales/ko'
 import localeLb from '@angular/common/locales/lb'
 import localeNl from '@angular/common/locales/nl'
 import localeNo from '@angular/common/locales/no'
@@ -378,6 +399,7 @@ registerLocaleData(localeFr)
 registerLocaleData(localeHu)
 registerLocaleData(localeIt)
 registerLocaleData(localeJa)
+registerLocaleData(localeKo)
 registerLocaleData(localeLb)
 registerLocaleData(localeNl)
 registerLocaleData(localeNo)
@@ -431,6 +453,7 @@ function initializeApp(settings: SettingsService) {
     DocumentCardSmallComponent,
     BulkEditorComponent,
     TextComponent,
+    TextAreaComponent,
     SelectComponent,
     CheckComponent,
     UrlComponent,
@@ -483,6 +506,7 @@ function initializeApp(settings: SettingsService) {
     CustomFieldsComponent,
     CustomFieldEditDialogComponent,
     CustomFieldsDropdownComponent,
+    CustomFieldsQueryDropdownComponent,
     ProfileEditDialogComponent,
     DocumentLinkComponent,
     PreviewPopupComponent,
@@ -502,6 +526,8 @@ function initializeApp(settings: SettingsService) {
     HotkeyDialogComponent,
     DeletePagesConfirmDialogComponent,
     TrashComponent,
+    EntriesComponent,
+    SavedViewsComponent,
   ],
   bootstrap: [AppComponent],
   imports: [

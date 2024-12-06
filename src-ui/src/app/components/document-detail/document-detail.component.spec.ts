@@ -85,6 +85,7 @@ import { PdfViewerModule } from 'ng2-pdf-viewer'
 import { DataType } from 'src/app/data/datatype'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { TagService } from 'src/app/services/rest/tag.service'
+import { TextAreaComponent } from '../common/input/textarea/textarea.component'
 
 const doc: Document = {
   id: 3,
@@ -183,6 +184,7 @@ describe('DocumentDetailComponent', () => {
         SplitConfirmDialogComponent,
         RotateConfirmDialogComponent,
         DeletePagesConfirmDialogComponent,
+        TextAreaComponent,
       ],
       imports: [
         RouterModule.forRoot(routes),
@@ -772,6 +774,15 @@ describe('DocumentDetailComponent', () => {
     expect(component.previewNumPages).toEqual(1000)
   })
 
+  it('should include delay of 300ms after previewloaded before showing pdf', fakeAsync(() => {
+    initNormally()
+    expect(component.previewLoaded).toBeFalsy()
+    component.pdfPreviewLoaded({ numPages: 1000 } as any)
+    expect(component.previewNumPages).toEqual(1000)
+    tick(300)
+    expect(component.previewLoaded).toBeTruthy()
+  }))
+
   it('should support zoom controls', () => {
     initNormally()
     component.onZoomSelect({ target: { value: '1' } } as any) // from select
@@ -919,7 +930,7 @@ describe('DocumentDetailComponent', () => {
 
   it('should display built-in pdf viewer if not disabled', () => {
     initNormally()
-    component.metadata = { has_archive_version: true }
+    component.document.archived_file_name = 'file.pdf'
     jest.spyOn(settingsService, 'get').mockReturnValue(false)
     expect(component.useNativePdfViewer).toBeFalsy()
     fixture.detectChanges()
@@ -928,7 +939,7 @@ describe('DocumentDetailComponent', () => {
 
   it('should display native pdf viewer if enabled', () => {
     initNormally()
-    component.metadata = { has_archive_version: true }
+    component.document.archived_file_name = 'file.pdf'
     jest.spyOn(settingsService, 'get').mockReturnValue(true)
     expect(component.useNativePdfViewer).toBeTruthy()
     fixture.detectChanges()
@@ -1070,8 +1081,8 @@ describe('DocumentDetailComponent', () => {
   })
 
   it('should change preview element by render type', () => {
-    component.metadata = { has_archive_version: true }
     initNormally()
+    component.document.archived_file_name = 'file.pdf'
     fixture.detectChanges()
     expect(component.archiveContentRenderType).toEqual(
       component.ContentRenderType.PDF
@@ -1080,10 +1091,8 @@ describe('DocumentDetailComponent', () => {
       fixture.debugElement.query(By.css('pdf-viewer-container'))
     ).not.toBeUndefined()
 
-    component.metadata = {
-      has_archive_version: false,
-      original_mime_type: 'text/plain',
-    }
+    component.document.archived_file_name = undefined
+    component.document.mime_type = 'text/plain'
     fixture.detectChanges()
     expect(component.archiveContentRenderType).toEqual(
       component.ContentRenderType.Text
@@ -1092,10 +1101,7 @@ describe('DocumentDetailComponent', () => {
       fixture.debugElement.query(By.css('div.preview-sticky'))
     ).not.toBeUndefined()
 
-    component.metadata = {
-      has_archive_version: false,
-      original_mime_type: 'image/jpg',
-    }
+    component.document.mime_type = 'image/jpeg'
     fixture.detectChanges()
     expect(component.archiveContentRenderType).toEqual(
       component.ContentRenderType.Image
@@ -1103,13 +1109,9 @@ describe('DocumentDetailComponent', () => {
     expect(
       fixture.debugElement.query(By.css('.preview-sticky img'))
     ).not.toBeUndefined()
-
-    component.metadata = {
-      has_archive_version: false,
-      original_mime_type:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    }
-    fixture.detectChanges()
+    ;(component.document.mime_type =
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+      fixture.detectChanges()
     expect(component.archiveContentRenderType).toEqual(
       component.ContentRenderType.Other
     )
@@ -1219,6 +1221,14 @@ describe('DocumentDetailComponent', () => {
     )
     expect(saveSpy).toHaveBeenCalled()
 
+    jest.spyOn(openDocumentsService, 'isDirty').mockReturnValue(true)
+    jest.spyOn(component, 'hasNext').mockReturnValue(true)
+    const saveNextSpy = jest.spyOn(component, 'saveEditNext')
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 's', ctrlKey: true, shiftKey: true })
+    )
+    expect(saveNextSpy).toHaveBeenCalled()
+
     const closeSpy = jest.spyOn(component, 'close')
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'escape' }))
     expect(closeSpy).toHaveBeenCalled()
@@ -1259,5 +1269,47 @@ describe('DocumentDetailComponent', () => {
     expect(component.createDisabled(DataType.DocumentType)).toBeFalsy()
     expect(component.createDisabled(DataType.StoragePath)).toBeFalsy()
     expect(component.createDisabled(DataType.Tag)).toBeFalsy()
+  })
+
+  it('should call tryRenderTiff when no archive and file is tiff', () => {
+    initNormally()
+    const tiffRenderSpy = jest.spyOn(
+      DocumentDetailComponent.prototype as any,
+      'tryRenderTiff'
+    )
+    const doc = Object.assign({}, component.document)
+    doc.archived_file_name = null
+    doc.mime_type = 'image/tiff'
+    jest
+      .spyOn(documentService, 'getMetadata')
+      .mockReturnValue(
+        of({ has_archive_version: false, original_mime_type: 'image/tiff' })
+      )
+    component.updateComponent(doc)
+    fixture.detectChanges()
+    expect(component.archiveContentRenderType).toEqual(
+      component.ContentRenderType.TIFF
+    )
+    expect(tiffRenderSpy).toHaveBeenCalled()
+  })
+
+  it('should try to render tiff and show error if failed', () => {
+    initNormally()
+    // just the text request
+    httpTestingController.expectOne(component.previewUrl)
+
+    // invalid tiff
+    component['tryRenderTiff']()
+    httpTestingController
+      .expectOne(component.previewUrl)
+      .flush(new ArrayBuffer(100)) // arraybuffer
+    expect(component.tiffError).not.toBeUndefined()
+
+    // http error
+    component['tryRenderTiff']()
+    httpTestingController
+      .expectOne(component.previewUrl)
+      .error(new ErrorEvent('failed'))
+    expect(component.tiffError).not.toBeUndefined()
   })
 })

@@ -72,6 +72,7 @@ import { IsNumberPipe } from 'src/app/pipes/is-number.pipe'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
 import { PermissionsService } from 'src/app/services/permissions.service'
 import { NgSelectModule } from '@ng-select/ng-select'
+import { PreviewPopupComponent } from '../common/preview-popup/preview-popup.component'
 
 const docs: Document[] = [
   {
@@ -137,6 +138,7 @@ describe('DocumentListComponent', () => {
         UsernamePipe,
         SafeHtmlPipe,
         IsNumberPipe,
+        PreviewPopupComponent,
       ],
       imports: [
         RouterTestingModule.withRoutes(routes),
@@ -302,7 +304,7 @@ describe('DocumentListComponent', () => {
     displayModeButtons[0].triggerEventHandler('change')
     fixture.detectChanges()
     expect(component.list.displayMode).toEqual('table')
-    expect(fixture.debugElement.queryAll(By.css('tr'))).toHaveLength(3)
+    expect(fixture.debugElement.queryAll(By.css('tr'))).toHaveLength(4)
 
     displayModeButtons[1].nativeElement.checked = true
     displayModeButtons[1].triggerEventHandler('change')
@@ -602,7 +604,7 @@ describe('DocumentListComponent', () => {
 
     expect(
       fixture.debugElement.queryAll(By.directive(SortableDirective))
-    ).toHaveLength(9)
+    ).toHaveLength(10)
 
     expect(component.notesEnabled).toBeTruthy()
     settingsService.set(SETTINGS_KEYS.NOTES_ENABLED, false)
@@ -610,14 +612,14 @@ describe('DocumentListComponent', () => {
     expect(component.notesEnabled).toBeFalsy()
     expect(
       fixture.debugElement.queryAll(By.directive(SortableDirective))
-    ).toHaveLength(8)
+    ).toHaveLength(9)
 
     // insufficient perms
     jest.spyOn(permissionService, 'currentUserCan').mockReturnValue(false)
     fixture.detectChanges()
     expect(
       fixture.debugElement.queryAll(By.directive(SortableDirective))
-    ).toHaveLength(4)
+    ).toHaveLength(5)
   })
 
   it('should support toggle on document objects', () => {
@@ -698,5 +700,31 @@ describe('DocumentListComponent', () => {
     fixture.detectChanges()
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'o' }))
     expect(detailSpy).toHaveBeenCalledWith(docs[1].id)
+
+    const lotsOfDocs: Document[] = Array.from({ length: 100 }, (_, i) => ({
+      id: i + 1,
+      title: `Doc${i + 1}`,
+      notes: [],
+      tags$: new Subject(),
+      content: `document content ${i + 1}`,
+    }))
+    jest
+      .spyOn(documentListService, 'documents', 'get')
+      .mockReturnValue(lotsOfDocs)
+    jest
+      .spyOn(documentService, 'listAllFilteredIds')
+      .mockReturnValue(of(lotsOfDocs.map((d) => d.id)))
+    jest.spyOn(documentListService, 'getLastPage').mockReturnValue(4)
+    fixture.detectChanges()
+
+    expect(component.list.currentPage).toEqual(1)
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true })
+    )
+    expect(component.list.currentPage).toEqual(2)
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowLeft', ctrlKey: true })
+    )
+    expect(component.list.currentPage).toEqual(1)
   })
 })

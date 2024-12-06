@@ -1,6 +1,5 @@
 import dataclasses
 import json
-from typing import Optional
 
 from django.conf import settings
 
@@ -44,18 +43,18 @@ class OcrConfig(OutputTypeConfig):
     correspond almost directly to the OCRMyPDF options
     """
 
-    pages: Optional[int] = dataclasses.field(init=False)
+    pages: int | None = dataclasses.field(init=False)
     language: str = dataclasses.field(init=False)
     mode: str = dataclasses.field(init=False)
     skip_archive_file: str = dataclasses.field(init=False)
-    image_dpi: Optional[int] = dataclasses.field(init=False)
+    image_dpi: int | None = dataclasses.field(init=False)
     clean: str = dataclasses.field(init=False)
     deskew: bool = dataclasses.field(init=False)
     rotate: bool = dataclasses.field(init=False)
     rotate_threshold: float = dataclasses.field(init=False)
-    max_image_pixel: Optional[float] = dataclasses.field(init=False)
+    max_image_pixel: float | None = dataclasses.field(init=False)
     color_conversion_strategy: str = dataclasses.field(init=False)
-    user_args: Optional[dict[str, str]] = dataclasses.field(init=False)
+    user_args: dict[str, str] | None = dataclasses.field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -70,8 +69,14 @@ class OcrConfig(OutputTypeConfig):
         )
         self.image_dpi = app_config.image_dpi or settings.OCR_IMAGE_DPI
         self.clean = app_config.unpaper_clean or settings.OCR_CLEAN
-        self.deskew = app_config.deskew or settings.OCR_DESKEW
-        self.rotate = app_config.rotate_pages or settings.OCR_ROTATE_PAGES
+        self.deskew = (
+            app_config.deskew if app_config.deskew is not None else settings.OCR_DESKEW
+        )
+        self.rotate = (
+            app_config.rotate_pages
+            if app_config.rotate_pages is not None
+            else settings.OCR_ROTATE_PAGES
+        )
         self.rotate_threshold = (
             app_config.rotate_pages_threshold or settings.OCR_ROTATE_PAGES_THRESHOLD
         )

@@ -107,9 +107,9 @@ export class CustomFieldDisplayComponent implements OnInit, OnDestroy {
       .getFew(this.value, { fields: 'id,title' })
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe((result: Results<Document>) => {
-        this.docLinkDocuments = this.value.map((id) =>
-          result.results.find((d) => d.id === id)
-        )
+        this.docLinkDocuments = this.value
+          .map((id) => result.results.find((d) => d.id === id))
+          .filter((d) => d)
       })
   }
 
@@ -117,8 +117,8 @@ export class CustomFieldDisplayComponent implements OnInit, OnDestroy {
     return this.docLinkDocuments?.find((d) => d.id === docId)?.title
   }
 
-  public getSelectValue(field: CustomField, index: number): string {
-    return field.extra_data.select_options[index]
+  public getSelectValue(field: CustomField, id: string): string {
+    return field.extra_data.select_options?.find((o) => o.id === id)?.label
   }
 
   ngOnDestroy(): void {

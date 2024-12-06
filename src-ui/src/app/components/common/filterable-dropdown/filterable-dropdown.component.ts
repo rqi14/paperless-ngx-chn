@@ -16,6 +16,7 @@ import { Subject, filter, take, takeUntil } from 'rxjs'
 import { SelectionDataItem } from 'src/app/services/rest/document.service'
 import { ObjectWithPermissions } from 'src/app/data/object-with-permissions'
 import { HotKeyService } from 'src/app/services/hot-key.service'
+import { popperOptionsReenablePreventOverflow } from 'src/app/utils/popper-options'
 
 export interface ChangedItems {
   itemsToAdd: MatchingModel[]
@@ -42,11 +43,23 @@ export class FilterableDropdownSelectionModel {
   private _intersection: Intersection = Intersection.Include
   temporaryIntersection: Intersection = this._intersection
 
-  items: MatchingModel[] = []
+  private _documentCounts: SelectionDataItem[] = []
+  public set documentCounts(counts: SelectionDataItem[]) {
+    this._documentCounts = counts
+  }
 
-  get itemsSorted(): MatchingModel[] {
-    // TODO: this is getting called very often
-    return this.items.sort((a, b) => {
+  private _items: MatchingModel[] = []
+  get items(): MatchingModel[] {
+    return this._items
+  }
+
+  set items(items: MatchingModel[]) {
+    this._items = items
+    this.sortItems()
+  }
+
+  private sortItems() {
+    this._items.sort((a, b) => {
       if (a.id == null && b.id != null) {
         return -1
       } else if (a.id != null && b.id == null) {
@@ -61,6 +74,16 @@ export class FilterableDropdownSelectionModel {
         this.getNonTemporary(b.id) == ToggleableItemState.NotSelected
       ) {
         return -1
+      } else if (
+        this._documentCounts.length &&
+        this.getDocumentCount(a.id) > this.getDocumentCount(b.id)
+      ) {
+        return -1
+      } else if (
+        this._documentCounts.length &&
+        this.getDocumentCount(a.id) < this.getDocumentCount(b.id)
+      ) {
+        return 1
       } else {
         return a.name.localeCompare(b.name)
       }
@@ -278,6 +301,10 @@ export class FilterableDropdownSelectionModel {
     )
   }
 
+  getDocumentCount(id: number) {
+    return this._documentCounts.find((c) => c.id === id)?.document_count
+  }
+
   init(map: Map<number, ToggleableItemState>) {
     this.temporarySelectionStates = map
     this.apply()
@@ -290,6 +317,7 @@ export class FilterableDropdownSelectionModel {
     })
     this._logicalOperator = this.temporaryLogicalOperator
     this._intersection = this.temporaryIntersection
+    this.sortItems()
   }
 
   reset(complete: boolean = false) {
@@ -329,6 +357,8 @@ export class FilterableDropdownComponent implements OnDestroy, OnInit {
   @ViewChild('listFilterTextInput') listFilterTextInput: ElementRef
   @ViewChild('dropdown') dropdown: NgbDropdown
   @ViewChild('buttonItems') buttonItems: ElementRef
+
+  public popperOptions = popperOptionsReenablePreventOverflow
 
   filterText: string
 
@@ -420,7 +450,11 @@ export class FilterableDropdownComponent implements OnDestroy, OnInit {
   }
 
   @Input()
-  documentCounts: SelectionDataItem[]
+  set documentCounts(counts: SelectionDataItem[]) {
+    if (counts) {
+      this.selectionModel.documentCounts = counts
+    }
+  }
 
   @Input()
   shortcutKey: string
@@ -483,7 +517,7 @@ export class FilterableDropdownComponent implements OnDestroy, OnInit {
   dropdownOpenChange(open: boolean): void {
     if (open) {
       setTimeout(() => {
-        this.listFilterTextInput.nativeElement.focus()
+        this.listFilterTextInput?.nativeElement.focus()
       }, 0)
       if (this.editing) {
         this.selectionModel.reset()
@@ -492,7 +526,7 @@ export class FilterableDropdownComponent implements OnDestroy, OnInit {
       this.opened.next(this)
     } else {
       if (this.creating) {
-        this.dropdown.open()
+        this.dropdown?.open()
         this.creating = false
       } else {
         this.filterText = ''
@@ -533,9 +567,7 @@ export class FilterableDropdownComponent implements OnDestroy, OnInit {
   }
 
   getUpdatedDocumentCount(id: number) {
-    if (this.documentCounts) {
-      return this.documentCounts.find((c) => c.id === id)?.document_count
-    }
+    return this.selectionModel.getDocumentCount(id)
   }
 
   listKeyDown(event: KeyboardEvent) {

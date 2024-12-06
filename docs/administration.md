@@ -19,6 +19,8 @@ Options available to any installation of paperless:
     export. Therefore, incremental backups with `rsync` are entirely
     possible.
 
+    The exporter does not include API tokens and they will need to be re-generated after importing.
+
 !!! caution
 
     You cannot import the export generated with one version of paperless in
@@ -239,6 +241,7 @@ document_exporter target [-c] [-d] [-f] [-na] [-nt] [-p] [-sm] [-z]
 
 optional arguments:
 -c,  --compare-checksums
+-cj, --compare-json
 -d,  --delete
 -f,  --use-filename-format
 -na, --no-archive
@@ -267,7 +270,8 @@ only export changed and added files. Paperless determines whether a file
 has changed by inspecting the file attributes "date/time modified" and
 "size". If that does not work out for you, specify `-c` or
 `--compare-checksums` and paperless will attempt to compare file
-checksums instead. This is slower.
+checksums instead. This is slower. The manifest and metadata json files
+are always updated, unless `cj` or `--compare-json` is specified.
 
 Paperless will not remove any existing files in the export directory. If
 you want paperless to also remove files that do not belong to the
@@ -620,3 +624,12 @@ document_fuzzy_match [--ratio] [--processes N]
     If providing the `--delete` option, it is highly recommended to have a backup.
     While every effort has been taken to ensure proper operation, there is always the
     chance of deletion of a file you want to keep.
+
+### Prune history (audit log) entries {#prune-history}
+
+If the audit log is enabled Paperless-ngx keeps an audit log of all changes made to documents. Functionality to automatically remove entries for deleted documents was added but
+entries created prior to this are not removed. This command allows you to prune the audit log of entries that are no longer needed.
+
+```shell
+prune_audit_logs
+```
