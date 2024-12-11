@@ -1,12 +1,18 @@
 import { AfterViewInit, Component, Input } from '@angular/core'
+import { LoadingComponentWithPermissions } from 'src/app/components/loading-component/loading.component'
 
 @Component({
   selector: 'pngx-widget-frame',
   templateUrl: './widget-frame.component.html',
   styleUrls: ['./widget-frame.component.scss'],
 })
-export class WidgetFrameComponent implements AfterViewInit {
-  constructor() {}
+export class WidgetFrameComponent
+  extends LoadingComponentWithPermissions
+  implements AfterViewInit
+{
+  constructor() {
+    super()
+  }
 
   @Input()
   title: string
@@ -17,11 +23,9 @@ export class WidgetFrameComponent implements AfterViewInit {
   @Input()
   draggable: any
 
-  public reveal: boolean = false
-
   ngAfterViewInit(): void {
     setTimeout(() => {
-      this.reveal = true
+      this.show = true
     }, 100)
   }
 }
