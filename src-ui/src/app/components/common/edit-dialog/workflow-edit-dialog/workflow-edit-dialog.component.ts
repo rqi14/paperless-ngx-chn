@@ -1,38 +1,62 @@
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop'
+import { NgTemplateOutlet } from '@angular/common'
 import { Component, OnInit } from '@angular/core'
-import { FormGroup, FormControl, FormArray } from '@angular/forms'
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
+import {
+  FormArray,
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+} from '@angular/forms'
+import { NgbAccordionModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { first } from 'rxjs'
-import { Workflow } from 'src/app/data/workflow'
 import { Correspondent } from 'src/app/data/correspondent'
-import { DocumentType } from 'src/app/data/document-type'
-import { StoragePath } from 'src/app/data/storage-path'
-import { WorkflowService } from 'src/app/services/rest/workflow.service'
-import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
-import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
-import { StoragePathService } from 'src/app/services/rest/storage-path.service'
-import { UserService } from 'src/app/services/rest/user.service'
-import { SettingsService } from 'src/app/services/settings.service'
-import { EditDialogComponent } from '../edit-dialog.component'
-import { MailRuleService } from 'src/app/services/rest/mail-rule.service'
-import { MailRule } from 'src/app/data/mail-rule'
-import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
+import { DocumentType } from 'src/app/data/document-type'
+import { MailRule } from 'src/app/data/mail-rule'
+import {
+  MATCHING_ALGORITHMS,
+  MATCH_AUTO,
+  MATCH_NONE,
+} from 'src/app/data/matching-model'
+import { StoragePath } from 'src/app/data/storage-path'
+import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { Workflow } from 'src/app/data/workflow'
+import {
+  WorkflowAction,
+  WorkflowActionType,
+} from 'src/app/data/workflow-action'
 import {
   DocumentSource,
   ScheduleDateField,
   WorkflowTrigger,
   WorkflowTriggerType,
 } from 'src/app/data/workflow-trigger'
-import {
-  WorkflowAction,
-  WorkflowActionType,
-} from 'src/app/data/workflow-action'
-import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop'
-import {
-  MATCHING_ALGORITHMS,
-  MATCH_AUTO,
-  MATCH_NONE,
-} from 'src/app/data/matching-model'
+import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
+import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
+import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
+import { MailRuleService } from 'src/app/services/rest/mail-rule.service'
+import { StoragePathService } from 'src/app/services/rest/storage-path.service'
+import { UserService } from 'src/app/services/rest/user.service'
+import { WorkflowService } from 'src/app/services/rest/workflow.service'
+import { SettingsService } from 'src/app/services/settings.service'
+import { ConfirmButtonComponent } from '../../confirm-button/confirm-button.component'
+import { CheckComponent } from '../../input/check/check.component'
+import { EntriesComponent } from '../../input/entries/entries.component'
+import { NumberComponent } from '../../input/number/number.component'
+import { PermissionsGroupComponent } from '../../input/permissions/permissions-group/permissions-group.component'
+import { PermissionsUserComponent } from '../../input/permissions/permissions-user/permissions-user.component'
+import { SelectComponent } from '../../input/select/select.component'
+import { SwitchComponent } from '../../input/switch/switch.component'
+import { TagsComponent } from '../../input/tags/tags.component'
+import { TextComponent } from '../../input/text/text.component'
+import { TextAreaComponent } from '../../input/textarea/textarea.component'
+import { EditDialogComponent } from '../edit-dialog.component'
 
 export const DOCUMENT_SOURCE_OPTIONS = [
   {
@@ -114,6 +138,25 @@ const TRIGGER_MATCHING_ALGORITHMS = MATCHING_ALGORITHMS.filter(
   selector: 'pngx-workflow-edit-dialog',
   templateUrl: './workflow-edit-dialog.component.html',
   styleUrls: ['./workflow-edit-dialog.component.scss'],
+  imports: [
+    CheckComponent,
+    EntriesComponent,
+    SwitchComponent,
+    NumberComponent,
+    TextComponent,
+    SelectComponent,
+    TextAreaComponent,
+    TagsComponent,
+    PermissionsGroupComponent,
+    PermissionsUserComponent,
+    ConfirmButtonComponent,
+    FormsModule,
+    ReactiveFormsModule,
+    NgbAccordionModule,
+    NgTemplateOutlet,
+    DragDropModule,
+    NgxBootstrapIconsModule,
+  ],
 })
 export class WorkflowEditDialogComponent
   extends EditDialogComponent<Workflow>
@@ -131,6 +174,8 @@ export class WorkflowEditDialogComponent
   dateCustomFields: CustomField[]
 
   expandedItem: number = null
+
+  private allowedActionTypes = []
 
   constructor(
     service: WorkflowService,
@@ -206,6 +251,11 @@ export class WorkflowEditDialogComponent
       this.checkRemovalActionFields.bind(this)
     )
     this.checkRemovalActionFields(this.objectForm.value)
+    this.allowedActionTypes = this.settingsService.get(
+      SETTINGS_KEYS.EMAIL_ENABLED
+    )
+      ? WORKFLOW_ACTION_OPTIONS
+      : WORKFLOW_ACTION_OPTIONS.filter((a) => a.id !== WorkflowActionType.Email)
   }
 
   private checkRemovalActionFields(formWorkflow: Workflow) {
@@ -421,6 +471,7 @@ export class WorkflowEditDialogComponent
           id: new FormControl(action.webhook?.id),
           url: new FormControl(action.webhook?.url),
           use_params: new FormControl(action.webhook?.use_params),
+          as_json: new FormControl(action.webhook?.as_json),
           params: new FormControl(action.webhook?.params),
           body: new FormControl(action.webhook?.body),
           headers: new FormControl(action.webhook?.headers),
@@ -486,7 +537,7 @@ export class WorkflowEditDialogComponent
   }
 
   get actionTypeOptions() {
-    return WORKFLOW_ACTION_OPTIONS
+    return this.allowedActionTypes
   }
 
   getActionTypeOptionName(type: WorkflowActionType): string {
@@ -538,6 +589,7 @@ export class WorkflowEditDialogComponent
         id: null,
         url: null,
         use_params: true,
+        as_json: false,
         params: null,
         body: null,
         headers: null,

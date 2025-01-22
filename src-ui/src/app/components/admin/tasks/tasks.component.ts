@@ -1,6 +1,16 @@
-import { Component, OnInit, OnDestroy } from '@angular/core'
+import { NgTemplateOutlet, SlicePipe } from '@angular/common'
+import { Component, OnDestroy, OnInit } from '@angular/core'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import {
+  NgbCollapseModule,
+  NgbDropdownModule,
+  NgbModal,
+  NgbNavModule,
+  NgbPaginationModule,
+  NgbPopoverModule,
+} from '@ng-bootstrap/ng-bootstrap'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import {
   debounceTime,
   distinctUntilChanged,
@@ -11,8 +21,11 @@ import {
   timer,
 } from 'rxjs'
 import { PaperlessTask } from 'src/app/data/paperless-task'
+import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
+import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { TasksService } from 'src/app/services/tasks.service'
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component'
+import { PageHeaderComponent } from '../../common/page-header/page-header.component'
 import { LoadingComponentWithPermissions } from '../../loading-component/loading.component'
 
 export enum TaskTab {
@@ -36,6 +49,21 @@ const FILTER_TARGETS = [
   selector: 'pngx-tasks',
   templateUrl: './tasks.component.html',
   styleUrls: ['./tasks.component.scss'],
+  imports: [
+    PageHeaderComponent,
+    IfPermissionsDirective,
+    CustomDatePipe,
+    SlicePipe,
+    FormsModule,
+    ReactiveFormsModule,
+    NgTemplateOutlet,
+    NgbCollapseModule,
+    NgbDropdownModule,
+    NgbNavModule,
+    NgbPaginationModule,
+    NgbPopoverModule,
+    NgxBootstrapIconsModule,
+  ],
 })
 export class TasksComponent
   extends LoadingComponentWithPermissions

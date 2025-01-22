@@ -1,9 +1,13 @@
 import { HttpClient } from '@angular/common/http'
 import { Component, Input, OnDestroy, ViewChild } from '@angular/core'
-import { NgbPopover } from '@ng-bootstrap/ng-bootstrap'
+import { NgbPopover, NgbPopoverModule } from '@ng-bootstrap/ng-bootstrap'
+import { PdfViewerModule } from 'ng2-pdf-viewer'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { first, Subject, takeUntil } from 'rxjs'
 import { Document } from 'src/app/data/document'
 import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
+import { SafeUrlPipe } from 'src/app/pipes/safeurl.pipe'
 import { DocumentService } from 'src/app/services/rest/document.service'
 import { SettingsService } from 'src/app/services/settings.service'
 
@@ -11,6 +15,13 @@ import { SettingsService } from 'src/app/services/settings.service'
   selector: 'pngx-preview-popup',
   templateUrl: './preview-popup.component.html',
   styleUrls: ['./preview-popup.component.scss'],
+  imports: [
+    NgbPopoverModule,
+    DocumentTitlePipe,
+    PdfViewerModule,
+    SafeUrlPipe,
+    NgxBootstrapIconsModule,
+  ],
 })
 export class PreviewPopupComponent implements OnDestroy {
   private _document: Document
@@ -46,7 +57,7 @@ export class PreviewPopupComponent implements OnDestroy {
 
   @ViewChild('popover') popover: NgbPopover
 
-  mouseOnPreview: boolean
+  mouseOnPreview: boolean = false
 
   popoverClass: string = 'shadow popover-preview'
 
@@ -118,7 +129,7 @@ export class PreviewPopupComponent implements OnDestroy {
           // show popover
           this.popoverClass = this.popoverClass.replace('pe-none opacity-0', '')
         } else {
-          this.popover.close()
+          this.popover.close(true)
         }
       }, 600)
     }
@@ -128,7 +139,12 @@ export class PreviewPopupComponent implements OnDestroy {
     this.mouseOnPreview = false
   }
 
-  public close() {
-    this.popover.close(false)
+  public close(immediate: boolean = false) {
+    setTimeout(
+      () => {
+        if (!this.mouseOnPreview) this.popover.close()
+      },
+      immediate ? 0 : 300
+    )
   }
 }

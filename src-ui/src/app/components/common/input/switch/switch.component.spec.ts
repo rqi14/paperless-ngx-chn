@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing'
-import { SwitchComponent } from './switch.component'
 import {
   FormsModule,
   NG_VALUE_ACCESSOR,
   ReactiveFormsModule,
 } from '@angular/forms'
 import { NgbTooltipModule } from '@ng-bootstrap/ng-bootstrap'
+import { SwitchComponent } from './switch.component'
 
 describe('SwitchComponent', () => {
   let component: SwitchComponent
@@ -14,9 +14,13 @@ describe('SwitchComponent', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      declarations: [SwitchComponent],
       providers: [],
-      imports: [FormsModule, ReactiveFormsModule, NgbTooltipModule],
+      imports: [
+        FormsModule,
+        ReactiveFormsModule,
+        NgbTooltipModule,
+        SwitchComponent,
+      ],
     }).compileComponents()
 
     fixture = TestBed.createComponent(SwitchComponent)

@@ -3,30 +3,37 @@ import {
   ElementRef,
   EventEmitter,
   Input,
-  OnDestroy,
   Output,
   QueryList,
   ViewChild,
   ViewChildren,
 } from '@angular/core'
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import { NgbDropdownModule, NgbModal } from '@ng-bootstrap/ng-bootstrap'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { first, takeUntil } from 'rxjs'
 import { CustomField, DATA_TYPE_LABELS } from 'src/app/data/custom-field'
 import { CustomFieldInstance } from 'src/app/data/custom-field-instance'
-import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
-import { ToastService } from 'src/app/services/toast.service'
-import { CustomFieldEditDialogComponent } from '../edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component'
 import {
   PermissionAction,
   PermissionType,
   PermissionsService,
 } from 'src/app/services/permissions.service'
+import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
+import { ToastService } from 'src/app/services/toast.service'
 import { LoadingComponentWithPermissions } from '../../loading-component/loading.component'
+import { CustomFieldEditDialogComponent } from '../edit-dialog/custom-field-edit-dialog/custom-field-edit-dialog.component'
 
 @Component({
   selector: 'pngx-custom-fields-dropdown',
   templateUrl: './custom-fields-dropdown.component.html',
   styleUrls: ['./custom-fields-dropdown.component.scss'],
+  imports: [
+    NgbDropdownModule,
+    NgxBootstrapIconsModule,
+    FormsModule,
+    ReactiveFormsModule,
+  ],
 })
 export class CustomFieldsDropdownComponent extends LoadingComponentWithPermissions {
   @Input()

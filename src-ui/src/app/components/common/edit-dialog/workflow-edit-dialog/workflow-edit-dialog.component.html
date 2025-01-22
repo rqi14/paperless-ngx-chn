@@ -180,7 +180,7 @@
     <input type="hidden" formControlName="id" />
     <pngx-input-select i18n-title title="Action type" [horizontal]="true" [items]="actionTypeOptions" formControlName="type"></pngx-input-select>
     @switch(formGroup.get('type').value) {
-      @case ( WorkflowActionType.Assignment) {
+      @case (WorkflowActionType.Assignment) {
         <div class="row">
           <div class="col">
             <pngx-input-text i18n-title title="Assign title" formControlName="assign_title" i18n-hint hint="Can include some placeholders, see <a target='_blank' href='https://docs.paperless-ngx.com/usage/#workflows'>documentation</a>." [error]="error?.actions?.[i]?.assign_title"></pngx-input-text>
@@ -338,7 +338,10 @@
           <input type="hidden" formControlName="id" />
           <div class="col">
             <pngx-input-text i18n-title title="Webhook url" formControlName="url" [error]="error?.actions?.[i]?.url"></pngx-input-text>
-            <pngx-input-switch i18n-title title="Use parameters for webhook body" formControlName="use_params"></pngx-input-switch>
+            <div class="d-flex">
+              <pngx-input-switch i18n-title title="Use parameters for webhook body" formControlName="use_params" [horizontal]="true"></pngx-input-switch>
+              <pngx-input-switch i18n-title title="Send webhook payload as JSON" formControlName="as_json" [horizontal]="true" class="ms-5"></pngx-input-switch>
+            </div>
             @if (formGroup.get('webhook').value['use_params']) {
               <pngx-input-entries i18n-title title="Webhook params" formControlName="params" [error]="error?.actions?.[i]?.params"></pngx-input-entries>
             } @else {

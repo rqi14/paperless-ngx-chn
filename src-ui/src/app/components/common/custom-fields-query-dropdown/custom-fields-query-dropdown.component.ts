@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common'
 import {
   Component,
   EventEmitter,
@@ -7,28 +8,35 @@ import {
   ViewChild,
   ViewChildren,
 } from '@angular/core'
-import { NgbDropdown } from '@ng-bootstrap/ng-bootstrap'
-import { NgSelectComponent } from '@ng-select/ng-select'
-import { Subject, first, takeUntil } from 'rxjs'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
+import {
+  NgbDatepickerModule,
+  NgbDropdown,
+  NgbDropdownModule,
+} from '@ng-bootstrap/ng-bootstrap'
+import { NgSelectComponent, NgSelectModule } from '@ng-select/ng-select'
+import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import { first, Subject, takeUntil } from 'rxjs'
 import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
 import {
+  CUSTOM_FIELD_QUERY_MAX_ATOMS,
+  CUSTOM_FIELD_QUERY_MAX_DEPTH,
+  CUSTOM_FIELD_QUERY_OPERATOR_GROUPS_BY_TYPE,
+  CUSTOM_FIELD_QUERY_OPERATOR_LABELS,
+  CUSTOM_FIELD_QUERY_OPERATORS_BY_GROUP,
   CustomFieldQueryElementType,
   CustomFieldQueryOperator,
-  CUSTOM_FIELD_QUERY_OPERATOR_GROUPS_BY_TYPE,
-  CUSTOM_FIELD_QUERY_OPERATORS_BY_GROUP,
   CustomFieldQueryOperatorGroups,
-  CUSTOM_FIELD_QUERY_OPERATOR_LABELS,
-  CUSTOM_FIELD_QUERY_MAX_DEPTH,
-  CUSTOM_FIELD_QUERY_MAX_ATOMS,
 } from 'src/app/data/custom-field-query'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import {
+  CustomFieldQueryAtom,
   CustomFieldQueryElement,
   CustomFieldQueryExpression,
-  CustomFieldQueryAtom,
 } from 'src/app/utils/custom-field-query-element'
 import { popperOptionsReenablePreventOverflow } from 'src/app/utils/popper-options'
 import { LoadingComponentWithPermissions } from '../../loading-component/loading.component'
+import { ClearableBadgeComponent } from '../clearable-badge/clearable-badge.component'
 
 export class CustomFieldQueriesModel {
   public queries: CustomFieldQueryElement[] = []
@@ -156,6 +164,16 @@ export class CustomFieldQueriesModel {
   selector: 'pngx-custom-fields-query-dropdown',
   templateUrl: './custom-fields-query-dropdown.component.html',
   styleUrls: ['./custom-fields-query-dropdown.component.scss'],
+  imports: [
+    ClearableBadgeComponent,
+    FormsModule,
+    ReactiveFormsModule,
+    NgbDatepickerModule,
+    NgTemplateOutlet,
+    NgSelectModule,
+    NgxBootstrapIconsModule,
+    NgbDropdownModule,
+  ],
 })
 export class CustomFieldsQueryDropdownComponent extends LoadingComponentWithPermissions {
   public CustomFieldQueryComponentType = CustomFieldQueryElementType

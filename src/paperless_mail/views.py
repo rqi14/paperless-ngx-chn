@@ -24,6 +24,7 @@ from paperless_mail.models import MailRule
 from paperless_mail.oauth import PaperlessMailOAuth2Manager
 from paperless_mail.serialisers import MailAccountSerializer
 from paperless_mail.serialisers import MailRuleSerializer
+from paperless_mail.tasks import process_mail_accounts
 
 
 class MailAccountViewSet(ModelViewSet, PassUserMixin):
@@ -87,6 +88,13 @@ class MailAccountViewSet(ModelViewSet, PassUserMixin):
                 )
                 return HttpResponseBadRequest("Unable to connect to server")
 
+    @action(methods=["post"], detail=True)
+    def process(self, request, pk=None):
+        account = self.get_object()
+        process_mail_accounts.delay([account.pk])
+
+        return Response({"result": "OK"})
+
 
 class MailRuleViewSet(ModelViewSet, PassUserMixin):
     model = MailRule
@@ -120,7 +128,16 @@ class OauthCallbackView(GenericAPIView):
             )
             return HttpResponseBadRequest("Invalid request, see logs for more detail")
 
-        oauth_manager = PaperlessMailOAuth2Manager()
+        oauth_manager = PaperlessMailOAuth2Manager(
+            state=request.session.get("oauth_state"),
+        )
+
+        state = request.query_params.get("state", "")
+        if not oauth_manager.validate_state(state):
+            logger.error(
+                f"Invalid oauth callback request received state: {state}, expected: {oauth_manager.state}",
+            )
+            return HttpResponseBadRequest("Invalid request, see logs for more detail")
 
         try:
             if scope is not None and "google" in scope:

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import path from 'node:path'
 
 const REQUESTS_HAR1 = path.join(__dirname, 'requests/api-document-list1.har')
@@ -135,11 +135,11 @@ test('sorting', async ({ page }) => {
 test('change views', async ({ page }) => {
   await page.routeFromHAR(REQUESTS_HAR5, { notFound: 'fallback' })
   await page.goto('/documents')
-  await page.locator('.btn-group label').first().click()
+  await page.locator('.btn-group > label').first().click()
   await expect(page.locator('pngx-document-list table')).toBeVisible()
-  await page.locator('.btn-group label').nth(1).click()
+  await page.locator('label:nth-child(4)').first().click()
   await expect(page.locator('pngx-document-card-small').first()).toBeAttached()
-  await page.locator('.btn-group label').nth(2).click()
+  await page.locator('label:nth-child(6)').click()
   await expect(page.locator('pngx-document-card-large').first()).toBeAttached()
 })
 

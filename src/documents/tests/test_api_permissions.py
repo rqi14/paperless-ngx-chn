@@ -1,4 +1,6 @@
+import base64
 import json
+from unittest import mock
 
 from allauth.mfa.models import Authenticator
 from django.contrib.auth.models import Group
@@ -462,6 +464,30 @@ class TestApiAuth(DirectoriesMixin, APITestCase):
         self.assertNotIn("user_can_change", results[0])
         self.assertNotIn("is_shared_by_requester", results[0])
 
+    @mock.patch("allauth.mfa.adapter.DefaultMFAAdapter.is_mfa_enabled")
+    def test_basic_auth_mfa_enabled(self, mock_is_mfa_enabled):
+        """
+        GIVEN:
+            - User with MFA enabled
+        WHEN:
+            - API request is made with basic auth
+        THEN:
+            - MFA required error is returned
+        """
+        user1 = User.objects.create_user(username="user1")
+        user1.set_password("password")
+        user1.save()
+
+        mock_is_mfa_enabled.return_value = True
+
+        response = self.client.get(
+            "/api/documents/",
+            HTTP_AUTHORIZATION="Basic " + base64.b64encode(b"user1:password").decode(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data["detail"], "MFA required")
+
 
 class TestApiUser(DirectoriesMixin, APITestCase):
     ENDPOINT = "/api/users/"
@@ -654,6 +680,80 @@ class TestApiUser(DirectoriesMixin, APITestCase):
             f"{self.ENDPOINT}{user1.pk}/deactivate_totp/",
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_only_superusers_can_create_or_alter_superuser_status(self):
+        """
+        GIVEN:
+            - Existing user account
+        WHEN:
+            - API request is made to add a user account with superuser status
+            - API request is made to change superuser status
+        THEN:
+            - Only superusers can change superuser status
+        """
+
+        user1 = User.objects.create_user(username="user1")
+        user1.user_permissions.add(*Permission.objects.all())
+        user2 = User.objects.create_superuser(username="user2")
+
+        self.client.force_authenticate(user1)
+
+        response = self.client.patch(
+            f"{self.ENDPOINT}{user1.pk}/",
+            json.dumps(
+                {
+                    "is_superuser": True,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        response = self.client.post(
+            f"{self.ENDPOINT}",
+            json.dumps(
+                {
+                    "username": "user3",
+                    "is_superuser": True,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user2)
+
+        response = self.client.patch(
+            f"{self.ENDPOINT}{user1.pk}/",
+            json.dumps(
+                {
+                    "is_superuser": True,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        returned_user1 = User.objects.get(pk=user1.pk)
+        self.assertEqual(returned_user1.is_superuser, True)
+
+        response = self.client.patch(
+            f"{self.ENDPOINT}{user1.pk}/",
+            json.dumps(
+                {
+                    "is_superuser": False,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        returned_user1 = User.objects.get(pk=user1.pk)
+        self.assertEqual(returned_user1.is_superuser, False)
 
 
 class TestApiGroup(DirectoriesMixin, APITestCase):

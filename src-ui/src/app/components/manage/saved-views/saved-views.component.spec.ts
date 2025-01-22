@@ -1,7 +1,8 @@
+import { DragDropModule } from '@angular/cdk/drag-drop'
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { provideHttpClientTesting } from '@angular/common/http/testing'
 import { ComponentFixture, TestBed } from '@angular/core/testing'
-import { ReactiveFormsModule, FormsModule } from '@angular/forms'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { By } from '@angular/platform-browser'
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
@@ -10,6 +11,7 @@ import { SavedView } from 'src/app/data/saved-view'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
 import { PermissionsService } from 'src/app/services/permissions.service'
+import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { ToastService } from 'src/app/services/toast.service'
 import { ConfirmButtonComponent } from '../../common/confirm-button/confirm-button.component'
@@ -20,7 +22,6 @@ import { SelectComponent } from '../../common/input/select/select.component'
 import { TextComponent } from '../../common/input/text/text.component'
 import { PageHeaderComponent } from '../../common/page-header/page-header.component'
 import { SavedViewsComponent } from './saved-views.component'
-import { DragDropModule } from '@angular/cdk/drag-drop'
 
 const savedViews = [
   { id: 1, name: 'view1', show_in_sidebar: true, show_on_dashboard: true },
@@ -35,7 +36,12 @@ describe('SavedViewsComponent', () => {
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      declarations: [
+      imports: [
+        NgbModule,
+        NgxBootstrapIconsModule.pick(allIcons),
+        ReactiveFormsModule,
+        FormsModule,
+        DragDropModule,
         SavedViewsComponent,
         PageHeaderComponent,
         IfPermissionsDirective,
@@ -46,18 +52,22 @@ describe('SavedViewsComponent', () => {
         ConfirmButtonComponent,
         DragDropSelectComponent,
       ],
-      imports: [
-        NgbModule,
-        NgxBootstrapIconsModule.pick(allIcons),
-        ReactiveFormsModule,
-        FormsModule,
-        DragDropModule,
-      ],
       providers: [
         {
           provide: PermissionsService,
           useValue: {
             currentUserCan: () => true,
+          },
+        },
+        {
+          provide: CustomFieldsService,
+          useValue: {
+            listAll: () =>
+              of({
+                all: [],
+                count: 0,
+                results: [],
+              }),
           },
         },
         PermissionsGuard,

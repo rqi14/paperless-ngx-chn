@@ -252,7 +252,7 @@ permissions can be granted to limit access to certain parts of the UI (and corre
 
 #### Superusers
 
-Superusers can access all parts of the front and backend application as well as any and all objects.
+Superusers can access all parts of the front and backend application as well as any and all objects. Superuser status can only be granted by another superuser.
 
 #### Admin Status
 
@@ -419,6 +419,7 @@ The following workflow action types are available:
 
 -   The URL to send the request to
 -   The request body as text or as key-value pairs, which can include placeholders, see [placeholders](usage.md#workflow-placeholders) below.
+-   Encoding for the request body, either JSON or form data
 -   The request headers as key-value pairs
 
 #### Workflow placeholders
@@ -788,8 +789,8 @@ Paperless-ngx consists of the following components:
     with paperless. You may start the webserver directly with
 
     ```shell-session
-    $ cd /path/to/paperless/src/
-    $ gunicorn -c ../gunicorn.conf.py paperless.wsgi
+    cd /path/to/paperless/src/
+    gunicorn -c ../gunicorn.conf.py paperless.wsgi
     ```
 
     or by any other means such as Apache `mod_wsgi`.
@@ -804,8 +805,8 @@ Paperless-ngx consists of the following components:
     Start the consumer with the management command `document_consumer`:
 
     ```shell-session
-    $ cd /path/to/paperless/src/
-    $ python3 manage.py document_consumer
+    cd /path/to/paperless/src/
+    python3 manage.py document_consumer
     ```
 
 -   **The task processor:** Paperless relies on [Celery - Distributed
