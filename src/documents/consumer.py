@@ -43,7 +43,7 @@ from documents.plugins.helpers import ProgressStatusOptions
 from documents.signals import document_consumption_finished
 from documents.signals import document_consumption_started
 from documents.signals.handlers import run_workflows
-from documents.templating.title import parse_doc_title_w_placeholders
+from documents.templating.workflows import parse_w_workflow_placeholders
 from documents.utils import copy_basic_file_stats
 from documents.utils import copy_file_with_basic_stats
 from documents.utils import run_subprocess
@@ -62,10 +62,10 @@ class WorkflowTriggerPlugin(
         Get overrides from matching workflows
         """
         overrides, msg = run_workflows(
-            WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
-            self.input_doc,
-            None,
-            DocumentMetadataOverrides(),
+            trigger_type=WorkflowTrigger.WorkflowTriggerType.CONSUMPTION,
+            document=self.input_doc,
+            logging_group=None,
+            overrides=DocumentMetadataOverrides(),
         )
         if overrides:
             self.metadata.update(overrides)
@@ -557,6 +557,9 @@ class ConsumerPlugin(
                     document=document,
                     logging_group=self.logging_group,
                     classifier=classifier,
+                    original_file=self.unmodified_original
+                    if self.unmodified_original
+                    else self.working_copy,
                 )
 
                 # After everything is in the database, copy the files into
@@ -666,12 +669,13 @@ class ConsumerPlugin(
             else None
         )
 
-        return parse_doc_title_w_placeholders(
+        return parse_w_workflow_placeholders(
             title,
             correspondent_name,
             doc_type_name,
             owner_username,
             local_added,
+            self.filename,
             self.filename,
         )
 
@@ -717,11 +721,17 @@ class ConsumerPlugin(
                     f"Error occurred parsing title override '{self.metadata.title}', falling back to original. Exception: {e}",
                 )
 
+        file_for_checksum = (
+            self.unmodified_original
+            if self.unmodified_original is not None
+            else self.working_copy
+        )
+
         document = Document.objects.create(
             title=title[:127],
             content=text,
             mime_type=mime_type,
-            checksum=hashlib.md5(self.working_copy.read_bytes()).hexdigest(),
+            checksum=hashlib.md5(file_for_checksum.read_bytes()).hexdigest(),
             created=create_date,
             modified=create_date,
             storage_type=storage_type,

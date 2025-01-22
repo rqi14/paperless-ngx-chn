@@ -596,7 +596,7 @@ system. See the corresponding
 
 : Disables the regular frontend username / password login, i.e. once you have setup SSO. Note that this setting does not disable the Django admin login nor logging in with local credentials via the API. To prevent access to the Django admin, consider blocking `/admin/` in your [web server or reverse proxy configuration](https://github.com/paperless-ngx/paperless-ngx/wiki/Using-a-Reverse-Proxy-with-Paperless-ngx).
 
-You can optionally also automatically redirect users to the SSO login with [PAPERLESS_REDIRECT_LOGIN_TO_SSO](#PAPERLESS_REDIRECT_LOGIN_TO_SSO)
+    You can optionally also automatically redirect users to the SSO login with [PAPERLESS_REDIRECT_LOGIN_TO_SSO](#PAPERLESS_REDIRECT_LOGIN_TO_SSO)
 
     Defaults to False
 
@@ -1217,6 +1217,10 @@ consumers working on the same file. Configure this to prevent that.
 
     Defaults to none (thus will use [PAPERLESS_URL](#PAPERLESS_URL)).
 
+!!! note
+
+    This setting only applies to OAuth Email setup (not to the SSO setup).
+
 #### [`PAPERLESS_GMAIL_OAUTH_CLIENT_ID=<str>`](#PAPERLESS_GMAIL_OAUTH_CLIENT_ID) {#PAPERLESS_GMAIL_OAUTH_CLIENT_ID}
 
 : The OAuth client ID for Gmail. This is required for Gmail OAuth Email setup. See [OAuth Email Setup](usage.md#oauth-email-setup) for more information.
@@ -1519,7 +1523,7 @@ one pod).
 actual user ID on the host system, which you can get by executing
 
     ``` shell-session
-    $ id -u
+    id -u
     ```
 
     Paperless will change ownership on its folders to this user, so you
@@ -1534,7 +1538,7 @@ actual user ID on the host system, which you can get by executing
 actual group ID on the host system, which you can get by executing
 
     ``` shell-session
-    $ id -g
+    id -g
     ```
 
     Paperless will change ownership on its folders to this group, so you
