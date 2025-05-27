@@ -1,9 +1,9 @@
 # Usage Overview
 
-Paperless is an application that manages your personal documents. With
-the help of a document scanner (see [the scanners wiki](https://github.com/paperless-ngx/paperless-ngx/wiki/Scanner-&-Software-Recommendations)),
-paperless transforms your unwieldy physical document binders into a searchable archive
-and provides many utilities for finding and managing your documents.
+Paperless-ngx is an application that manages your personal documents. With
+the (optional) help of a document scanner (see [the scanners wiki](https://github.com/paperless-ngx/paperless-ngx/wiki/Scanner-&-Software-Recommendations)), Paperless-ngx transforms your unwieldy
+physical documents into a searchable archive and provides many utilities
+for finding and managing your documents.
 
 ## Terms and definitions
 
@@ -12,10 +12,10 @@ documents:
 
 -   The _consumer_ watches a specified folder and adds all documents in
     that folder to paperless.
--   The _web server_ provides a UI that you use to manage and search for
-    your scanned documents.
+-   The _web server_ (web UI) provides a UI that you use to manage and
+    search documents.
 
-Each document has a couple of fields that you can assign to them:
+Each document has data fields that you can assign to them:
 
 -   A _Document_ is a piece of paper that sometimes contains valuable
     information.
@@ -41,8 +41,55 @@ Each document has a couple of fields that you can assign to them:
 -   The _content_ of a document is the text that was OCR'ed from the
     document. This text is fed into the search engine and is used for
     matching tags, correspondents and document types.
+-   Paperless-ngx also supports _custom fields_ which can be used to
+    store additional metadata about a document.
 
-## Adding documents to paperless
+## The Web UI
+
+The web UI is the primary way to interact with Paperless-ngx. It is a
+single-page application that is built with modern web technologies and
+is designed to be fast and responsive. The web UI includes a robust
+interface for filtering, viewing, searching and editing documents.
+You can also manage tags, correspondents, document types, and other
+settings from the web UI.
+
+The web UI also includes a 'tour' feature that can be accessed from the
+settings page or from the dashboard for new users. The tour highlights
+some of the key features of the web UI and can be useful for new users.
+
+### Dashboard
+
+The dashboard is the first page you see when you log in. By default, it
+does not show any documents, but you can add saved views to the dashboard
+to show documents that match certain criteria. The dashboard also includes
+a button to upload documents to Paperless-ngx but you can also drag and
+drop files anywhere in the app to initiate the consumption process.
+
+### Document List
+
+The document list is the primary way to view and interact with your documents.
+You can filter the list by tags, correspondents, document types, and other
+criteria. You can also edit documents in bulk including assigning tags,
+correspondents, document types, and custom fields. Selecting document(s) from
+the list will allow you to perform the various bulk edit operations. The
+document list also includes a search bar that allows you to search for documents
+by title, ASN, and use advanced search syntax.
+
+### Document Detail
+
+The document detail page shows all the information about a single document.
+You can view the document, edit its metadata, assign tags, correspondents,
+document types, and custom fields. You can also view the document history,
+download the document or share it via a share link.
+
+### Management Lists
+
+Paperless-ngx includes management lists for tags, correspondents, document types
+and more. These areas allow you to view, add, edit, delete and manage permissions
+for these objects. You can also manage saved views, mail accounts, mail rules,
+workflows and more from the management sections.
+
+## Adding documents to Paperless-ngx
 
 Once you've got Paperless setup, you need to start feeding documents
 into it. When adding documents to paperless, it will perform the
@@ -68,7 +115,8 @@ following operations on your documents:
 
     No matter which options you choose, Paperless will always store the
     original document that it found in the consumption directory or in the
-    mail and will never overwrite that document. Archived versions are
+    mail and will never overwrite that document (except when using certain
+    document actions, which make that clear). Archived versions are
     stored alongside the original versions. Any files found in the
     consumption directory will stored inside the Paperless-ngx file
     structure and will not be retained in the consumption directory.
@@ -112,7 +160,7 @@ process.
 Please see [the wiki](https://github.com/paperless-ngx/paperless-ngx/wiki/Related-Projects) for a user-maintained list of related projects and
 software (e.g. for mobile devices) that is compatible with Paperless-ngx.
 
-### Email {#usage-email}
+### Incoming Email {#incoming-mail}
 
 You can tell paperless-ngx to consume documents from your email
 accounts. This is a very flexible and powerful feature, if you regularly
@@ -212,6 +260,31 @@ Once setup, navigating to the email settings page in Paperless-ngx will allow yo
 
 You can also submit a document using the REST API, see [POSTing documents](api.md#file-uploads)
 for details.
+
+## Sharing documents from Paperless-ngx
+
+Paperless-ngx supports sharing documents with other users by assigning them [permissions](#object-permissions)
+to the document. Document files can also be shared externally via [share links](#share-links), [email](#email-sharing)
+or using [email](#workflow-action-email) or [webhook](#workflow-action-webhook) actions in workflows.
+
+### Share Links
+
+"Share links" are shareable public links to files and can be created and managed under the 'Send' button on the document detail screen.
+
+-   Share links do not require a user to login and thus link directly to a file.
+-   Links are unique and are of the form `{paperless-url}/share/{randomly-generated-slug}`.
+-   Links can optionally have an expiration time set.
+-   After a link expires or is deleted users will be redirected to the regular paperless-ngx login.
+
+!!! tip
+
+    If your paperless-ngx instance is behind a reverse-proxy you may want to create an exception to bypass any authentication layers that are part of your setup in order to make links truly publicly-accessible. Of course, do so with caution.
+
+### Email Sharing {#email-sharing}
+
+Paperless-ngx supports directly sending documents via email. If an email server has been [configured](configuration.md#email-sending)
+the "Send" button on the document detail page will include an "Email" option. You can also share files via email automatically by using
+a [workflow action](#workflow-action-email).
 
 ## Permissions
 
@@ -322,7 +395,7 @@ fields and permissions, which will be merged.
 
 ### Workflow Triggers
 
-#### Types
+#### Types {#workflow-trigger-types}
 
 Currently, there are three events that correspond to workflow trigger 'types':
 
@@ -334,7 +407,8 @@ Currently, there are three events that correspond to workflow trigger 'types':
 3. **Document Updated**: when a document is updated. Similar to 'added' events, triggers can include filtering by content matching,
    tags, doc type, or correspondent.
 4. **Scheduled**: a scheduled trigger that can be used to run workflows at a specific time. The date used can be either the document
-   added, created, updated date or you can specify a (date) custom field. You can also specify a day offset from the date.
+   added, created, updated date or you can specify a (date) custom field. You can also specify a day offset from the date (positive
+   offsets will trigger before the date, negative offsets will trigger after).
 
 The following flow diagram illustrates the three document trigger types:
 
@@ -382,11 +456,11 @@ Workflows allow you to filter by:
 
 ### Workflow Actions
 
-#### Types
+#### Types {#workflow-action-types}
 
 The following workflow action types are available:
 
-##### Assignment
+##### Assignment {#workflow-action-assignment}
 
 "Assignment" actions can assign:
 
@@ -396,7 +470,7 @@ The following workflow action types are available:
 -   View and / or edit permissions to users or groups
 -   Custom fields. Note that no value for the field will be set
 
-##### Removal
+##### Removal {#workflow-action-removal}
 
 "Removal" actions can remove either all of or specific sets of the following:
 
@@ -405,7 +479,7 @@ The following workflow action types are available:
 -   View and / or edit permissions
 -   Custom fields
 
-##### Email
+##### Email {#workflow-action-email}
 
 "Email" actions can send documents via email. This action requires a mail server to be [configured](configuration.md#email-sending). You can specify:
 
@@ -413,7 +487,7 @@ The following workflow action types are available:
 -   The subject and body of the email, which can include placeholders, see [placeholders](usage.md#workflow-placeholders) below
 -   Whether to include the document as an attachment
 
-##### Webhook
+##### Webhook {#workflow-action-webhook}
 
 "Webhook" actions send a POST request to a specified URL. You can specify:
 
@@ -496,19 +570,6 @@ The following custom field types are supported:
 -   `Monetary`: [ISO 4217 currency code](https://en.wikipedia.org/wiki/ISO_4217#List_of_ISO_4217_currency_codes) and a number with exactly two decimals, e.g. USD12.30
 -   `Document Link`: reference(s) to other document(s) displayed as links, automatically creates a symmetrical link in reverse
 -   `Select`: a pre-defined list of strings from which the user can choose
-
-## Share Links
-
-Paperless-ngx added the ability to create shareable links to files in version 2.0. You can find the button for this on the document detail screen.
-
--   Share links do not require a user to login and thus link directly to a file.
--   Links are unique and are of the form `{paperless-url}/share/{randomly-generated-slug}`.
--   Links can optionally have an expiration time set.
--   After a link expires or is deleted users will be redirected to the regular paperless-ngx login.
-
-!!! tip
-
-    If your paperless-ngx instance is behind a reverse-proxy you may want to create an exception to bypass any authentication layers that are part of your setup in order to make links truly publicly-accessible. Of course, do so with caution.
 
 ## PDF Actions
 
@@ -790,7 +851,7 @@ Paperless-ngx consists of the following components:
 
     ```shell-session
     cd /path/to/paperless/src/
-    gunicorn -c ../gunicorn.conf.py paperless.wsgi
+    granian --interface asginl --ws "paperless.asgi:application"
     ```
 
     or by any other means such as Apache `mod_wsgi`.

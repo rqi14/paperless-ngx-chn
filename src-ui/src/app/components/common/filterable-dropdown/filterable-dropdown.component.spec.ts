@@ -1,3 +1,5 @@
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { provideHttpClientTesting } from '@angular/common/http/testing'
 import {
   ComponentFixture,
   TestBed,
@@ -5,6 +7,7 @@ import {
   tick,
 } from '@angular/core/testing'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { NEGATIVE_NULL_FILTER_VALUE } from 'src/app/data/filter-rule-type'
 import {
   DEFAULT_MATCHING_ALGORITHM,
   MATCH_ALL,
@@ -42,6 +45,11 @@ const nullItem = {
   name: 'Not assigned',
 }
 
+const negativeNullItem = {
+  id: NEGATIVE_NULL_FILTER_VALUE,
+  name: 'Not assigned',
+}
+
 let selectionModel: FilterableDropdownSelectionModel
 
 describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () => {
@@ -51,13 +59,18 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      providers: [FilterPipe],
+      providers: [
+        FilterPipe,
+        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClientTesting(),
+      ],
       imports: [NgxBootstrapIconsModule.pick(allIcons)],
     }).compileComponents()
 
     hotkeyService = TestBed.inject(HotKeyService)
     fixture = TestBed.createComponent(FilterableDropdownComponent)
     component = fixture.componentInstance
+    component.selectionModel = new FilterableDropdownSelectionModel()
     selectionModel = new FilterableDropdownSelectionModel()
   })
 
@@ -68,7 +81,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should support reset', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     selectionModel.set(items[0].id, ToggleableItemState.Selected)
     expect(selectionModel.getSelectedItems()).toHaveLength(1)
@@ -90,7 +103,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should emit change when items selected', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     let newModel: FilterableDropdownSelectionModel
     component.selectionModelChange.subscribe((model) => (newModel = model))
@@ -104,11 +117,11 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
     selectionModel.set(items[0].id, ToggleableItemState.NotSelected)
     expect(newModel.getSelectedItems()).toEqual([])
 
-    expect(component.items).toEqual([nullItem, ...items])
+    expect(component.selectionModel.items).toEqual([nullItem, ...items])
   })
 
   it('should emit change when items excluded', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     let newModel: FilterableDropdownSelectionModel
     component.selectionModelChange.subscribe((model) => (newModel = model))
@@ -118,7 +131,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should emit change when items excluded', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     let newModel: FilterableDropdownSelectionModel
     component.selectionModelChange.subscribe((model) => (newModel = model))
@@ -133,8 +146,8 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should exclude items when excluded and not editing', () => {
-    component.items = items
-    component.manyToOne = true
+    component.selectionModel.items = items
+    component.selectionModel.manyToOne = true
     component.selectionModel = selectionModel
     selectionModel.set(items[0].id, ToggleableItemState.Selected)
     component.excludeClicked(items[0].id)
@@ -143,8 +156,8 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should toggle when items excluded and editing', () => {
-    component.items = items
-    component.manyToOne = true
+    component.selectionModel.items = items
+    component.selectionModel.manyToOne = true
     component.editing = true
     component.selectionModel = selectionModel
     selectionModel.set(items[0].id, ToggleableItemState.NotSelected)
@@ -154,8 +167,8 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should hide count for item if adding will increase size of set', () => {
-    component.items = items
-    component.manyToOne = true
+    component.selectionModel.items = items
+    component.selectionModel.manyToOne = true
     component.selectionModel = selectionModel
     expect(component.hideCount(items[0])).toBeFalsy()
     selectionModel.logicalOperator = LogicalOperator.Or
@@ -164,7 +177,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
 
   it('should enforce single select when editing', () => {
     component.editing = true
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     let newModel: FilterableDropdownSelectionModel
     component.selectionModelChange.subscribe((model) => (newModel = model))
@@ -176,11 +189,11 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should support manyToOne selecting', () => {
-    component.items = items
+    component.selectionModel.items = items
     selectionModel.manyToOne = false
     component.selectionModel = selectionModel
-    component.manyToOne = true
-    expect(component.manyToOne).toBeTruthy()
+    component.selectionModel.manyToOne = true
+    expect(component.selectionModel.manyToOne).toBeTruthy()
     let newModel: FilterableDropdownSelectionModel
     component.selectionModelChange.subscribe((model) => (newModel = model))
 
@@ -191,12 +204,10 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should dynamically enable / disable modifier toggle', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
     expect(component.modifierToggleEnabled).toBeTruthy()
-    selectionModel.toggle(null)
-    expect(component.modifierToggleEnabled).toBeFalsy()
-    component.manyToOne = true
+    component.selectionModel.manyToOne = true
     expect(component.modifierToggleEnabled).toBeFalsy()
     selectionModel.toggle(items[0].id)
     selectionModel.toggle(items[1].id)
@@ -204,7 +215,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should apply changes and close when apply button clicked', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.editing = true
     component.selectionModel = selectionModel
@@ -226,7 +237,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should apply on close if enabled', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.editing = true
     component.applyOnClose = true
@@ -244,7 +255,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should focus text filter on open, support filtering, clear on close', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     fixture.nativeElement
       .querySelector('button')
@@ -271,7 +282,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should toggle & close on enter inside filter field if 1 item remains', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     expect(component.selectionModel.getSelectedItems()).toEqual([])
     fixture.nativeElement
@@ -291,7 +302,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should apply & close on enter inside filter field if 1 item remains if editing', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.editing = true
     let applyResult: ChangedItems
@@ -313,7 +324,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should support arrow keyboard navigation', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     fixture.nativeElement
       .querySelector('button')
@@ -358,7 +369,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should support arrow keyboard navigation after tab keyboard navigation', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     fixture.nativeElement
       .querySelector('button')
@@ -394,7 +405,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should support arrow keyboard navigation after click', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     fixture.nativeElement
       .querySelector('button')
@@ -419,9 +430,9 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should toggle logical operator', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
-    component.manyToOne = true
+    component.selectionModel.manyToOne = true
     selectionModel.set(items[0].id, ToggleableItemState.Selected)
     selectionModel.set(items[1].id, ToggleableItemState.Selected)
     component.selectionModel = selectionModel
@@ -448,7 +459,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should toggle intersection include / exclude', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     selectionModel.set(items[0].id, ToggleableItemState.Selected)
     selectionModel.set(items[1].id, ToggleableItemState.Selected)
@@ -477,31 +488,63 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
     expect(changedResult.getExcludedItems()).toEqual(items)
   }))
 
-  it('selection model should sort items by state', () => {
-    component.items = items.concat([{ id: null, name: 'Null B' }])
+  it('should update null item selection on toggleIntersection', () => {
+    component.selectionModel.items = items
     component.selectionModel = selectionModel
-    selectionModel.toggle(items[1].id)
-    selectionModel.apply()
-    expect(selectionModel.items).toEqual([
-      nullItem,
-      { id: null, name: 'Null B' },
-      items[1],
-      items[0],
+    component.selectionModel.intersection = Intersection.Include
+    component.selectionModel.set(null, ToggleableItemState.Selected)
+    component.selectionModel.intersection = Intersection.Exclude
+    component.selectionModel.toggleIntersection()
+    expect(component.selectionModel.getExcludedItems()).toEqual([
+      negativeNullItem,
     ])
+
+    component.selectionModel.intersection = Intersection.Include
+    component.selectionModel.toggleIntersection()
+    expect(component.selectionModel.getSelectedItems()).toEqual([nullItem])
   })
 
-  it('selection model should sort items by state and document counts, if set', () => {
-    component.items = items.concat([{ id: 4, name: 'Item D' }])
+  it('selection model should sort items by state', () => {
+    component.selectionModel = selectionModel
+    component.selectionModel.items = items.concat([{ id: 3, name: 'Item3' }])
+    selectionModel.toggle(items[1].id)
+    selectionModel.apply()
+    expect(selectionModel.items.length).toEqual(4)
+    expect(selectionModel.items).toEqual([
+      nullItem,
+      items[1],
+      { id: 3, name: 'Item3' },
+      items[0],
+    ])
+
+    selectionModel.intersection = Intersection.Exclude
+    selectionModel.toggleIntersection()
+    selectionModel.apply()
+    expect(selectionModel.items).toEqual([
+      negativeNullItem,
+      items[1],
+      { id: 3, name: 'Item3' },
+      items[0],
+    ])
+
+    // coverage
+    selectionModel.items = selectionModel.items.reverse()
+    selectionModel.apply()
+  })
+
+  it('selection model should sort items by state and document counts = 0, if set', () => {
+    const tagA = { id: 4, name: 'Tag A' }
+    component.selectionModel.items = items.concat([tagA])
     component.selectionModel = selectionModel
     component.documentCounts = [
       { id: 1, document_count: 0 }, // Tag1
       { id: 2, document_count: 1 }, // Tag2
-      { id: 4, document_count: 2 },
+      { id: 4, document_count: 2 }, // Tag A
     ]
     component.selectionModel.apply()
     expect(selectionModel.items).toEqual([
       nullItem,
-      { id: 4, name: 'Item D' },
+      tagA,
       items[1], // Tag2
       items[0], // Tag1
     ])
@@ -516,13 +559,13 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
     expect(selectionModel.items).toEqual([
       nullItem,
       items[1], // Tag2
-      { id: 4, name: 'Item D' },
+      tagA,
       items[0], // Tag1
     ])
   })
 
   it('should set support create, keep open model and call createRef method', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.selectionModel = selectionModel
     fixture.nativeElement
@@ -542,7 +585,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   }))
 
   it('should call create on enter inside filter field if 0 items remain while editing', fakeAsync(() => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.editing = true
     component.createRef = jest.fn()
@@ -562,7 +605,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
     const id = 1
     const state = ToggleableItemState.Selected
     component.selectionModel = selectionModel
-    component.manyToOne = true
+    component.selectionModel.manyToOne = true
     component.selectionModel.singleSelect = true
     component.selectionModel.intersection = Intersection.Include
     component.selectionModel['temporarySelectionStates'].set(id, state)
@@ -589,7 +632,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should support shortcut keys', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.shortcutKey = 't'
     fixture.detectChanges()
@@ -599,7 +642,7 @@ describe('FilterableDropdownComponent & FilterableDropdownSelectionModel', () =>
   })
 
   it('should support an extra button and not apply changes when clicked', () => {
-    component.items = items
+    component.selectionModel.items = items
     component.icon = 'tag-fill'
     component.extraButtonTitle = 'Extra'
     component.selectionModel = selectionModel

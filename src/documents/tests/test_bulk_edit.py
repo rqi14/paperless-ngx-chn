@@ -1,4 +1,5 @@
 import shutil
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
@@ -39,18 +40,24 @@ class TestBulkEdit(DirectoriesMixin, TestCase):
         self.dt2 = DocumentType.objects.create(name="dt2")
         self.t1 = Tag.objects.create(name="t1")
         self.t2 = Tag.objects.create(name="t2")
-        self.doc1 = Document.objects.create(checksum="A", title="A")
+        self.doc1 = Document.objects.create(
+            checksum="A",
+            title="A",
+            created=date(2023, 1, 1),
+        )
         self.doc2 = Document.objects.create(
             checksum="B",
             title="B",
             correspondent=self.c1,
             document_type=self.dt1,
+            created=date(2023, 1, 2),
         )
         self.doc3 = Document.objects.create(
             checksum="C",
             title="C",
             correspondent=self.c2,
             document_type=self.dt2,
+            created=date(2023, 1, 3),
         )
         self.doc4 = Document.objects.create(checksum="D", title="D")
         self.doc5 = Document.objects.create(checksum="E", title="E")
@@ -268,7 +275,7 @@ class TestBulkEdit(DirectoriesMixin, TestCase):
         )
         cf3 = CustomField.objects.create(
             name="cf3",
-            data_type=CustomField.FieldDataType.STRING,
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
         )
         CustomFieldInstance.objects.create(
             document=self.doc2,
@@ -284,7 +291,7 @@ class TestBulkEdit(DirectoriesMixin, TestCase):
         )
         bulk_edit.modify_custom_fields(
             [self.doc1.id, self.doc2.id],
-            add_custom_fields={cf2.id: None, cf3.id: "value"},
+            add_custom_fields={cf2.id: None, cf3.id: [self.doc3.id]},
             remove_custom_fields=[cf.id],
         )
 
@@ -301,7 +308,7 @@ class TestBulkEdit(DirectoriesMixin, TestCase):
         )
         self.assertEqual(
             self.doc1.custom_fields.get(field=cf3).value,
-            "value",
+            [self.doc3.id],
         )
         self.assertEqual(
             self.doc2.custom_fields.count(),
@@ -309,12 +316,61 @@ class TestBulkEdit(DirectoriesMixin, TestCase):
         )
         self.assertEqual(
             self.doc2.custom_fields.get(field=cf3).value,
-            "value",
+            [self.doc3.id],
+        )
+        # assert reflect document link
+        self.assertEqual(
+            self.doc3.custom_fields.first().value,
+            [self.doc2.id, self.doc1.id],
         )
 
         self.async_task.assert_called_once()
         args, kwargs = self.async_task.call_args
         self.assertCountEqual(kwargs["document_ids"], [self.doc1.id, self.doc2.id])
+
+        # removal of document link cf, should also remove symmetric link
+        bulk_edit.modify_custom_fields(
+            [self.doc3.id],
+            add_custom_fields={},
+            remove_custom_fields=[cf3.id],
+        )
+        self.assertNotIn(
+            self.doc3.id,
+            self.doc1.custom_fields.filter(field=cf3).first().value,
+        )
+        self.assertNotIn(
+            self.doc3.id,
+            self.doc2.custom_fields.filter(field=cf3).first().value,
+        )
+
+    def test_modify_custom_fields_doclink_self_link(self):
+        """
+        GIVEN:
+            - 2 existing documents
+            - Existing doc link custom field
+        WHEN:
+            - Doc link field is modified to include self link
+        THEN:
+            - Self link should not be created
+        """
+        cf = CustomField.objects.create(
+            name="cf",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+        bulk_edit.modify_custom_fields(
+            [self.doc1.id, self.doc2.id],
+            add_custom_fields={cf.id: [self.doc1.id]},
+            remove_custom_fields=[],
+        )
+
+        self.assertEqual(
+            self.doc1.custom_fields.first().value,
+            [self.doc2.id],
+        )
+        self.assertEqual(
+            self.doc2.custom_fields.first().value,
+            [self.doc1.id],
+        )
 
     def test_delete(self):
         self.assertEqual(Document.objects.count(), 5)
@@ -480,6 +536,7 @@ class TestPDFActions(DirectoriesMixin, TestCase):
             filename=sample2,
             mime_type="application/pdf",
             page_count=8,
+            created=date(2023, 1, 2),
         )
         self.doc2.archive_filename = sample2_archive
         self.doc2.save()
@@ -494,12 +551,24 @@ class TestPDFActions(DirectoriesMixin, TestCase):
             Path(__file__).parent / "samples" / "simple.jpg",
             img_doc,
         )
+        img_doc_archive = self.dirs.archive_dir / "sample_image.pdf"
+        shutil.copy(
+            Path(__file__).parent
+            / "samples"
+            / "documents"
+            / "originals"
+            / "0000001.pdf",
+            img_doc_archive,
+        )
         self.img_doc = Document.objects.create(
             checksum="D",
             title="D",
             filename=img_doc,
             mime_type="image/jpeg",
+            created=date(2023, 1, 3),
         )
+        self.img_doc.archive_filename = img_doc_archive
+        self.img_doc.save()
 
     @mock.patch("documents.tasks.consume_file.s")
     def test_merge(self, mock_consume_file):
@@ -515,7 +584,12 @@ class TestPDFActions(DirectoriesMixin, TestCase):
         metadata_document_id = self.doc1.id
         user = User.objects.create(username="test_user")
 
-        result = bulk_edit.merge(doc_ids, None, False, user)
+        result = bulk_edit.merge(
+            doc_ids,
+            metadata_document_id=None,
+            delete_originals=False,
+            user=user,
+        )
 
         expected_filename = (
             f"{'_'.join([str(doc_id) for doc_id in doc_ids])[:100]}_merged.pdf"
@@ -580,6 +654,32 @@ class TestPDFActions(DirectoriesMixin, TestCase):
             doc_ids,
         )
 
+    @mock.patch("documents.tasks.consume_file.s")
+    def test_merge_with_archive_fallback(self, mock_consume_file):
+        """
+        GIVEN:
+            - Existing documents
+        WHEN:
+            - Merge action is called with 2 documents, one of which is an image and archive_fallback is set to True
+        THEN:
+            - Image document should be included
+        """
+        doc_ids = [self.doc2.id, self.img_doc.id]
+
+        result = bulk_edit.merge(doc_ids, archive_fallback=True)
+        self.assertEqual(result, "OK")
+
+        expected_filename = (
+            f"{'_'.join([str(doc_id) for doc_id in doc_ids])[:100]}_merged.pdf"
+        )
+
+        mock_consume_file.assert_called()
+        consume_file_args, _ = mock_consume_file.call_args
+        self.assertEqual(
+            Path(consume_file_args[0].original_file).name,
+            expected_filename,
+        )
+
     @mock.patch("documents.tasks.consume_file.delay")
     @mock.patch("pikepdf.open")
     def test_merge_with_errors(self, mock_open_pdf, mock_consume_file):
@@ -618,7 +718,7 @@ class TestPDFActions(DirectoriesMixin, TestCase):
         doc_ids = [self.doc2.id]
         pages = [[1, 2], [3]]
         user = User.objects.create(username="test_user")
-        result = bulk_edit.split(doc_ids, pages, False, user)
+        result = bulk_edit.split(doc_ids, pages, delete_originals=False, user=user)
         self.assertEqual(mock_consume_file.call_count, 2)
         consume_file_args, _ = mock_consume_file.call_args
         self.assertEqual(consume_file_args[1].title, "B (split 2)")

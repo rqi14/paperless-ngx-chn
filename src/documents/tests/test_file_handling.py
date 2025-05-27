@@ -333,7 +333,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
 
         self.assertEqual(generate_filename(doc1), "2020-03-06.pdf")
 
-        doc1.created = timezone.make_aware(datetime.datetime(2020, 11, 16, 1, 1, 1))
+        doc1.created = datetime.date(2020, 11, 16)
 
         self.assertEqual(generate_filename(doc1), "2020-11-16.pdf")
 
@@ -912,7 +912,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
     def test_date(self):
         doc = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 5, 21, 7, 36, 51, 153)),
+            created=datetime.date(2020, 5, 21),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -930,7 +930,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -951,7 +951,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -979,7 +979,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         )
         doc = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -1007,7 +1007,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -1019,7 +1019,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         )
         doc_b = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 7, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 7, 25),
             mime_type="application/pdf",
             pk=5,
             checksum="abcde",
@@ -1047,7 +1047,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -1055,7 +1055,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         )
         doc_b = Document.objects.create(
             title="does not matter",
-            created=timezone.make_aware(datetime.datetime(2020, 7, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 7, 25),
             mime_type="application/pdf",
             pk=5,
             checksum="abcde",
@@ -1074,9 +1074,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
     def test_short_names_created(self):
         doc = Document.objects.create(
             title="The Title",
-            created=timezone.make_aware(
-                datetime.datetime(1989, 12, 21, 7, 36, 51, 153),
-            ),
+            created=datetime.date(1989, 12, 2),
             mime_type="application/pdf",
             pk=2,
             checksum="2",
@@ -1236,7 +1234,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
 
         doc_a = Document.objects.create(
             title="Does Matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
             mime_type="application/pdf",
             pk=2,
@@ -1302,7 +1300,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="Does Matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
             mime_type="application/pdf",
             pk=2,
@@ -1337,7 +1335,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="Does Matter",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
             mime_type="application/pdf",
             pk=2,
@@ -1369,7 +1367,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="Some Title",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
             mime_type="application/pdf",
             pk=2,
@@ -1474,7 +1472,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         """
         doc_a = Document.objects.create(
             title="Some Title",
-            created=timezone.make_aware(datetime.datetime(2020, 6, 25, 7, 36, 51, 153)),
+            created=datetime.date(2020, 6, 25),
             added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
             mime_type="application/pdf",
             pk=2,
@@ -1516,4 +1514,64 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             self.assertEqual(
                 generate_filename(doc_a),
                 "2024-10-01/Some Title.pdf",
+            )
+
+    def test_slugify_filter(self):
+        """
+        GIVEN:
+            - Filename format with slugify filter
+        WHEN:
+            - Filepath for a document with this format is called
+        THEN:
+            - The slugify filter properly converts strings to URL-friendly slugs
+        """
+        doc = Document.objects.create(
+            title="Some Title! With @ Special # Characters",
+            created=datetime.date(2020, 6, 25),
+            added=timezone.make_aware(datetime.datetime(2024, 10, 1, 7, 36, 51, 153)),
+            mime_type="application/pdf",
+            pk=2,
+            checksum="2",
+            archive_serial_number=25,
+        )
+
+        with override_settings(
+            FILENAME_FORMAT="{{ title | slugify }}",
+        ):
+            self.assertEqual(
+                generate_filename(doc),
+                "some-title-with-special-characters.pdf",
+            )
+
+        # Test with correspondent name containing spaces and special chars
+        doc.correspondent = Correspondent.objects.create(
+            name="John's @ Office / Workplace",
+        )
+        doc.save()
+
+        with override_settings(
+            FILENAME_FORMAT="{{ correspondent | slugify }}/{{ title | slugify }}",
+        ):
+            self.assertEqual(
+                generate_filename(doc),
+                "johns-office-workplace/some-title-with-special-characters.pdf",
+            )
+
+        # Test with custom fields
+        cf = CustomField.objects.create(
+            name="Location",
+            data_type=CustomField.FieldDataType.STRING,
+        )
+        CustomFieldInstance.objects.create(
+            document=doc,
+            field=cf,
+            value_text="Brussels @ Belgium!",
+        )
+
+        with override_settings(
+            FILENAME_FORMAT="{{ custom_fields | get_cf_value('Location') | slugify }}/{{ title | slugify }}",
+        ):
+            self.assertEqual(
+                generate_filename(doc),
+                "brussels-belgium/some-title-with-special-characters.pdf",
             )

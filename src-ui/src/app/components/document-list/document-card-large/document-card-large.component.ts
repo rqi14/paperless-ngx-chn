@@ -13,6 +13,7 @@ import {
   NgbTooltipModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import { delay, of } from 'rxjs'
 import {
   DEFAULT_DISPLAY_FIELDS,
   DisplayField,
@@ -20,9 +21,12 @@ import {
 } from 'src/app/data/document'
 import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
+import { CorrespondentNamePipe } from 'src/app/pipes/correspondent-name.pipe'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
+import { DocumentTypeNamePipe } from 'src/app/pipes/document-type-name.pipe'
 import { IsNumberPipe } from 'src/app/pipes/is-number.pipe'
+import { StoragePathNamePipe } from 'src/app/pipes/storage-path-name.pipe'
 import { UsernamePipe } from 'src/app/pipes/username.pipe'
 import { DocumentService } from 'src/app/services/rest/document.service'
 import { SettingsService } from 'src/app/services/settings.service'
@@ -43,6 +47,9 @@ import { LoadingComponentWithPermissions } from '../../loading-component/loading
     CustomFieldDisplayComponent,
     AsyncPipe,
     UsernamePipe,
+    CorrespondentNamePipe,
+    DocumentTypeNamePipe,
+    StoragePathNamePipe,
     IfPermissionsDirective,
     CustomDatePipe,
     RouterModule,
@@ -104,9 +111,11 @@ export class DocumentCardLargeComponent
   popoverHidden = true
 
   ngAfterViewInit(): void {
-    setInterval(() => {
-      this.show = true
-    }, 100)
+    of(true)
+      .pipe(delay(50))
+      .subscribe(() => {
+        this.show = true
+      })
   }
 
   get searchScoreClass() {

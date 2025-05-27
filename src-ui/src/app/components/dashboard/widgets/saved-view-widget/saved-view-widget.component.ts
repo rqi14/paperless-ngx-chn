@@ -31,13 +31,17 @@ import {
   FILTER_DOCUMENT_TYPE,
   FILTER_FULLTEXT_MORELIKE,
   FILTER_HAS_TAGS_ALL,
+  FILTER_OWNER_ANY,
   FILTER_STORAGE_PATH,
 } from 'src/app/data/filter-rule-type'
 import { SavedView } from 'src/app/data/saved-view'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
+import { CorrespondentNamePipe } from 'src/app/pipes/correspondent-name.pipe'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
-import { ConsumerStatusService } from 'src/app/services/consumer-status.service'
+import { DocumentTypeNamePipe } from 'src/app/pipes/document-type-name.pipe'
+import { StoragePathNamePipe } from 'src/app/pipes/storage-path-name.pipe'
+import { UsernamePipe } from 'src/app/pipes/username.pipe'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
 import {
@@ -48,6 +52,7 @@ import {
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { DocumentService } from 'src/app/services/rest/document.service'
 import { SettingsService } from 'src/app/services/settings.service'
+import { WebsocketStatusService } from 'src/app/services/websocket-status.service'
 import { WidgetFrameComponent } from '../widget-frame/widget-frame.component'
 
 @Component({
@@ -62,6 +67,10 @@ import { WidgetFrameComponent } from '../widget-frame/widget-frame.component'
     TagComponent,
     WidgetFrameComponent,
     IfPermissionsDirective,
+    UsernamePipe,
+    CorrespondentNamePipe,
+    DocumentTypeNamePipe,
+    StoragePathNamePipe,
     AsyncPipe,
     DocumentTitlePipe,
     CustomDatePipe,
@@ -85,7 +94,7 @@ export class SavedViewWidgetComponent
     private documentService: DocumentService,
     private router: Router,
     private list: DocumentListViewService,
-    private consumerStatusService: ConsumerStatusService,
+    private websocketStatusService: WebsocketStatusService,
     public openDocumentsService: OpenDocumentsService,
     public documentListViewService: DocumentListViewService,
     public permissionsService: PermissionsService,
@@ -115,7 +124,7 @@ export class SavedViewWidgetComponent
   ngOnInit(): void {
     this.reload()
     this.displayMode = this.savedView.display_mode ?? DisplayMode.TABLE
-    this.consumerStatusService
+    this.websocketStatusService
       .onDocumentConsumptionFinished()
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe(() => {
@@ -136,7 +145,10 @@ export class SavedViewWidgetComponent
         })
     }
 
-    if (this.savedView.display_fields) {
+    if (
+      this.savedView.display_fields &&
+      this.savedView.display_fields.length > 0
+    ) {
       this.displayFields = this.savedView.display_fields
     }
 
@@ -226,6 +238,15 @@ export class SavedViewWidgetComponent
   clickMoreLike(documentID: number) {
     this.list.quickFilter([
       { rule_type: FILTER_FULLTEXT_MORELIKE, value: documentID.toString() },
+    ])
+  }
+
+  clickOwner(ownerID: number, event: MouseEvent = null) {
+    event?.preventDefault()
+    event?.stopImmediatePropagation()
+
+    this.list.quickFilter([
+      { rule_type: FILTER_OWNER_ANY, value: ownerID.toString() },
     ])
   }
 
