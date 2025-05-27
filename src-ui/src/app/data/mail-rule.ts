@@ -7,8 +7,16 @@ export enum MailFilterAttachmentType {
 
 export enum MailRuleConsumptionScope {
   Attachments = 1,
-  Email_Only = 2,
+  EmailOnly = 2,
   Everything = 3,
+}
+
+export enum MailRulePdfLayout {
+  Default = 0,
+  TextHtml = 1,
+  HtmlText = 2,
+  HtmlOnly = 3,
+  TextOnly = 4,
 }
 
 export enum MailAction {
@@ -58,6 +66,8 @@ export interface MailRule extends ObjectWithPermissions {
   maximum_age: number
 
   attachment_type: MailFilterAttachmentType
+
+  pdf_layout: MailRulePdfLayout
 
   action: MailAction
 

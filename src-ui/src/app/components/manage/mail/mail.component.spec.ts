@@ -188,7 +188,7 @@ describe('MailComponent', () => {
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
     editDialog.failed.emit()
     expect(toastErrorSpy).toBeCalled()
-    editDialog.succeeded.emit(mailAccounts[0])
+    editDialog.succeeded.emit(mailAccounts[0] as any)
     expect(toastInfoSpy).toHaveBeenCalledWith(
       `Saved account "${mailAccounts[0].name}".`
     )
@@ -214,7 +214,7 @@ describe('MailComponent', () => {
     deleteSpy.mockReturnValueOnce(of(true))
     deleteDialog.confirm()
     expect(listAllSpy).toHaveBeenCalled()
-    expect(toastInfoSpy).toHaveBeenCalledWith('Deleted mail account')
+    expect(toastInfoSpy).toHaveBeenCalledWith('Deleted mail account "account1"')
   })
 
   it('should support process mail account, show error if needed', () => {
@@ -231,7 +231,9 @@ describe('MailComponent', () => {
     expect(toastErrorSpy).toHaveBeenCalled()
     processSpy.mockReturnValueOnce(of(true))
     component.processAccount(mailAccounts[0] as MailAccount)
-    expect(toastInfoSpy).toHaveBeenCalledWith('Processing mail account')
+    expect(toastInfoSpy).toHaveBeenCalledWith(
+      'Processing mail account "account1"'
+    )
   })
 
   it('should support edit / create mail rule, show error if needed', () => {
@@ -244,7 +246,7 @@ describe('MailComponent', () => {
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
     editDialog.failed.emit()
     expect(toastErrorSpy).toBeCalled()
-    editDialog.succeeded.emit(mailRules[0])
+    editDialog.succeeded.emit(mailRules[0] as any)
     expect(toastInfoSpy).toHaveBeenCalledWith(
       `Saved rule "${mailRules[0].name}".`
     )
@@ -274,14 +276,14 @@ describe('MailComponent', () => {
     const toastInfoSpy = jest.spyOn(toastService, 'showInfo')
     const listAllSpy = jest.spyOn(mailRuleService, 'listAll')
     deleteSpy.mockReturnValueOnce(
-      throwError(() => new Error('error deleting mail rule'))
+      throwError(() => new Error('error deleting mail rule "rule1"'))
     )
     deleteDialog.confirm()
     expect(toastErrorSpy).toBeCalled()
     deleteSpy.mockReturnValueOnce(of(true))
     deleteDialog.confirm()
     expect(listAllSpy).toHaveBeenCalled()
-    expect(toastInfoSpy).toHaveBeenCalledWith('Deleted mail rule')
+    expect(toastInfoSpy).toHaveBeenCalledWith('Deleted mail rule "rule1"')
   })
 
   it('should support edit permissions on mail rule objects', () => {

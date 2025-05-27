@@ -1,31 +1,54 @@
 import logging
 
 from allauth.mfa.adapter import get_adapter as get_mfa_adapter
+from allauth.mfa.models import Authenticator
+from allauth.mfa.totp.internal.auth import TOTP
 from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.models import SocialApp
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from rest_framework.authtoken.serializers import AuthTokenSerializer
 
 from paperless.models import ApplicationConfiguration
+from paperless_mail.serialisers import ObfuscatedPasswordField
 
 logger = logging.getLogger("paperless.settings")
 
 
-class ObfuscatedUserPasswordField(serializers.Field):
-    """
-    Sends *** string instead of password in the clear
-    """
+class PaperlessAuthTokenSerializer(AuthTokenSerializer):
+    code = serializers.CharField(
+        label="MFA Code",
+        write_only=True,
+        required=False,
+    )
 
-    def to_representation(self, value):
-        return "**********" if len(value) > 0 else ""
-
-    def to_internal_value(self, data):
-        return data
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        user = attrs.get("user")
+        code = attrs.get("code")
+        mfa_adapter = get_mfa_adapter()
+        if mfa_adapter.is_mfa_enabled(user):
+            if not code:
+                raise serializers.ValidationError(
+                    "MFA code is required",
+                )
+            authenticator = Authenticator.objects.get(
+                user=user,
+                type=Authenticator.Type.TOTP,
+            )
+            if not TOTP(instance=authenticator).validate_code(
+                code,
+            ):
+                raise serializers.ValidationError(
+                    "Invalid MFA code",
+                )
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer):
-    password = ObfuscatedUserPasswordField(required=False)
+    password = ObfuscatedPasswordField(required=False)
     user_permissions = serializers.SlugRelatedField(
         many=True,
         queryset=Permission.objects.exclude(content_type__app_label="admin"),
@@ -35,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
     inherited_permissions = serializers.SerializerMethodField()
     is_mfa_enabled = serializers.SerializerMethodField()
 
-    def get_is_mfa_enabled(self, user: User):
+    def get_is_mfa_enabled(self, user: User) -> bool:
         mfa_adapter = get_mfa_adapter()
         return mfa_adapter.is_mfa_enabled(user)
 
@@ -58,7 +81,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_mfa_enabled",
         )
 
-    def get_inherited_permissions(self, obj):
+    def get_inherited_permissions(self, obj) -> list[str]:
         return obj.get_group_permissions()
 
     def update(self, instance, validated_data):
@@ -124,13 +147,16 @@ class SocialAccountSerializer(serializers.ModelSerializer):
             "name",
         )
 
-    def get_name(self, obj):
-        return obj.get_provider_account().to_str()
+    def get_name(self, obj: SocialAccount) -> str:
+        try:
+            return obj.get_provider_account().to_str()
+        except SocialApp.DoesNotExist:
+            return "Unknown App"
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(allow_null=False)
-    password = ObfuscatedUserPasswordField(required=False, allow_null=False)
+    email = serializers.EmailField(allow_blank=True, required=False)
+    password = ObfuscatedPasswordField(required=False, allow_null=False)
     auth_token = serializers.SlugRelatedField(read_only=True, slug_field="key")
     social_accounts = SocialAccountSerializer(
         many=True,
@@ -138,10 +164,14 @@ class ProfileSerializer(serializers.ModelSerializer):
         source="socialaccount_set",
     )
     is_mfa_enabled = serializers.SerializerMethodField()
+    has_usable_password = serializers.SerializerMethodField()
 
-    def get_is_mfa_enabled(self, user: User):
+    def get_is_mfa_enabled(self, user: User) -> bool:
         mfa_adapter = get_mfa_adapter()
         return mfa_adapter.is_mfa_enabled(user)
+
+    def get_has_usable_password(self, user: User) -> bool:
+        return user.has_usable_password()
 
     class Meta:
         model = User
@@ -159,11 +189,14 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class ApplicationConfigurationSerializer(serializers.ModelSerializer):
     user_args = serializers.JSONField(binary=True, allow_null=True)
+    barcode_tag_mapping = serializers.JSONField(binary=True, allow_null=True)
 
     def run_validation(self, data):
         # Empty strings treated as None to avoid unexpected behavior
         if "user_args" in data and data["user_args"] == "":
             data["user_args"] = None
+        if "barcode_tag_mapping" in data and data["barcode_tag_mapping"] == "":
+            data["barcode_tag_mapping"] = None
         if "language" in data and data["language"] == "":
             data["language"] = None
         return super().run_validation(data)

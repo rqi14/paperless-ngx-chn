@@ -1,5 +1,5 @@
 import { AsyncPipe, NgTemplateOutlet } from '@angular/common'
-import { HttpClient } from '@angular/common/http'
+import { HttpClient, HttpResponse } from '@angular/common/http'
 import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core'
 import {
   FormArray,
@@ -20,6 +20,7 @@ import {
 import { dirtyCheck, DirtyComponent } from '@ngneat/dirty-check-forms'
 import { PDFDocumentProxy, PdfViewerModule } from 'ng2-pdf-viewer'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import { DeviceDetectorService } from 'ngx-device-detector'
 import { BehaviorSubject, Observable, Subject } from 'rxjs'
 import {
   debounceTime,
@@ -59,6 +60,7 @@ import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
 import { FileSizePipe } from 'src/app/pipes/file-size.pipe'
 import { SafeUrlPipe } from 'src/app/pipes/safeurl.pipe'
+import { ComponentRouterService } from 'src/app/services/component-router.service'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import { HotKeyService } from 'src/app/services/hot-key.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
@@ -75,6 +77,7 @@ import { StoragePathService } from 'src/app/services/rest/storage-path.service'
 import { UserService } from 'src/app/services/rest/user.service'
 import { SettingsService } from 'src/app/services/settings.service'
 import { ToastService } from 'src/app/services/toast.service'
+import { getFilenameFromContentDisposition } from 'src/app/utils/http'
 import { ISODateAdapter } from 'src/app/utils/ngb-iso-date-adapter'
 import * as UTIF from 'utif'
 import { ConfirmDialogComponent } from '../common/confirm-dialog/confirm-dialog.component'
@@ -86,6 +89,7 @@ import { CorrespondentEditDialogComponent } from '../common/edit-dialog/correspo
 import { DocumentTypeEditDialogComponent } from '../common/edit-dialog/document-type-edit-dialog/document-type-edit-dialog.component'
 import { EditDialogMode } from '../common/edit-dialog/edit-dialog.component'
 import { StoragePathEditDialogComponent } from '../common/edit-dialog/storage-path-edit-dialog/storage-path-edit-dialog.component'
+import { EmailDocumentDialogComponent } from '../common/email-document-dialog/email-document-dialog.component'
 import { CheckComponent } from '../common/input/check/check.component'
 import { DateComponent } from '../common/input/date/date.component'
 import { DocumentLinkComponent } from '../common/input/document-link/document-link.component'
@@ -97,7 +101,7 @@ import { TagsComponent } from '../common/input/tags/tags.component'
 import { TextComponent } from '../common/input/text/text.component'
 import { UrlComponent } from '../common/input/url/url.component'
 import { PageHeaderComponent } from '../common/page-header/page-header.component'
-import { ShareLinksDropdownComponent } from '../common/share-links-dropdown/share-links-dropdown.component'
+import { ShareLinksDialogComponent } from '../common/share-links-dialog/share-links-dialog.component'
 import { DocumentHistoryComponent } from '../document-history/document-history.component'
 import { DocumentNotesComponent } from '../document-notes/document-notes.component'
 import { ComponentWithPermissions } from '../with-permissions/with-permissions.component'
@@ -122,7 +126,7 @@ enum ContentRenderType {
   TIFF = 'tiff',
 }
 
-enum ZoomSetting {
+export enum ZoomSetting {
   PageFit = 'page-fit',
   PageWidth = 'page-width',
   Quarter = '.25',
@@ -143,7 +147,6 @@ enum ZoomSetting {
     CustomFieldsDropdownComponent,
     DocumentNotesComponent,
     DocumentHistoryComponent,
-    ShareLinksDropdownComponent,
     CheckComponent,
     DateComponent,
     DocumentLinkComponent,
@@ -194,8 +197,6 @@ export class DocumentDetailComponent
   previewUrl: string
   thumbUrl: string
   previewText: string
-  downloadUrl: string
-  downloadOriginalUrl: string
   previewLoaded: boolean = false
   tiffURL: string
   tiffError: string
@@ -207,7 +208,7 @@ export class DocumentDetailComponent
   documentForm: FormGroup = new FormGroup({
     title: new FormControl(''),
     content: new FormControl(''),
-    created_date: new FormControl(),
+    created: new FormControl(),
     correspondent: new FormControl(),
     document_type: new FormControl(),
     storage_path: new FormControl(),
@@ -233,6 +234,9 @@ export class DocumentDetailComponent
   ogDate: Date
 
   customFields: CustomField[]
+
+  public downloading: boolean = false
+
   public readonly CustomFieldDataType = CustomFieldDataType
 
   public readonly ContentRenderType = ContentRenderType
@@ -272,7 +276,9 @@ export class DocumentDetailComponent
     private userService: UserService,
     private customFieldsService: CustomFieldsService,
     private http: HttpClient,
-    private hotKeyService: HotKeyService
+    private hotKeyService: HotKeyService,
+    private componentRouterService: ComponentRouterService,
+    private deviceDetectorService: DeviceDetectorService
   ) {
     super()
   }
@@ -323,6 +329,7 @@ export class DocumentDetailComponent
   }
 
   ngOnInit(): void {
+    this.setZoom(this.settings.get(SETTINGS_KEYS.PDF_VIEWER_ZOOM_SETTING))
     this.documentForm.valueChanges
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe(() => {
@@ -415,13 +422,6 @@ export class DocumentDetailComponent
       .pipe(
         switchMap((doc) => {
           this.documentId = doc.id
-          this.downloadUrl = this.documentsService.getDownloadUrl(
-            this.documentId
-          )
-          this.downloadOriginalUrl = this.documentsService.getDownloadUrl(
-            this.documentId,
-            true
-          )
           this.suggestions = null
           const openDocument = this.openDocumentService.getOpenDocument(
             this.documentId
@@ -490,7 +490,7 @@ export class DocumentDetailComponent
           this.store = new BehaviorSubject({
             title: doc.title,
             content: doc.content,
-            created_date: doc.created_date,
+            created: doc.created,
             correspondent: doc.correspondent,
             document_type: doc.document_type,
             storage_path: doc.storage_path,
@@ -698,6 +698,7 @@ export class DocumentDetailComponent
       .subscribe(({ newDocumentType, documentTypes }) => {
         this.documentTypes = documentTypes.results
         this.documentForm.get('document_type').setValue(newDocumentType.id)
+        this.documentForm.get('document_type').markAsDirty()
       })
   }
 
@@ -721,6 +722,7 @@ export class DocumentDetailComponent
       .subscribe(({ newCorrespondent, correspondents }) => {
         this.correspondents = correspondents.results
         this.documentForm.get('correspondent').setValue(newCorrespondent.id)
+        this.documentForm.get('correspondent').markAsDirty()
       })
   }
 
@@ -742,6 +744,7 @@ export class DocumentDetailComponent
       .subscribe(({ newStoragePath, storagePaths }) => {
         this.storagePaths = storagePaths.results
         this.documentForm.get('storage_path').setValue(newStoragePath.id)
+        this.documentForm.get('storage_path').markAsDirty()
       })
   }
 
@@ -784,6 +787,7 @@ export class DocumentDetailComponent
           this.title = doc.title
           this.updateFormForCustomFields()
           this.documentForm.patchValue(doc)
+          this.documentForm.markAsPristine()
           this.openDocumentService.setDirty(doc, false)
         },
         error: () => {
@@ -794,11 +798,30 @@ export class DocumentDetailComponent
       })
   }
 
+  private getChangedFields(): any {
+    const changes = {
+      id: this.document.id,
+    }
+    Object.keys(this.documentForm.controls).forEach((key) => {
+      if (this.documentForm.get(key).dirty) {
+        if (key === 'permissions_form') {
+          changes['owner'] =
+            this.documentForm.get('permissions_form').value['owner']
+          changes['set_permissions'] =
+            this.documentForm.get('permissions_form').value['set_permissions']
+        } else {
+          changes[key] = this.documentForm.get(key).value
+        }
+      }
+    })
+    return changes
+  }
+
   save(close: boolean = false) {
     this.networkActive = true
     ;(document.activeElement as HTMLElement)?.dispatchEvent(new Event('change'))
     this.documentsService
-      .update(this.document)
+      .patch(this.getChangedFields())
       .pipe(first())
       .subscribe({
         next: (docValues) => {
@@ -810,7 +833,9 @@ export class DocumentDetailComponent
           this.store.next(newValues)
           this.openDocumentService.setDirty(this.document, false)
           this.openDocumentService.save()
-          this.toastService.showInfo($localize`Document saved successfully.`)
+          this.toastService.showInfo(
+            $localize`Document "${newValues.title}" saved successfully.`
+          )
           this.networkActive = false
           this.error = null
           if (close) {
@@ -823,12 +848,24 @@ export class DocumentDetailComponent
         },
         error: (error) => {
           this.networkActive = false
-          if (!this.userCanEdit) {
-            this.toastService.showInfo($localize`Document saved successfully.`)
-            close && this.close()
+          const canEdit =
+            this.permissionsService.currentUserHasObjectPermissions(
+              PermissionAction.Change,
+              this.document
+            )
+          if (!canEdit) {
+            // document was 'given away'
+            this.openDocumentService.setDirty(this.document, false)
+            this.toastService.showInfo(
+              $localize`Document "${this.document.title}" saved successfully.`
+            )
+            this.close()
           } else {
             this.error = error.error
-            this.toastService.showError($localize`Error saving document`, error)
+            this.toastService.showError(
+              $localize`Error saving document "${this.document.title}"`,
+              error
+            )
           }
         },
       })
@@ -838,7 +875,7 @@ export class DocumentDetailComponent
     this.networkActive = true
     this.store.next(this.documentForm.value)
     this.documentsService
-      .update(this.document)
+      .patch(this.getChangedFields())
       .pipe(
         switchMap((updateResult) => {
           return this.documentListViewService
@@ -848,12 +885,14 @@ export class DocumentDetailComponent
       )
       .pipe(
         switchMap(({ nextDocId, updateResult }) => {
-          if (nextDocId && updateResult)
+          if (nextDocId && updateResult) {
+            this.openDocumentService.setDirty(this.document, false)
             return this.openDocumentService
               .closeDocument(this.document)
               .pipe(
                 map((closeResult) => ({ updateResult, nextDocId, closeResult }))
               )
+          }
         })
       )
       .pipe(first())
@@ -885,6 +924,10 @@ export class DocumentDetailComponent
           this.router.navigate([
             'view',
             this.documentListViewService.activeSavedViewId,
+          ])
+        } else if (this.componentRouterService.getComponentURLBefore()) {
+          this.router.navigate([
+            this.componentRouterService.getComponentURLBefore(),
           ])
         } else {
           this.router.navigate(['documents'])
@@ -951,7 +994,7 @@ export class DocumentDetailComponent
         .subscribe({
           next: () => {
             this.toastService.showInfo(
-              $localize`Reprocess operation will begin in the background. Close and re-open or reload this document after the operation has completed to see new content.`
+              $localize`Reprocess operation for "${this.document.title}" will begin in the background. Close and re-open or reload this document after the operation has completed to see new content.`
             )
             if (modal) {
               modal.close()
@@ -968,6 +1011,54 @@ export class DocumentDetailComponent
           },
         })
     })
+  }
+
+  download(original: boolean = false) {
+    this.downloading = true
+    const downloadUrl = this.documentsService.getDownloadUrl(
+      this.documentId,
+      original
+    )
+    this.http
+      .get(downloadUrl, { observe: 'response', responseType: 'blob' })
+      .subscribe({
+        next: (response: HttpResponse<Blob>) => {
+          const contentDisposition = response.headers.get('Content-Disposition')
+          const filename =
+            getFilenameFromContentDisposition(contentDisposition) ||
+            this.document.title
+          const blob = new Blob([response.body], {
+            type: response.body.type,
+          })
+          this.downloading = false
+          const file = new File([blob], filename, {
+            type: response.body.type,
+          })
+          if (
+            !this.deviceDetectorService.isDesktop() &&
+            navigator.canShare &&
+            navigator.canShare({ files: [file] })
+          ) {
+            navigator.share({
+              files: [file],
+            })
+          } else {
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = filename
+            a.click()
+            URL.revokeObjectURL(url)
+          }
+        },
+        error: (error) => {
+          this.downloading = false
+          this.toastService.showError(
+            $localize`Error downloading document`,
+            error
+          )
+        },
+      })
   }
 
   hasNext() {
@@ -1015,14 +1106,13 @@ export class DocumentDetailComponent
     }
   }
 
-  onZoomSelect(event: Event) {
-    const setting = (event.target as HTMLSelectElement)?.value as ZoomSetting
-    if (ZoomSetting.PageFit === setting) {
-      this.previewZoomSetting = ZoomSetting.One
+  setZoom(setting: ZoomSetting) {
+    if (ZoomSetting.PageFit === setting || ZoomSetting.PageWidth === setting) {
       this.previewZoomScale = setting
+      this.previewZoomSetting = ZoomSetting.One
     } else {
-      this.previewZoomScale = ZoomSetting.PageWidth
       this.previewZoomSetting = setting
+      this.previewZoomScale = ZoomSetting.PageWidth
     }
   }
 
@@ -1030,6 +1120,12 @@ export class DocumentDetailComponent
     return Object.values(ZoomSetting).filter(
       (setting) => setting !== ZoomSetting.PageWidth
     )
+  }
+
+  get currentZoom() {
+    if (this.previewZoomScale === ZoomSetting.PageFit) {
+      return ZoomSetting.PageFit
+    } else return this.previewZoomSetting
   }
 
   getZoomSettingTitle(setting: ZoomSetting): string {
@@ -1214,9 +1310,7 @@ export class DocumentDetailComponent
     this.document.custom_fields?.forEach((fieldInstance) => {
       this.customFieldFormFields.push(
         new FormGroup({
-          field: new FormControl(
-            this.getCustomFieldFromInstance(fieldInstance)?.id
-          ),
+          field: new FormControl(fieldInstance.field),
           value: new FormControl(fieldInstance.value),
         }),
         { emitEvent }
@@ -1232,6 +1326,8 @@ export class DocumentDetailComponent
       created: new Date(),
     })
     this.updateFormForCustomFields(true)
+    this.documentForm.get('custom_fields').markAsDirty()
+    this.documentForm.updateValueAndValidity()
   }
 
   public removeField(fieldInstance: CustomFieldInstance) {
@@ -1240,6 +1336,7 @@ export class DocumentDetailComponent
       1
     )
     this.updateFormForCustomFields(true)
+    this.documentForm.get('custom_fields').markAsDirty()
     this.documentForm.updateValueAndValidity()
   }
 
@@ -1265,7 +1362,7 @@ export class DocumentDetailComponent
           .subscribe({
             next: () => {
               this.toastService.showInfo(
-                $localize`Split operation will begin in the background.`
+                $localize`Split operation for "${this.document.title}" will begin in the background.`
               )
               modal.close()
             },
@@ -1304,7 +1401,7 @@ export class DocumentDetailComponent
           .subscribe({
             next: () => {
               this.toastService.show({
-                content: $localize`Rotation will begin in the background. Close and re-open the document after the operation has completed to see the changes.`,
+                content: $localize`Rotation of "${this.document.title}" will begin in the background. Close and re-open the document after the operation has completed to see the changes.`,
                 delay: 8000,
                 action: this.close.bind(this),
                 actionName: $localize`Close`,
@@ -1344,7 +1441,7 @@ export class DocumentDetailComponent
           .subscribe({
             next: () => {
               this.toastService.showInfo(
-                $localize`Delete pages operation will begin in the background. Close and re-open or reload this document after the operation has completed to see the changes.`
+                $localize`Delete pages operation for "${this.document.title}" will begin in the background. Close and re-open or reload this document after the operation has completed to see the changes.`
               )
               modal.close()
             },
@@ -1359,6 +1456,26 @@ export class DocumentDetailComponent
             },
           })
       })
+  }
+
+  public openShareLinks() {
+    const modal = this.modalService.open(ShareLinksDialogComponent)
+    modal.componentInstance.documentId = this.document.id
+    modal.componentInstance.hasArchiveVersion =
+      !!this.document?.archived_file_name
+  }
+
+  get emailEnabled(): boolean {
+    return this.settings.get(SETTINGS_KEYS.EMAIL_ENABLED)
+  }
+
+  public openEmailDocument() {
+    const modal = this.modalService.open(EmailDocumentDialogComponent, {
+      backdrop: 'static',
+    })
+    modal.componentInstance.documentId = this.document.id
+    modal.componentInstance.hasArchiveVersion =
+      !!this.document?.archived_file_name
   }
 
   private tryRenderTiff() {

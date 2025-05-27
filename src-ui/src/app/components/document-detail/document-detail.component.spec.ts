@@ -1,5 +1,10 @@
 import { DatePipe } from '@angular/common'
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import {
+  HttpHeaders,
+  HttpResponse,
+  provideHttpClient,
+  withInterceptorsFromDi,
+} from '@angular/common/http'
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -24,6 +29,7 @@ import {
   NgbModalRef,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { DeviceDetectorService } from 'ngx-device-detector'
 import { of, throwError } from 'rxjs'
 import { routes } from 'src/app/app-routing.module'
 import { Correspondent } from 'src/app/data/correspondent'
@@ -45,6 +51,7 @@ import { Tag } from 'src/app/data/tag'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
+import { ComponentRouterService } from 'src/app/services/component-router.service'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
 import { PermissionsService } from 'src/app/services/permissions.service'
@@ -60,7 +67,10 @@ import { ToastService } from 'src/app/services/toast.service'
 import { environment } from 'src/environments/environment'
 import { ConfirmDialogComponent } from '../common/confirm-dialog/confirm-dialog.component'
 import { CustomFieldsDropdownComponent } from '../common/custom-fields-dropdown/custom-fields-dropdown.component'
-import { DocumentDetailComponent } from './document-detail.component'
+import {
+  DocumentDetailComponent,
+  ZoomSetting,
+} from './document-detail.component'
 
 const doc: Document = {
   id: 3,
@@ -126,7 +136,9 @@ describe('DocumentDetailComponent', () => {
   let documentListViewService: DocumentListViewService
   let settingsService: SettingsService
   let customFieldsService: CustomFieldsService
+  let deviceDetectorService: DeviceDetectorService
   let httpTestingController: HttpTestingController
+  let componentRouterService: ComponentRouterService
 
   let currentUserCan = true
   let currentUserHasObjectPermissions = true
@@ -262,8 +274,10 @@ describe('DocumentDetailComponent', () => {
     settingsService = TestBed.inject(SettingsService)
     settingsService.currentUser = { id: 1 }
     customFieldsService = TestBed.inject(CustomFieldsService)
+    deviceDetectorService = TestBed.inject(DeviceDetectorService)
     fixture = TestBed.createComponent(DocumentDetailComponent)
     httpTestingController = TestBed.inject(HttpTestingController)
+    componentRouterService = TestBed.inject(ComponentRouterService)
     component = fixture.componentInstance
   })
 
@@ -442,26 +456,30 @@ describe('DocumentDetailComponent', () => {
     initNormally()
     component.title = 'Foo Bar'
     const closeSpy = jest.spyOn(component, 'close')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     const toastSpy = jest.spyOn(toastService, 'showInfo')
-    updateSpy.mockImplementation((o) => of(doc))
+    patchSpy.mockImplementation((o) => of(doc))
     component.save(true)
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(closeSpy).toHaveBeenCalled()
-    expect(toastSpy).toHaveBeenCalledWith('Document saved successfully.')
+    expect(toastSpy).toHaveBeenCalledWith(
+      'Document "Doc 3" saved successfully.'
+    )
   })
 
   it('should support save without close and show success toast', () => {
     initNormally()
     component.title = 'Foo Bar'
     const closeSpy = jest.spyOn(component, 'close')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     const toastSpy = jest.spyOn(toastService, 'showInfo')
-    updateSpy.mockImplementation((o) => of(doc))
+    patchSpy.mockImplementation((o) => of(doc))
     component.save()
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(closeSpy).not.toHaveBeenCalled()
-    expect(toastSpy).toHaveBeenCalledWith('Document saved successfully.')
+    expect(toastSpy).toHaveBeenCalledWith(
+      'Document "Doc 3" saved successfully.'
+    )
   })
 
   it('should show toast error on save if error occurs', () => {
@@ -469,14 +487,17 @@ describe('DocumentDetailComponent', () => {
     initNormally()
     component.title = 'Foo Bar'
     const closeSpy = jest.spyOn(component, 'close')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     const toastSpy = jest.spyOn(toastService, 'showError')
     const error = new Error('failed to save')
-    updateSpy.mockImplementation(() => throwError(() => error))
+    patchSpy.mockImplementation(() => throwError(() => error))
     component.save()
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(closeSpy).not.toHaveBeenCalled()
-    expect(toastSpy).toHaveBeenCalledWith('Error saving document', error)
+    expect(toastSpy).toHaveBeenCalledWith(
+      'Error saving document "Doc 3"',
+      error
+    )
   })
 
   it('should show error toast on save but close if user can no longer edit', () => {
@@ -484,23 +505,25 @@ describe('DocumentDetailComponent', () => {
     initNormally()
     component.title = 'Foo Bar'
     const closeSpy = jest.spyOn(component, 'close')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     const toastSpy = jest.spyOn(toastService, 'showInfo')
-    updateSpy.mockImplementation(() =>
+    patchSpy.mockImplementation(() =>
       throwError(() => new Error('failed to save'))
     )
     component.save(true)
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(closeSpy).toHaveBeenCalled()
-    expect(toastSpy).toHaveBeenCalledWith('Document saved successfully.')
+    expect(toastSpy).toHaveBeenCalledWith(
+      'Document "Doc 3" saved successfully.'
+    )
   })
 
   it('should allow save and next', () => {
     initNormally()
     const nextDocId = 100
     component.title = 'Foo Bar'
-    const updateSpy = jest.spyOn(documentService, 'update')
-    updateSpy.mockReturnValue(of(doc))
+    const patchSpy = jest.spyOn(documentService, 'patch')
+    patchSpy.mockReturnValue(of(doc))
     const nextSpy = jest.spyOn(documentListViewService, 'getNext')
     nextSpy.mockReturnValue(of(nextDocId))
     const closeSpy = jest.spyOn(openDocumentsService, 'closeDocument')
@@ -508,7 +531,7 @@ describe('DocumentDetailComponent', () => {
     const navigateSpy = jest.spyOn(router, 'navigate')
 
     component.saveEditNext()
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(navigateSpy).toHaveBeenCalledWith(['documents', nextDocId])
     expect
   })
@@ -518,12 +541,12 @@ describe('DocumentDetailComponent', () => {
     initNormally()
     component.title = 'Foo Bar'
     const closeSpy = jest.spyOn(component, 'close')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     const toastSpy = jest.spyOn(toastService, 'showError')
     const error = new Error('failed to save')
-    updateSpy.mockImplementation(() => throwError(() => error))
+    patchSpy.mockImplementation(() => throwError(() => error))
     component.saveEditNext()
-    expect(updateSpy).toHaveBeenCalled()
+    expect(patchSpy).toHaveBeenCalled()
     expect(closeSpy).not.toHaveBeenCalled()
     expect(toastSpy).toHaveBeenCalledWith('Error saving document', error)
   })
@@ -566,6 +589,16 @@ describe('DocumentDetailComponent', () => {
     const navigateSpy = jest.spyOn(router, 'navigate')
     component.close()
     expect(navigateSpy).toHaveBeenCalledWith(['documents'])
+  })
+
+  it('should allow close and navigate to the last view if available', () => {
+    initNormally()
+    jest
+      .spyOn(componentRouterService, 'getComponentURLBefore')
+      .mockReturnValue('dashboard')
+    const navigateSpy = jest.spyOn(router, 'navigate')
+    component.close()
+    expect(navigateSpy).toHaveBeenCalledWith(['dashboard'])
   })
 
   it('should allow close and navigate to documents by default', () => {
@@ -728,7 +761,7 @@ describe('DocumentDetailComponent', () => {
 
   it('should support zoom controls', () => {
     initNormally()
-    component.onZoomSelect({ target: { value: '1' } } as any) // from select
+    component.setZoom(ZoomSetting.One) // from select
     expect(component.previewZoomSetting).toEqual('1')
     component.increaseZoom()
     expect(component.previewZoomSetting).toEqual('1.5')
@@ -736,23 +769,31 @@ describe('DocumentDetailComponent', () => {
     expect(component.previewZoomSetting).toEqual('2')
     component.decreaseZoom()
     expect(component.previewZoomSetting).toEqual('1.5')
-    component.onZoomSelect({ target: { value: '1' } } as any) // from select
+    component.setZoom(ZoomSetting.One) // from select
     component.decreaseZoom()
     expect(component.previewZoomSetting).toEqual('.75')
 
-    component.onZoomSelect({ target: { value: 'page-fit' } } as any) // from select
+    component.setZoom(ZoomSetting.PageFit) // from select
     expect(component.previewZoomScale).toEqual('page-fit')
     expect(component.previewZoomSetting).toEqual('1')
     component.increaseZoom()
     expect(component.previewZoomSetting).toEqual('1.5')
     expect(component.previewZoomScale).toEqual('page-width')
 
-    component.onZoomSelect({ target: { value: 'page-fit' } } as any) // from select
+    component.setZoom(ZoomSetting.PageFit) // from select
     expect(component.previewZoomScale).toEqual('page-fit')
     expect(component.previewZoomSetting).toEqual('1')
     component.decreaseZoom()
     expect(component.previewZoomSetting).toEqual('.5')
     expect(component.previewZoomScale).toEqual('page-width')
+  })
+
+  it('should select correct zoom setting in dropdown', () => {
+    initNormally()
+    component.setZoom(ZoomSetting.PageFit)
+    expect(component.currentZoom).toEqual(ZoomSetting.PageFit)
+    component.setZoom(ZoomSetting.Quarter)
+    expect(component.currentZoom).toEqual(ZoomSetting.Quarter)
   })
 
   it('should support updating notes dynamically', () => {
@@ -924,10 +965,10 @@ describe('DocumentDetailComponent', () => {
     expect(fixture.debugElement.nativeElement.textContent).toContain(
       customFields[1].name
     )
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     component.save(true)
-    expect(updateSpy.mock.lastCall[0].custom_fields).toHaveLength(2)
-    expect(updateSpy.mock.lastCall[0].custom_fields[1]).toEqual({
+    expect(patchSpy.mock.lastCall[0].custom_fields).toHaveLength(2)
+    expect(patchSpy.mock.lastCall[0].custom_fields[1]).toEqual({
       field: customFields[1].id,
       value: null,
     })
@@ -944,11 +985,49 @@ describe('DocumentDetailComponent', () => {
     expect(
       fixture.debugElement.query(By.css('form')).nativeElement.textContent
     ).not.toContain('Field 1')
-    const updateSpy = jest.spyOn(documentService, 'update')
+    const patchSpy = jest.spyOn(documentService, 'patch')
     component.save(true)
-    expect(updateSpy.mock.lastCall[0].custom_fields).toHaveLength(
+    expect(patchSpy.mock.lastCall[0].custom_fields).toHaveLength(
       initialLength - 1
     )
+  })
+
+  it('should correctly determine changed fields', () => {
+    initNormally()
+    expect(component['getChangedFields']()).toEqual({
+      id: doc.id,
+    })
+    component.documentForm.get('title').setValue('Foo Bar')
+    component.documentForm.get('permissions_form').setValue({
+      owner: 1,
+      set_permissions: {
+        view: {
+          users: [2],
+          groups: [],
+        },
+        change: {
+          users: [3],
+          groups: [],
+        },
+      },
+    })
+    component.documentForm.get('title').markAsDirty()
+    component.documentForm.get('permissions_form').markAsDirty()
+    expect(component['getChangedFields']()).toEqual({
+      id: doc.id,
+      title: 'Foo Bar',
+      owner: 1,
+      set_permissions: {
+        view: {
+          users: [2],
+          groups: [],
+        },
+        change: {
+          users: [3],
+          groups: [],
+        },
+      },
+    })
   })
 
   it('should show custom field errors', () => {
@@ -1254,5 +1333,81 @@ describe('DocumentDetailComponent', () => {
       .expectOne(component.previewUrl)
       .error(new ErrorEvent('failed'))
     expect(component.tiffError).not.toBeUndefined()
+  })
+
+  it('should support download using share sheet on mobile, direct download otherwise', () => {
+    const shareSpy = jest.spyOn(navigator, 'share')
+    const createSpy = jest.spyOn(document, 'createElement')
+    const urlRevokeSpy = jest.spyOn(URL, 'revokeObjectURL')
+    initNormally()
+
+    // Mobile
+    jest.spyOn(deviceDetectorService, 'isDesktop').mockReturnValue(false)
+    component.download()
+    httpTestingController
+      .expectOne(`${environment.apiBaseUrl}documents/${doc.id}/download/`)
+      .error(new ProgressEvent('failed'))
+    expect(shareSpy).not.toHaveBeenCalled()
+
+    component.download(true)
+    httpTestingController
+      .expectOne(
+        `${environment.apiBaseUrl}documents/${doc.id}/download/?original=true`
+      )
+      .flush(new ArrayBuffer(100))
+    expect(shareSpy).toHaveBeenCalled()
+
+    // Desktop
+    shareSpy.mockClear()
+    jest.spyOn(deviceDetectorService, 'isDesktop').mockReturnValue(true)
+    component.download()
+    httpTestingController
+      .expectOne(`${environment.apiBaseUrl}documents/${doc.id}/download/`)
+      .flush(new ArrayBuffer(100))
+    expect(shareSpy).not.toHaveBeenCalled()
+    expect(createSpy).toHaveBeenCalledWith('a')
+    expect(urlRevokeSpy).toHaveBeenCalled()
+  })
+
+  it('should download a file with the correct filename', () => {
+    const mockBlob = new Blob(['test content'], { type: 'text/plain' })
+    const mockResponse = new HttpResponse({
+      body: mockBlob,
+      headers: new HttpHeaders({
+        'Content-Disposition': 'attachment; filename="test-file.txt"',
+      }),
+    })
+
+    const downloadUrl = 'http://example.com/download'
+    component.documentId = 123
+    jest.spyOn(documentService, 'getDownloadUrl').mockReturnValue(downloadUrl)
+
+    const createSpy = jest.spyOn(document, 'createElement')
+    const anchor: HTMLAnchorElement = {} as HTMLAnchorElement
+    createSpy.mockReturnValueOnce(anchor)
+
+    component.download(false)
+
+    httpTestingController
+      .expectOne(downloadUrl)
+      .flush(mockBlob, { headers: mockResponse.headers })
+
+    expect(createSpy).toHaveBeenCalledWith('a')
+    expect(anchor.download).toBe('test-file.txt')
+    createSpy.mockClear()
+  })
+
+  it('should get email enabled status from settings', () => {
+    jest.spyOn(settingsService, 'get').mockReturnValue(true)
+    expect(component.emailEnabled).toBeTruthy()
+  })
+
+  it('should support open share links and email modals', () => {
+    const modalSpy = jest.spyOn(modalService, 'open')
+    initNormally()
+    component.openShareLinks()
+    expect(modalSpy).toHaveBeenCalled()
+    component.openEmailDocument()
+    expect(modalSpy).toHaveBeenCalled()
   })
 })

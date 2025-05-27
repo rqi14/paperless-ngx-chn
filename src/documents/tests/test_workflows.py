@@ -133,6 +133,9 @@ class TestWorkflows(
         action.assign_change_groups.add(self.group1.pk)
         action.assign_custom_fields.add(self.cf1.pk)
         action.assign_custom_fields.add(self.cf2.pk)
+        action.assign_custom_fields_values = {
+            self.cf2.pk: 42,
+        }
         action.save()
         w = Workflow.objects.create(
             name="Workflow 1",
@@ -208,6 +211,10 @@ class TestWorkflows(
                 self.assertEqual(
                     list(document.custom_fields.all().values_list("field", flat=True)),
                     [self.cf1.pk, self.cf2.pk],
+                )
+                self.assertEqual(
+                    document.custom_fields.get(field=self.cf2.pk).value,
+                    42,
                 )
 
         info = cm.output[0]
@@ -1215,11 +1222,11 @@ class TestWorkflows(
     def test_document_updated_workflow_existing_custom_field(self):
         """
         GIVEN:
-            - Existing workflow with UPDATED trigger and action that adds a custom field
+            - Existing workflow with UPDATED trigger and action that assigns a custom field with a value
         WHEN:
             - Document is updated that already contains the field
         THEN:
-            - Document update succeeds without trying to re-create the field
+            - Document update succeeds and updates the field
         """
         trigger = WorkflowTrigger.objects.create(
             type=WorkflowTrigger.WorkflowTriggerType.DOCUMENT_UPDATED,
@@ -1227,6 +1234,8 @@ class TestWorkflows(
         )
         action = WorkflowAction.objects.create()
         action.assign_custom_fields.add(self.cf1)
+        action.assign_custom_fields_values = {self.cf1.pk: "new value"}
+        action.save()
         w = Workflow.objects.create(
             name="Workflow 1",
             order=0,
@@ -1250,6 +1259,9 @@ class TestWorkflows(
             {"document_type": self.dt.id},
             format="json",
         )
+
+        doc.refresh_from_db()
+        self.assertEqual(doc.custom_fields.get(field=self.cf1).value, "new value")
 
     def test_document_updated_workflow_merge_permissions(self):
         """
@@ -1324,6 +1336,8 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger against the created field and action that assigns owner
             - Existing doc that matches the trigger
+            - Workflow set to trigger at (now - offset) = now - 1 day
+            - Document created date is 2 days ago → trigger condition met
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1347,7 +1361,7 @@ class TestWorkflows(
         w.save()
 
         now = timezone.localtime(timezone.now())
-        created = now - timedelta(weeks=520)
+        created = now - timedelta(days=2)
         doc = Document.objects.create(
             title="sample test",
             correspondent=self.c,
@@ -1365,6 +1379,8 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger against the added field and action that assigns owner
             - Existing doc that matches the trigger
+            - Workflow set to trigger at (now - offset) = now - 1 day
+            - Document added date is 365 days ago
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1406,6 +1422,8 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger against the modified field and action that assigns owner
             - Existing doc that matches the trigger
+            - Workflow set to trigger at (now - offset) = now - 1 day
+            - Document modified date is mocked as sufficiently in the past
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1446,6 +1464,8 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger against a custom field and action that assigns owner
             - Existing doc that matches the trigger
+            - Workflow set to trigger at (now - offset) = now - 1 day
+            - Custom field date is 2 days ago
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1490,6 +1510,7 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger
             - Existing doc that has already had the workflow run
+            - Document created 2 days ago, workflow offset = 1 day → trigger time = yesterday
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1540,6 +1561,7 @@ class TestWorkflows(
         GIVEN:
             - Existing workflow with SCHEDULED trigger and recurring interval of 7 days
             - Workflow run date is 6 days ago
+            - Document created 40 days ago, offset = 30 → trigger time = 10 days ago
         WHEN:
             - Scheduled workflows are checked
         THEN:
@@ -1587,6 +1609,58 @@ class TestWorkflows(
 
             doc.refresh_from_db()
             self.assertIsNone(doc.owner)
+
+    def test_workflow_scheduled_trigger_negative_offset(self):
+        """
+        GIVEN:
+            - Existing workflow with SCHEDULED trigger and negative offset of -7 days (so 7 days after date)
+            - Custom field date initially set to 5 days ago → trigger time = 2 days in future
+            - Then updated to 8 days ago → trigger time = 1 day ago
+        WHEN:
+            - Scheduled workflows are checked for document with custom field date 8 days in the past
+        THEN:
+            - Workflow runs and document owner is updated
+        """
+        trigger = WorkflowTrigger.objects.create(
+            type=WorkflowTrigger.WorkflowTriggerType.SCHEDULED,
+            schedule_offset_days=-7,
+            schedule_date_field=WorkflowTrigger.ScheduleDateField.CUSTOM_FIELD,
+            schedule_date_custom_field=self.cf1,
+        )
+        action = WorkflowAction.objects.create(
+            assign_title="Doc assign owner",
+            assign_owner=self.user2,
+        )
+        w = Workflow.objects.create(
+            name="Workflow 1",
+            order=0,
+        )
+        w.triggers.add(trigger)
+        w.actions.add(action)
+        w.save()
+
+        doc = Document.objects.create(
+            title="sample test",
+            correspondent=self.c,
+            original_filename="sample.pdf",
+        )
+        cfi = CustomFieldInstance.objects.create(
+            document=doc,
+            field=self.cf1,
+            value_date=timezone.now() - timedelta(days=5),
+        )
+
+        tasks.check_scheduled_workflows()
+
+        doc.refresh_from_db()
+        self.assertIsNone(doc.owner)  # has not triggered yet
+
+        cfi.value_date = timezone.now() - timedelta(days=8)
+        cfi.save()
+
+        tasks.check_scheduled_workflows()
+        doc.refresh_from_db()
+        self.assertEqual(doc.owner, self.user2)
 
     def test_workflow_enabled_disabled(self):
         trigger = WorkflowTrigger.objects.create(
@@ -2602,14 +2676,28 @@ class TestWorkflows(
             )
 
             mock_post.assert_called_once_with(
-                "http://paperless-ngx.com",
-                data="Test message",
+                url="http://paperless-ngx.com",
+                content="Test message",
                 headers={},
                 files=None,
             )
 
             expected_str = "Webhook sent to http://paperless-ngx.com"
             self.assertIn(expected_str, cm.output[0])
+
+            # with dict
+            send_webhook(
+                url="http://paperless-ngx.com",
+                data={"message": "Test message"},
+                headers={},
+                files=None,
+            )
+            mock_post.assert_called_with(
+                url="http://paperless-ngx.com",
+                data={"message": "Test message"},
+                headers={},
+                files=None,
+            )
 
     @mock.patch("httpx.post")
     def test_workflow_webhook_send_webhook_retry(self, mock_http):

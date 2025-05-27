@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -32,28 +32,39 @@ class TestApiAppConfig(DirectoriesMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        self.assertEqual(
-            json.dumps(response.data[0]),
-            json.dumps(
-                {
-                    "id": 1,
-                    "user_args": None,
-                    "output_type": None,
-                    "pages": None,
-                    "language": None,
-                    "mode": None,
-                    "skip_archive_file": None,
-                    "image_dpi": None,
-                    "unpaper_clean": None,
-                    "deskew": None,
-                    "rotate_pages": None,
-                    "rotate_pages_threshold": None,
-                    "max_image_pixels": None,
-                    "color_conversion_strategy": None,
-                    "app_title": None,
-                    "app_logo": None,
-                },
-            ),
+        self.maxDiff = None
+
+        self.assertDictEqual(
+            response.data[0],
+            {
+                "id": 1,
+                "output_type": None,
+                "pages": None,
+                "language": None,
+                "mode": None,
+                "skip_archive_file": None,
+                "image_dpi": None,
+                "unpaper_clean": None,
+                "deskew": None,
+                "rotate_pages": None,
+                "rotate_pages_threshold": None,
+                "max_image_pixels": None,
+                "color_conversion_strategy": None,
+                "user_args": None,
+                "app_title": None,
+                "app_logo": None,
+                "barcodes_enabled": None,
+                "barcode_enable_tiff_support": None,
+                "barcode_string": None,
+                "barcode_retain_split_pages": None,
+                "barcode_enable_asn": None,
+                "barcode_asn_prefix": None,
+                "barcode_upscale": None,
+                "barcode_dpi": None,
+                "barcode_max_pages": None,
+                "barcode_enable_tag": None,
+                "barcode_tag_mapping": None,
+            },
         )
 
     def test_api_get_ui_settings_with_config(self):
@@ -118,6 +129,7 @@ class TestApiAppConfig(DirectoriesMixin, APITestCase):
                 {
                     "user_args": "",
                     "language": "",
+                    "barcode_tag_mapping": "",
                 },
             ),
             content_type="application/json",
@@ -126,6 +138,7 @@ class TestApiAppConfig(DirectoriesMixin, APITestCase):
         config = ApplicationConfiguration.objects.first()
         self.assertEqual(config.user_args, None)
         self.assertEqual(config.language, None)
+        self.assertEqual(config.barcode_tag_mapping, None)
 
     def test_api_replace_app_logo(self):
         """
@@ -136,10 +149,7 @@ class TestApiAppConfig(DirectoriesMixin, APITestCase):
         THEN:
             - old app_logo file is deleted
         """
-        with open(
-            os.path.join(os.path.dirname(__file__), "samples", "simple.jpg"),
-            "rb",
-        ) as f:
+        with (Path(__file__).parent / "samples" / "simple.jpg").open("rb") as f:
             self.client.patch(
                 f"{self.ENDPOINT}1/",
                 {
@@ -148,15 +158,12 @@ class TestApiAppConfig(DirectoriesMixin, APITestCase):
             )
         config = ApplicationConfiguration.objects.first()
         old_logo = config.app_logo
-        self.assertTrue(os.path.exists(old_logo.path))
-        with open(
-            os.path.join(os.path.dirname(__file__), "samples", "simple.png"),
-            "rb",
-        ) as f:
+        self.assertTrue(Path(old_logo.path).exists())
+        with (Path(__file__).parent / "samples" / "simple.png").open("rb") as f:
             self.client.patch(
                 f"{self.ENDPOINT}1/",
                 {
                     "app_logo": f,
                 },
             )
-        self.assertFalse(os.path.exists(old_logo.path))
+        self.assertFalse(Path(old_logo.path).exists())

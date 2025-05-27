@@ -8,10 +8,10 @@ from django.conf import settings
 from django.utils.timezone import is_naive
 from django.utils.timezone import make_aware
 from gotenberg_client import GotenbergClient
-from gotenberg_client.options import MarginType
-from gotenberg_client.options import MarginUnitType
+from gotenberg_client.constants import A4
+from gotenberg_client.options import Measurement
+from gotenberg_client.options import MeasurementUnitType
 from gotenberg_client.options import PageMarginsType
-from gotenberg_client.options import PageSize
 from gotenberg_client.options import PdfAFormat
 from humanize import naturalsize
 from imap_tools import MailAttachment
@@ -22,6 +22,7 @@ from documents.parsers import DocumentParser
 from documents.parsers import ParseError
 from documents.parsers import make_thumbnail_from_pdf
 from paperless.models import OutputTypeChoices
+from paperless_mail.models import MailRule
 
 
 class MailDocumentParser(DocumentParser):
@@ -121,7 +122,13 @@ class MailDocumentParser(DocumentParser):
         result.sort(key=lambda item: (item["prefix"], item["key"]))
         return result
 
-    def parse(self, document_path: Path, mime_type: str, file_name=None):
+    def parse(
+        self,
+        document_path: Path,
+        mime_type: str,
+        file_name=None,
+        mailrule_id: int | None = None,
+    ):
         """
         Parses the given .eml into formatted text, based on the decoded email.
 
@@ -180,7 +187,11 @@ class MailDocumentParser(DocumentParser):
             self.date = mail.date
 
         self.log.debug("Creating a PDF from the email")
-        self.archive_path = self.generate_pdf(mail)
+        if mailrule_id:
+            rule = MailRule.objects.get(pk=mailrule_id)
+            self.archive_path = self.generate_pdf(mail, rule.pdf_layout)
+        else:
+            self.archive_path = self.generate_pdf(mail)
 
     @staticmethod
     def parse_file_to_message(filepath: Path) -> MailMessage:
@@ -217,10 +228,18 @@ class MailDocumentParser(DocumentParser):
                 f"{settings.TIKA_ENDPOINT}: {err}",
             ) from err
 
-    def generate_pdf(self, mail_message: MailMessage) -> Path:
+    def generate_pdf(
+        self,
+        mail_message: MailMessage,
+        pdf_layout: MailRule.PdfLayout | None = None,
+    ) -> Path:
         archive_path = Path(self.tempdir) / "merged.pdf"
 
         mail_pdf_file = self.generate_pdf_from_mail(mail_message)
+
+        pdf_layout = (
+            pdf_layout or settings.EMAIL_PARSE_DEFAULT_LAYOUT
+        )  # EMAIL_PARSE_DEFAULT_LAYOUT is a MailRule.PdfLayout
 
         # If no HTML content, create the PDF from the message
         # Otherwise, create 2 PDFs and merge them with Gotenberg
@@ -246,7 +265,15 @@ class MailDocumentParser(DocumentParser):
                 if pdf_a_format is not None:
                     route.pdf_format(pdf_a_format)
 
-                route.merge([mail_pdf_file, pdf_of_html_content])
+                match pdf_layout:
+                    case MailRule.PdfLayout.HTML_TEXT:
+                        route.merge([pdf_of_html_content, mail_pdf_file])
+                    case MailRule.PdfLayout.HTML_ONLY:
+                        route.merge([pdf_of_html_content])
+                    case MailRule.PdfLayout.TEXT_ONLY:
+                        route.merge([mail_pdf_file])
+                    case MailRule.PdfLayout.TEXT_HTML | _:
+                        route.merge([mail_pdf_file, pdf_of_html_content])
 
                 try:
                     response = route.run()
@@ -343,13 +370,13 @@ class MailDocumentParser(DocumentParser):
                     .resource(css_file)
                     .margins(
                         PageMarginsType(
-                            top=MarginType(0.1, MarginUnitType.Inches),
-                            bottom=MarginType(0.1, MarginUnitType.Inches),
-                            left=MarginType(0.1, MarginUnitType.Inches),
-                            right=MarginType(0.1, MarginUnitType.Inches),
+                            top=Measurement(0.1, MeasurementUnitType.Inches),
+                            bottom=Measurement(0.1, MeasurementUnitType.Inches),
+                            left=Measurement(0.1, MeasurementUnitType.Inches),
+                            right=Measurement(0.1, MeasurementUnitType.Inches),
                         ),
                     )
-                    .size(PageSize(height=11.7, width=8.27))
+                    .size(A4)
                     .scale(1.0)
                     .run()
                 )
@@ -425,14 +452,12 @@ class MailDocumentParser(DocumentParser):
             # Set page size, margins
             route.margins(
                 PageMarginsType(
-                    top=MarginType(0.1, MarginUnitType.Inches),
-                    bottom=MarginType(0.1, MarginUnitType.Inches),
-                    left=MarginType(0.1, MarginUnitType.Inches),
-                    right=MarginType(0.1, MarginUnitType.Inches),
+                    top=Measurement(0.1, MeasurementUnitType.Inches),
+                    bottom=Measurement(0.1, MeasurementUnitType.Inches),
+                    left=Measurement(0.1, MeasurementUnitType.Inches),
+                    right=Measurement(0.1, MeasurementUnitType.Inches),
                 ),
-            ).size(
-                PageSize(height=11.7, width=8.27),
-            ).scale(1.0)
+            ).size(A4).scale(1.0)
 
             try:
                 response = route.run()

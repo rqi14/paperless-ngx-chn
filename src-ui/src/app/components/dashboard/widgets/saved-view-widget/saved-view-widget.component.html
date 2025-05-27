@@ -43,29 +43,52 @@
                       <a routerLink="/documents/{{doc.id}}" class="btn-link text-dark text-decoration-none py-2 py-md-3" title="Open document" i18n-title>{{doc.added | customDate}}</a>
                     }
                     @case (DisplayField.CREATED) {
-                      <a routerLink="/documents/{{doc.id}}" class="btn-link text-dark text-decoration-none py-2 py-md-3" title="Open document" i18n-title>{{doc.created_date | customDate}}</a>
+                      <a routerLink="/documents/{{doc.id}}" class="btn-link text-dark text-decoration-none py-2 py-md-3" title="Open document" i18n-title>{{doc.created | customDate}}</a>
                     }
                     @case (DisplayField.TITLE) {
                       <a routerLink="/documents/{{doc.id}}" title="Open document" i18n-title class="btn-link text-dark text-decoration-none py-2 py-md-3">{{doc.title | documentTitle}}</a>
                     }
                     @case (DisplayField.CORRESPONDENT) {
                       @if (doc.correspondent) {
-                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickCorrespondent(doc.correspondent, $event)" title="Filter by correspondent" i18n-title>{{(doc.correspondent$ | async)?.name}}</a>
+                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickCorrespondent(doc.correspondent, $event)" title="Filter by correspondent" i18n-title>{{doc.correspondent | correspondentName | async}}</a>
                       }
                     }
                     @case (DisplayField.TAGS) {
-                      @for (t of doc.tags$ | async; track t) {
-                        <pngx-tag [tag]="t" class="ms-1" (click)="clickTag(t.id, $event)" [clickable]="true" linkTitle="Filter by tag" i18n-title></pngx-tag>
+                      @for (tagID of doc.tags; track tagID) {
+                        <pngx-tag [tagID]="tagID" class="ms-1 fs-6" (click)="clickTag(tagID, $event)" [clickable]="true" linkTitle="Filter by tag" i18n-title></pngx-tag>
                       }
                     }
                     @case (DisplayField.DOCUMENT_TYPE) {
                       @if (doc.document_type) {
-                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickDocType(doc.document_type, $event)" title="Filter by document type" i18n-title>{{(doc.document_type$ | async)?.name}}</a>
+                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickDocType(doc.document_type, $event)" title="Filter by document type" i18n-title>{{doc.document_type | documentTypeName | async}}</a>
                       }
                     }
                     @case (DisplayField.STORAGE_PATH) {
                       @if (doc.storage_path) {
-                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickStoragePath(doc.storage_path, $event)" title="Filter by storage path" i18n-title>{{(doc.storage_path$ | async)?.name}}</a>
+                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickStoragePath(doc.storage_path, $event)" title="Filter by storage path" i18n-title>{{doc.storage_path | storagePathName | async}}</a>
+                      }
+                    }
+                    @case (DisplayField.OWNER) {
+                      @if (doc.owner) {
+                        <a class="btn-link text-dark text-decoration-none" type="button" (click)="clickOwner(doc.owner, $event)" title="Filter by owner" i18n-title>{{doc.owner | username | async}}</a>
+                      }
+                    }
+                    @case (DisplayField.ASN) {
+                      {{doc.archive_serial_number}}
+                    }
+                    @case (DisplayField.PAGE_COUNT) {
+                      {{ doc.page_count }}
+                    }
+                    @case (DisplayField.SHARED) {
+                      @if (doc.is_shared_by_requester) { <ng-container i18n>Yes</ng-container> } @else { <ng-container i18n>No</ng-container> }
+                    }
+                    @case (DisplayField.NOTES) {
+                      @if (doc.notes.length) {
+                        <a routerLink="/documents/{{doc.id}}/notes" class="btn btn-sm p-0">
+                          <span class="badge rounded-pill bg-light border text-primary">
+                            <i-bs width="1.2em" height="1.2em" class="ms-1 me-1" name="chat-left-text"></i-bs>
+                          {{doc.notes.length}}</span>
+                        </a>
                       }
                     }
                   }
