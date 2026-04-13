@@ -16,6 +16,7 @@ import { ActivatedRoute, Router } from '@angular/router'
 import { RouterTestingModule } from '@angular/router/testing'
 import { NgbModal, NgbModalModule, NgbModule } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { provideUiTour } from 'ngx-ui-tour-ng-bootstrap'
 import { of, throwError } from 'rxjs'
 import { routes } from 'src/app/app-routing.module'
 import { SavedView } from 'src/app/data/saved-view'
@@ -27,7 +28,10 @@ import {
   DjangoMessagesService,
 } from 'src/app/services/django-messages.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
-import { PermissionsService } from 'src/app/services/permissions.service'
+import {
+  PermissionType,
+  PermissionsService,
+} from 'src/app/services/permissions.service'
 import { RemoteVersionService } from 'src/app/services/rest/remote-version.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { SearchService } from 'src/app/services/rest/search.service'
@@ -92,6 +96,7 @@ describe('AppFrameComponent', () => {
   let router: Router
   let savedViewSpy
   let modalService: NgbModal
+  let maybeRefreshSpy
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -113,7 +118,11 @@ describe('AppFrameComponent', () => {
         {
           provide: SavedViewService,
           useValue: {
-            reload: () => {},
+            reload: (fn: any) => {
+              if (fn) {
+                fn()
+              }
+            },
             listAll: () =>
               of({
                 all: [saved_views.map((v) => v.id)],
@@ -121,6 +130,8 @@ describe('AppFrameComponent', () => {
                 results: saved_views,
               }),
             sidebarViews: saved_views.filter((v) => v.show_in_sidebar),
+            getDocumentCount: (view: SavedView) => 5,
+            maybeRefreshDocumentCounts: () => {},
           },
         },
         PermissionsService,
@@ -150,6 +161,7 @@ describe('AppFrameComponent', () => {
         PermissionsGuard,
         provideHttpClient(withInterceptorsFromDi()),
         provideHttpClientTesting(),
+        provideUiTour(),
       ],
     }).compileComponents()
 
@@ -169,6 +181,7 @@ describe('AppFrameComponent', () => {
     jest.spyOn(permissionsService, 'currentUserCan').mockReturnValue(true)
 
     savedViewSpy = jest.spyOn(savedViewService, 'reload')
+    maybeRefreshSpy = jest.spyOn(savedViewService, 'maybeRefreshDocumentCounts')
 
     fixture = TestBed.createComponent(AppFrameComponent)
     component = fixture.componentInstance
@@ -230,9 +243,19 @@ describe('AppFrameComponent', () => {
 
   it('should support toggling slim sidebar and saving', fakeAsync(() => {
     const saveSettingSpy = jest.spyOn(settingsService, 'set')
+    settingsService.set(SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED, [])
     expect(component.slimSidebarEnabled).toBeFalsy()
     expect(component.slimSidebarAnimating).toBeFalsy()
     component.toggleSlimSidebar()
+    const requests = httpTestingController.match(
+      `${environment.apiBaseUrl}ui_settings/`
+    )
+    expect(requests).toHaveLength(1)
+    expect(requests[0].request.body.settings.slim_sidebar).toBe(true)
+    expect(
+      requests[0].request.body.settings.attributes_sections_collapsed
+    ).toEqual(['attributes'])
+    requests[0].flush({ success: true })
     expect(component.slimSidebarAnimating).toBeTruthy()
     tick(200)
     expect(component.slimSidebarAnimating).toBeFalsy()
@@ -241,6 +264,10 @@ describe('AppFrameComponent', () => {
       SETTINGS_KEYS.SLIM_SIDEBAR,
       true
     )
+    expect(saveSettingSpy).toHaveBeenCalledWith(
+      SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED,
+      ['attributes']
+    )
   }))
 
   it('should show error on toggle slim sidebar if store settings fails', () => {
@@ -248,7 +275,7 @@ describe('AppFrameComponent', () => {
     const toastSpy = jest.spyOn(toastService, 'showError')
     component.toggleSlimSidebar()
     httpTestingController
-      .expectOne(`${environment.apiBaseUrl}ui_settings/`)
+      .match(`${environment.apiBaseUrl}ui_settings/`)[0]
       .flush('error', {
         status: 500,
         statusText: 'error',
@@ -264,6 +291,59 @@ describe('AppFrameComponent', () => {
     expect(component.isMenuCollapsed).toBeFalsy()
     component.closeMenu()
     expect(component.isMenuCollapsed).toBeTruthy()
+  })
+
+  it('should hide mobile search when scrolling down and show it when scrolling up', () => {
+    Object.defineProperty(globalThis, 'innerWidth', {
+      value: 767,
+    })
+
+    component.ngOnInit()
+
+    Object.defineProperty(globalThis, 'scrollY', {
+      configurable: true,
+      value: 40,
+    })
+    component.onWindowScroll()
+    expect(component.mobileSearchHidden).toBe(true)
+
+    Object.defineProperty(globalThis, 'scrollY', {
+      configurable: true,
+      value: 0,
+    })
+    component.onWindowScroll()
+    expect(component.mobileSearchHidden).toBe(false)
+  })
+
+  it('should keep mobile search visible on desktop scroll or resize', () => {
+    Object.defineProperty(globalThis, 'innerWidth', {
+      value: 1024,
+    })
+    component.ngOnInit()
+    component.mobileSearchHidden = true
+
+    component.onWindowScroll()
+
+    expect(component.mobileSearchHidden).toBe(false)
+
+    component.mobileSearchHidden = true
+    component.onWindowResize()
+  })
+
+  it('should keep mobile search visible while the mobile menu is expanded', () => {
+    Object.defineProperty(globalThis, 'innerWidth', {
+      value: 767,
+    })
+    component.ngOnInit()
+    component.isMenuCollapsed = false
+
+    Object.defineProperty(globalThis, 'scrollY', {
+      configurable: true,
+      value: 40,
+    })
+    component.onWindowScroll()
+
+    expect(component.mobileSearchHidden).toBe(false)
   })
 
   it('should support close document & navigate on close current doc', () => {
@@ -358,5 +438,108 @@ describe('AppFrameComponent', () => {
     component.ngOnInit()
     expect(toastErrorSpy).toHaveBeenCalledTimes(2)
     expect(toastInfoSpy).toHaveBeenCalledTimes(3)
+  })
+
+  it('should call maybeRefreshDocumentCounts after saved views reload', () => {
+    expect(maybeRefreshSpy).toHaveBeenCalled()
+  })
+
+  it('should indicate attributes management availability when any permission is granted', () => {
+    jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation((action, type) => {
+        return type === PermissionType.Tag
+      })
+
+    expect(component.canManageAttributes).toBe(true)
+  })
+
+  it('should indicate attributes management availability for other permission types', () => {
+    const canSpy = jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation((action, type) => {
+        return type === PermissionType.Correspondent
+      })
+    expect(component.canManageAttributes).toBe(true)
+
+    canSpy.mockImplementation((action, type) => {
+      return type === PermissionType.DocumentType
+    })
+    expect(component.canManageAttributes).toBe(true)
+
+    canSpy.mockImplementation((action, type) => {
+      return type === PermissionType.StoragePath
+    })
+    expect(component.canManageAttributes).toBe(true)
+
+    canSpy.mockImplementation((action, type) => {
+      return type === PermissionType.CustomField
+    })
+    expect(component.canManageAttributes).toBe(true)
+  })
+
+  it('should toggle attributes sections and stop event bubbling', () => {
+    const preventDefault = jest.fn()
+    const stopPropagation = jest.fn()
+    const setSpy = jest.spyOn(settingsService, 'set')
+    jest.spyOn(settingsService, 'storeSettings').mockReturnValue(of(true))
+
+    component.toggleAttributesSections({
+      preventDefault,
+      stopPropagation,
+    } as any)
+
+    expect(preventDefault).toHaveBeenCalled()
+    expect(stopPropagation).toHaveBeenCalled()
+    expect(setSpy).toHaveBeenCalledWith(
+      SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED,
+      ['attributes']
+    )
+  })
+
+  it('should show error when saving slim sidebar setting fails', () => {
+    const toastSpy = jest.spyOn(toastService, 'showError')
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    jest
+      .spyOn(settingsService, 'storeSettings')
+      .mockReturnValue(throwError(() => new Error('boom')))
+
+    component.slimSidebarEnabled = true
+
+    expect(toastSpy).toHaveBeenCalled()
+  })
+
+  it('should show error when saving attributes collapsed setting fails', () => {
+    const toastSpy = jest.spyOn(toastService, 'showError')
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    jest
+      .spyOn(settingsService, 'storeSettings')
+      .mockReturnValue(throwError(() => new Error('boom')))
+
+    component.attributesSectionsCollapsed = true
+
+    expect(toastSpy).toHaveBeenCalled()
+  })
+
+  it('should persist attributes section collapse state', () => {
+    const setSpy = jest.spyOn(settingsService, 'set')
+    jest.spyOn(settingsService, 'storeSettings').mockReturnValue(of(true))
+
+    component.attributesSectionsCollapsed = true
+
+    expect(setSpy).toHaveBeenCalledWith(
+      SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED,
+      ['attributes']
+    )
+  })
+
+  it('should collapse attributes sections when enabling slim sidebar', () => {
+    jest.spyOn(settingsService, 'storeSettings').mockReturnValue(of(true))
+    settingsService.set(SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED, [])
+    settingsService.set(SETTINGS_KEYS.SLIM_SIDEBAR, false)
+
+    component.toggleSlimSidebar()
+
+    expect(component.attributesSectionsCollapsed).toBe(true)
   })
 })

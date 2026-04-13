@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core'
+import { Component, EventEmitter, Output, inject } from '@angular/core'
 import {
   FormControl,
   FormGroup,
@@ -17,7 +17,11 @@ import { SelectComponent } from 'src/app/components/common/input/select/select.c
 import { TextComponent } from 'src/app/components/common/input/text/text.component'
 import { UrlComponent } from 'src/app/components/common/input/url/url.component'
 import { CustomField, CustomFieldDataType } from 'src/app/data/custom-field'
-import { DocumentService } from 'src/app/services/rest/document.service'
+import {
+  DocumentSelectionQuery,
+  DocumentService,
+} from 'src/app/services/rest/document.service'
+import { TextAreaComponent } from '../../../common/input/textarea/textarea.component'
 
 @Component({
   selector: 'pngx-custom-fields-bulk-edit-dialog',
@@ -35,9 +39,13 @@ import { DocumentService } from 'src/app/services/rest/document.service'
     FormsModule,
     ReactiveFormsModule,
     NgxBootstrapIconsModule,
+    TextAreaComponent,
   ],
 })
 export class CustomFieldsBulkEditDialogComponent {
+  private activeModal = inject(NgbActiveModal)
+  private documentService = inject(DocumentService)
+
   CustomFieldDataType = CustomFieldDataType
 
   @Output()
@@ -71,12 +79,11 @@ export class CustomFieldsBulkEditDialogComponent {
 
   public form: FormGroup = new FormGroup({})
 
-  public documents: number[] = []
+  public selection: DocumentSelectionQuery = { documents: [] }
 
-  constructor(
-    private activeModal: NgbActiveModal,
-    private documentService: DocumentService
-  ) {}
+  public get documents(): number[] {
+    return this.selection.documents
+  }
 
   initForm() {
     Object.keys(this.form.controls).forEach((key) => {
@@ -91,7 +98,7 @@ export class CustomFieldsBulkEditDialogComponent {
 
   public save() {
     this.documentService
-      .bulkEdit(this.documents, 'modify_custom_fields', {
+      .bulkEdit(this.selection, 'modify_custom_fields', {
         add_custom_fields: this.form.value,
         remove_custom_fields: this.fieldsToRemoveIds,
       })

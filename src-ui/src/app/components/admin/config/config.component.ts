@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import { Component, OnDestroy, OnInit } from '@angular/core'
+import { Component, OnDestroy, OnInit, inject } from '@angular/core'
 import {
   AbstractControl,
   FormControl,
@@ -29,6 +29,7 @@ import { SettingsService } from 'src/app/services/settings.service'
 import { ToastService } from 'src/app/services/toast.service'
 import { FileComponent } from '../../common/input/file/file.component'
 import { NumberComponent } from '../../common/input/number/number.component'
+import { PasswordComponent } from '../../common/input/password/password.component'
 import { SelectComponent } from '../../common/input/select/select.component'
 import { SwitchComponent } from '../../common/input/switch/switch.component'
 import { TextComponent } from '../../common/input/text/text.component'
@@ -46,6 +47,7 @@ import { LoadingComponentWithPermissions } from '../../loading-component/loading
     TextComponent,
     NumberComponent,
     FileComponent,
+    PasswordComponent,
     AsyncPipe,
     NgbNavModule,
     FormsModule,
@@ -57,6 +59,10 @@ export class ConfigComponent
   extends LoadingComponentWithPermissions
   implements OnInit, OnDestroy, DirtyComponent
 {
+  private configService = inject(ConfigService)
+  private toastService = inject(ToastService)
+  private settingsService = inject(SettingsService)
+
   public readonly ConfigOptionType = ConfigOptionType
 
   // generated dynamically
@@ -77,11 +83,7 @@ export class ConfigComponent
   storeSub: Subscription
   isDirty$: Observable<boolean>
 
-  constructor(
-    private configService: ConfigService,
-    private toastService: ToastService,
-    private settingsService: SettingsService
-  ) {
+  constructor() {
     super()
     this.configForm.addControl('id', new FormControl())
     PaperlessConfigOptions.forEach((option) => {
@@ -207,5 +209,13 @@ export class ConfigComponent
           )
         },
       })
+  }
+
+  public isSet(key: string): boolean {
+    return this.configForm.get(key).value != null
+  }
+
+  public resetOption(key: string) {
+    this.configForm.get(key).setValue(null)
   }
 }

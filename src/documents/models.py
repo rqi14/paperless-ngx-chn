@@ -7,18 +7,22 @@ from celery import states
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from multiselectfield import MultiSelectField
+from treenode.models import TreeNodeModel
 
 if settings.AUDIT_LOG_ENABLED:
     from auditlog.registry import auditlog
 
 from django.db.models import Case
+from django.db.models import PositiveIntegerField
 from django.db.models.functions import Cast
+from django.db.models.functions import Length
 from django.db.models.functions import Substr
 from django_softdelete.models import SoftDeleteModel
 
@@ -63,7 +67,7 @@ class MatchingModel(ModelWithOwner):
 
     match = models.CharField(_("match"), max_length=256, blank=True)
 
-    matching_algorithm = models.PositiveIntegerField(
+    matching_algorithm = models.PositiveSmallIntegerField(
         _("matching algorithm"),
         choices=MATCHING_ALGORITHMS,
         default=MATCH_ANY,
@@ -71,7 +75,7 @@ class MatchingModel(ModelWithOwner):
 
     is_insensitive = models.BooleanField(_("is insensitive"), default=True)
 
-    class Meta:
+    class Meta(ModelWithOwner.Meta):
         abstract = True
         ordering = ("name",)
         constraints = [
@@ -96,8 +100,10 @@ class Correspondent(MatchingModel):
         verbose_name_plural = _("correspondents")
 
 
-class Tag(MatchingModel):
+class Tag(MatchingModel, TreeNodeModel):
     color = models.CharField(_("color"), max_length=7, default="#a6cee3")
+    # Maximum allowed nesting depth for tags (root = 1, max depth = 5)
+    MAX_NESTING_DEPTH: Final[int] = 5
 
     is_inbox_tag = models.BooleanField(
         _("is inbox tag"),
@@ -108,9 +114,29 @@ class Tag(MatchingModel):
         ),
     )
 
-    class Meta(MatchingModel.Meta):
+    class Meta(MatchingModel.Meta, TreeNodeModel.Meta):
         verbose_name = _("tag")
         verbose_name_plural = _("tags")
+
+    def clean(self) -> None:
+        # Prevent self-parenting and assigning a descendant as parent
+        parent = self.get_parent()
+        if parent == self:
+            raise ValidationError({"parent": _("Cannot set itself as parent.")})
+        if parent and self.pk is not None and self.is_ancestor_of(parent):
+            raise ValidationError({"parent": _("Cannot set parent to a descendant.")})
+
+        # Enforce maximum nesting depth
+        new_parent_depth = 0
+        if parent:
+            new_parent_depth = parent.get_ancestors_count() + 1
+
+        height = 0 if self.pk is None else self.get_depth()
+        deepest_new_depth = (new_parent_depth + 1) + height
+        if deepest_new_depth > self.MAX_NESTING_DEPTH:
+            raise ValidationError({"parent": _("Maximum nesting depth exceeded.")})
+
+        return super().clean()
 
 
 class DocumentType(MatchingModel):
@@ -129,13 +155,8 @@ class StoragePath(MatchingModel):
         verbose_name_plural = _("storage paths")
 
 
-class Document(SoftDeleteModel, ModelWithOwner):
-    STORAGE_TYPE_UNENCRYPTED = "unencrypted"
-    STORAGE_TYPE_GPG = "gpg"
-    STORAGE_TYPES = (
-        (STORAGE_TYPE_UNENCRYPTED, _("Unencrypted")),
-        (STORAGE_TYPE_GPG, _("Encrypted with GNU Privacy Guard")),
-    )
+class Document(SoftDeleteModel, ModelWithOwner):  # type: ignore[django-manager-missing]
+    MAX_STORED_FILENAME_LENGTH: Final[int] = 1024
 
     correspondent = models.ForeignKey(
         Correspondent,
@@ -175,6 +196,15 @@ class Document(SoftDeleteModel, ModelWithOwner):
         ),
     )
 
+    content_length = models.GeneratedField(
+        expression=Length("content"),
+        output_field=PositiveIntegerField(default=0),
+        db_persist=True,
+        null=False,
+        serialize=False,
+        help_text="Length of the content field in characters. Automatically maintained by the database for faster statistics computation.",
+    )
+
     mime_type = models.CharField(_("mime type"), max_length=256, editable=False)
 
     tags = models.ManyToManyField(
@@ -186,15 +216,14 @@ class Document(SoftDeleteModel, ModelWithOwner):
 
     checksum = models.CharField(
         _("checksum"),
-        max_length=32,
+        max_length=64,
         editable=False,
-        unique=True,
         help_text=_("The checksum of the original document."),
     )
 
     archive_checksum = models.CharField(
         _("archive checksum"),
-        max_length=32,
+        max_length=64,
         editable=False,
         blank=True,
         null=True,
@@ -226,14 +255,6 @@ class Document(SoftDeleteModel, ModelWithOwner):
         db_index=True,
     )
 
-    storage_type = models.CharField(
-        _("storage type"),
-        max_length=11,
-        choices=STORAGE_TYPES,
-        default=STORAGE_TYPE_UNENCRYPTED,
-        editable=False,
-    )
-
     added = models.DateTimeField(
         _("added"),
         default=timezone.now,
@@ -243,7 +264,7 @@ class Document(SoftDeleteModel, ModelWithOwner):
 
     filename = models.FilePathField(
         _("filename"),
-        max_length=1024,
+        max_length=MAX_STORED_FILENAME_LENGTH,
         editable=False,
         default=None,
         unique=True,
@@ -253,7 +274,7 @@ class Document(SoftDeleteModel, ModelWithOwner):
 
     archive_filename = models.FilePathField(
         _("archive filename"),
-        max_length=1024,
+        max_length=MAX_STORED_FILENAME_LENGTH,
         editable=False,
         default=None,
         unique=True,
@@ -263,7 +284,7 @@ class Document(SoftDeleteModel, ModelWithOwner):
 
     original_filename = models.CharField(
         _("original filename"),
-        max_length=1024,
+        max_length=MAX_STORED_FILENAME_LENGTH,
         editable=False,
         default=None,
         unique=False,
@@ -289,10 +310,45 @@ class Document(SoftDeleteModel, ModelWithOwner):
         ),
     )
 
+    root_document = models.ForeignKey(
+        "self",
+        blank=True,
+        null=True,
+        related_name="versions",
+        on_delete=models.CASCADE,
+        verbose_name=_("root document for this version"),
+    )
+
+    version_index = models.PositiveIntegerField(
+        _("version index"),
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=_("Index of this version within the root document."),
+    )
+
+    version_label = models.CharField(
+        _("version label"),
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text=_("Optional short label for a document version."),
+    )
+
     class Meta:
         ordering = ("-created",)
         verbose_name = _("document")
         verbose_name_plural = _("documents")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["root_document", "version_index"],
+                condition=models.Q(
+                    root_document__isnull=False,
+                    version_index__isnull=False,
+                ),
+                name="documents_document_root_version_index_uniq",
+            ),
+        ]
 
     def __str__(self) -> str:
         created = self.created.isoformat()
@@ -305,14 +361,73 @@ class Document(SoftDeleteModel, ModelWithOwner):
             res += f" {self.title}"
         return res
 
+    def get_effective_content(self) -> str | None:
+        """
+        Returns the effective content for the document.
+
+        For root documents, this is the latest version's content when available.
+        For version documents, this is always the document's own content.
+        If the queryset already annotated ``effective_content``, that value is used.
+        """
+        if hasattr(self, "effective_content"):
+            return getattr(self, "effective_content")
+
+        if self.root_document_id is not None or self.pk is None:
+            return self.content
+
+        prefetched_cache = getattr(self, "_prefetched_objects_cache", None)
+        prefetched_versions = (
+            prefetched_cache.get("versions")
+            if isinstance(prefetched_cache, dict)
+            else None
+        )
+        if prefetched_versions:
+            latest_prefetched = max(prefetched_versions, key=lambda doc: doc.id)
+            return latest_prefetched.content
+
+        latest_version_content = (
+            Document.objects.filter(root_document=self)
+            .order_by("-id")
+            .values_list("content", flat=True)
+            .first()
+        )
+        return (
+            latest_version_content
+            if latest_version_content is not None
+            else self.content
+        )
+
+    @property
+    def suggestion_content(self):
+        """
+        Returns the document text used to generate suggestions.
+
+        If the document content length exceeds a specified limit,
+        the text is cropped to include the start and end segments.
+        Otherwise, the full content is returned.
+
+        This improves processing speed for large documents while keeping
+        enough context for accurate suggestions.
+        """
+        effective_content = self.get_effective_content()
+        if not effective_content or len(effective_content) <= 1200000:
+            return effective_content
+        else:
+            # Use 80% from the start and 20% from the end
+            # to preserve both opening and closing context.
+            head_len = 800000
+            tail_len = 200000
+
+            return " ".join(
+                (
+                    effective_content[:head_len],
+                    effective_content[-tail_len:],
+                ),
+            )
+
     @property
     def source_path(self) -> Path:
-        if self.filename:
-            fname = str(self.filename)
-        else:
-            fname = f"{self.pk:07}{self.file_type}"
-            if self.storage_type == self.STORAGE_TYPE_GPG:
-                fname += ".gpg"  # pragma: no cover
+        fname = str(self.filename) if self.filename else f"{self.pk:07}{self.file_type}"
 
         return (settings.ORIGINALS_DIR / Path(fname)).resolve()
 
@@ -361,8 +476,6 @@ class Document(SoftDeleteModel, ModelWithOwner):
     @property
     def thumbnail_path(self) -> Path:
         webp_file_name = f"{self.pk:07}.webp"
-        if self.storage_type == self.STORAGE_TYPE_GPG:
-            webp_file_name += ".gpg"
 
         webp_file_path = settings.THUMBNAIL_DIR / Path(webp_file_name)
 
@@ -375,6 +488,28 @@ class Document(SoftDeleteModel, ModelWithOwner):
     @property
     def created_date(self):
         return self.created
+
+    def add_nested_tags(self, tags) -> None:
+        tag_ids = set()
+        for tag in tags:
+            tag_ids.add(tag.id)
+            tag_ids.update(tag.get_ancestors_pks())
+
+        tags_to_add = self.tags.model.objects.filter(id__in=tag_ids)
+        self.tags.add(*tags_to_add)
+
+    def delete(
+        self,
+        *args,
+        **kwargs,
+    ):
+        # If deleting a root document, move all its versions to trash as well.
+        if self.root_document_id is None:
+            Document.objects.filter(root_document=self).delete()
+        return super().delete(
+            *args,
+            **kwargs,
+        )
 
 
 class SavedView(ModelWithOwner):
@@ -399,13 +534,6 @@ class SavedView(ModelWithOwner):
         CUSTOM_FIELD = ("custom_field_%d", ("Custom Field"))
 
     name = models.CharField(_("name"), max_length=128)
-
-    show_on_dashboard = models.BooleanField(
-        _("show on dashboard"),
-    )
-    show_in_sidebar = models.BooleanField(
-        _("show in sidebar"),
-    )
 
     sort_field = models.CharField(
         _("sort field"),
@@ -495,6 +623,8 @@ class SavedViewFilterRule(models.Model):
         (45, _("added to")),
         (46, _("added from")),
         (47, _("mime type is")),
+        (48, _("simple title search")),
+        (49, _("simple text search")),
     ]
 
     saved_view = models.ForeignKey(
@@ -504,7 +634,7 @@ class SavedViewFilterRule(models.Model):
         verbose_name=_("saved view"),
     )
 
-    rule_type = models.PositiveIntegerField(_("rule type"), choices=RULE_TYPES)
+    rule_type = models.PositiveSmallIntegerField(_("rule type"), choices=RULE_TYPES)
 
     value = models.CharField(_("value"), max_length=255, blank=True, null=True)
 
@@ -543,6 +673,7 @@ class PaperlessTask(ModelWithOwner):
         TRAIN_CLASSIFIER = ("train_classifier", _("Train Classifier"))
         CHECK_SANITY = ("check_sanity", _("Check Sanity"))
         INDEX_OPTIMIZE = ("index_optimize", _("Index Optimize"))
+        LLMINDEX_UPDATE = ("llmindex_update", _("LLM Index Update"))
 
     task_id = models.CharField(
         max_length=255,
@@ -722,6 +853,114 @@ class ShareLink(SoftDeleteModel):
         return f"Share Link for {self.document.title}"
 
 
+class ShareLinkBundle(models.Model):
+    class Status(models.TextChoices):
+        PENDING = ("pending", _("Pending"))
+        PROCESSING = ("processing", _("Processing"))
+        READY = ("ready", _("Ready"))
+        FAILED = ("failed", _("Failed"))
+
+    created = models.DateTimeField(
+        _("created"),
+        default=timezone.now,
+        db_index=True,
+        blank=True,
+        editable=False,
+    )
+
+    expiration = models.DateTimeField(
+        _("expiration"),
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
+    slug = models.SlugField(
+        _("slug"),
+        db_index=True,
+        unique=True,
+        blank=True,
+        editable=False,
+    )
+
+    owner = models.ForeignKey(
+        User,
+        blank=True,
+        null=True,
+        related_name="share_link_bundles",
+        on_delete=models.SET_NULL,
+        verbose_name=_("owner"),
+    )
+
+    file_version = models.CharField(
+        max_length=50,
+        choices=ShareLink.FileVersion.choices,
+        default=ShareLink.FileVersion.ARCHIVE,
+    )
+
+    status = models.CharField(
+        max_length=50,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+
+    size_bytes = models.PositiveIntegerField(
+        _("size (bytes)"),
+        blank=True,
+        null=True,
+    )
+
+    last_error = models.JSONField(
+        _("last error"),
+        blank=True,
+        null=True,
+        default=None,
+    )
+
+    file_path = models.CharField(
+        _("file path"),
+        max_length=512,
+        blank=True,
+    )
+
+    built_at = models.DateTimeField(
+        _("built at"),
+        null=True,
+        blank=True,
+    )
+
+    documents = models.ManyToManyField(
+        "documents.Document",
+        related_name="share_link_bundles",
+        verbose_name=_("documents"),
+    )
+
+    class Meta:
+        ordering = ("-created",)
+        verbose_name = _("share link bundle")
+        verbose_name_plural = _("share link bundles")
+
+    def __str__(self):
+        return _("Share link bundle %(slug)s") % {"slug": self.slug}
+
+    @property
+    def absolute_file_path(self) -> Path | None:
+        if not self.file_path:
+            return None
+        return (settings.SHARE_LINK_BUNDLE_DIR / Path(self.file_path)).resolve()
+
+    def remove_file(self) -> None:
+        if self.absolute_file_path is not None and self.absolute_file_path.exists():
+            try:
+                self.absolute_file_path.unlink()
+            except OSError:
+                pass
+
+    def delete(self, using=None, *, keep_parents=False):
+        self.remove_file()
+        return super().delete(using=using, keep_parents=keep_parents)
+
+
 class CustomField(models.Model):
     """
     Defines the name and type of a custom field
@@ -737,6 +976,7 @@ class CustomField(models.Model):
         MONETARY = ("monetary", _("Monetary"))
         DOCUMENTLINK = ("documentlink", _("Document Link"))
         SELECT = ("select", _("Select"))
+        LONG_TEXT = ("longtext", _("Long Text"))
 
     created = models.DateTimeField(
         _("created"),
@@ -794,6 +1034,7 @@ class CustomFieldInstance(SoftDeleteModel):
         CustomField.FieldDataType.MONETARY: "value_monetary",
         CustomField.FieldDataType.DOCUMENTLINK: "value_document_ids",
         CustomField.FieldDataType.SELECT: "value_select",
+        CustomField.FieldDataType.LONG_TEXT: "value_long_text",
     }
 
     created = models.DateTimeField(
@@ -861,6 +1102,8 @@ class CustomFieldInstance(SoftDeleteModel):
 
     value_select = models.CharField(null=True, max_length=16)
 
+    value_long_text = models.TextField(null=True)
+
     class Meta:
         ordering = ("created",)
         verbose_name = _("custom field instance")
@@ -873,19 +1116,7 @@ class CustomFieldInstance(SoftDeleteModel):
         ]
 
     def __str__(self) -> str:
-        value = (
-            next(
-                option.get("label")
-                for option in self.field.extra_data["select_options"]
-                if option.get("id") == self.value_select
-            )
-            if (
-                self.field.data_type == CustomField.FieldDataType.SELECT
-                and self.value_select is not None
-            )
-            else self.value
-        )
-        return str(self.field.name) + f" : {value}"
+        return str(self.field.name) + f" : {self.value_for_search}"
 
     @classmethod
     def get_value_field_name(cls, data_type: CustomField.FieldDataType):
@@ -903,12 +1134,31 @@ class CustomFieldInstance(SoftDeleteModel):
         value_field_name = self.get_value_field_name(self.field.data_type)
         return getattr(self, value_field_name)
 
+    @property
+    def value_for_search(self) -> str | None:
+        """
+        Return the value suitable for full-text indexing and display, or None
+        if the value is unset.
+
+        For SELECT fields, resolves the human-readable label rather than the
+        opaque option ID stored in value_select.
+        """
+        if self.value is None:
+            return None
+        if self.field.data_type == CustomField.FieldDataType.SELECT:
+            options = (self.field.extra_data or {}).get("select_options", [])
+            return next(
+                (o["label"] for o in options if o.get("id") == self.value),
+                None,
+            )
+        return str(self.value)
+
 
 if settings.AUDIT_LOG_ENABLED:
     auditlog.register(
         Document,
         m2m_fields={"tags"},
-        exclude_fields=["modified"],
+        exclude_fields=["content_length", "modified"],
     )
     auditlog.register(Correspondent)
     auditlog.register(Tag)
@@ -946,7 +1196,7 @@ class WorkflowTrigger(models.Model):
         MODIFIED = "modified", _("Modified")
         CUSTOM_FIELD = "custom_field", _("Custom Field")
 
-    type = models.PositiveIntegerField(
+    type = models.PositiveSmallIntegerField(
         _("Workflow Trigger Type"),
         choices=WorkflowTriggerType.choices,
         default=WorkflowTriggerType.CONSUMPTION,
@@ -992,7 +1242,7 @@ class WorkflowTrigger(models.Model):
 
     match = models.CharField(_("match"), max_length=256, blank=True)
 
-    matching_algorithm = models.PositiveIntegerField(
+    matching_algorithm = models.PositiveSmallIntegerField(
         _("matching algorithm"),
         choices=WorkflowTriggerMatching.choices,
         default=WorkflowTriggerMatching.NONE,
@@ -1006,12 +1256,40 @@ class WorkflowTrigger(models.Model):
         verbose_name=_("has these tag(s)"),
     )
 
+    filter_has_all_tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        related_name="workflowtriggers_has_all",
+        verbose_name=_("has all of these tag(s)"),
+    )
+
+    filter_has_not_tags = models.ManyToManyField(
+        Tag,
+        blank=True,
+        related_name="workflowtriggers_has_not",
+        verbose_name=_("does not have these tag(s)"),
+    )
+
     filter_has_document_type = models.ForeignKey(
         DocumentType,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         verbose_name=_("has this document type"),
+    )
+
+    filter_has_any_document_types = models.ManyToManyField(
+        DocumentType,
+        blank=True,
+        related_name="workflowtriggers_has_any_document_type",
+        verbose_name=_("has one of these document types"),
+    )
+
+    filter_has_not_document_types = models.ManyToManyField(
+        DocumentType,
+        blank=True,
+        related_name="workflowtriggers_has_not_document_type",
+        verbose_name=_("does not have these document type(s)"),
     )
 
     filter_has_correspondent = models.ForeignKey(
@@ -1022,7 +1300,50 @@ class WorkflowTrigger(models.Model):
         verbose_name=_("has this correspondent"),
     )
 
-    schedule_offset_days = models.IntegerField(
+    filter_has_not_correspondents = models.ManyToManyField(
+        Correspondent,
+        blank=True,
+        related_name="workflowtriggers_has_not_correspondent",
+        verbose_name=_("does not have these correspondent(s)"),
+    )
+
+    filter_has_any_correspondents = models.ManyToManyField(
+        Correspondent,
+        blank=True,
+        related_name="workflowtriggers_has_any_correspondent",
+        verbose_name=_("has one of these correspondents"),
+    )
+
+    filter_has_storage_path = models.ForeignKey(
+        StoragePath,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name=_("has this storage path"),
+    )
+
+    filter_has_any_storage_paths = models.ManyToManyField(
+        StoragePath,
+        blank=True,
+        related_name="workflowtriggers_has_any_storage_path",
+        verbose_name=_("has one of these storage paths"),
+    )
+
+    filter_has_not_storage_paths = models.ManyToManyField(
+        StoragePath,
+        blank=True,
+        related_name="workflowtriggers_has_not_storage_path",
+        verbose_name=_("does not have these storage path(s)"),
+    )
+
+    filter_custom_field_query = models.TextField(
+        _("filter custom field query"),
+        null=True,
+        blank=True,
+        help_text=_("JSON-encoded custom field query expression."),
+    )
+
+    schedule_offset_days = models.SmallIntegerField(
         _("schedule offset days"),
         default=0,
         help_text=_(
@@ -1038,7 +1359,7 @@ class WorkflowTrigger(models.Model):
         ),
     )
 
-    schedule_recurring_interval_days = models.PositiveIntegerField(
+    schedule_recurring_interval_days = models.PositiveSmallIntegerField(
         _("schedule recurring delay in days"),
         default=1,
         validators=[MinValueValidator(1)],
@@ -1178,21 +1499,29 @@ class WorkflowAction(models.Model):
             4,
             _("Webhook"),
         )
+        PASSWORD_REMOVAL = (
+            5,
+            _("Password removal"),
+        )
+        MOVE_TO_TRASH = (
+            6,
+            _("Move to trash"),
+        )
 
-    type = models.PositiveIntegerField(
+    type = models.PositiveSmallIntegerField(
         _("Workflow Action Type"),
         choices=WorkflowActionType.choices,
         default=WorkflowActionType.ASSIGNMENT,
     )
 
-    assign_title = models.CharField(
+    order = models.PositiveSmallIntegerField(_("order"), default=0)
+
+    assign_title = models.TextField(
         _("assign title"),
-        max_length=256,
         null=True,
         blank=True,
         help_text=_(
-            "Assign a document title, can include some placeholders, "
-            "see documentation.",
+            "Assign a document title, must  be a Jinja2 template, see documentation.",
         ),
     )
 
@@ -1407,6 +1736,15 @@ class WorkflowAction(models.Model):
         verbose_name=_("webhook"),
     )
 
+    passwords = models.JSONField(
+        _("passwords"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "Passwords to try when removing PDF protection. Separate with commas or new lines.",
+        ),
+    )
+
     class Meta:
         verbose_name = _("workflow action")
         verbose_name_plural = _("workflow actions")
@@ -1418,7 +1756,7 @@ class WorkflowAction(models.Model):
 class Workflow(models.Model):
     name = models.CharField(_("name"), max_length=256, unique=True)
 
-    order = models.IntegerField(_("order"), default=0)
+    order = models.SmallIntegerField(_("order"), default=0)
 
     triggers = models.ManyToManyField(
         WorkflowTrigger,
@@ -1440,7 +1778,7 @@ class Workflow(models.Model):
         return f"Workflow: {self.name}"
 
 
-class WorkflowRun(models.Model):
+class WorkflowRun(SoftDeleteModel):
     workflow = models.ForeignKey(
         Workflow,
         on_delete=models.CASCADE,
@@ -1448,7 +1786,7 @@ class WorkflowRun(models.Model):
         verbose_name=_("workflow"),
     )
 
-    type = models.PositiveIntegerField(
+    type = models.PositiveSmallIntegerField(
         _("workflow trigger type"),
         choices=WorkflowTrigger.WorkflowTriggerType.choices,
         null=True,
@@ -1472,5 +1810,5 @@ class WorkflowRun(models.Model):
         verbose_name = _("workflow run")
         verbose_name_plural = _("workflow runs")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"WorkflowRun of {self.workflow} at {self.run_at} on {self.document}"

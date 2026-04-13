@@ -1,10 +1,14 @@
 import { Clipboard } from '@angular/cdk/clipboard'
-import { Component, Input, OnInit } from '@angular/core'
+import { Component, Input, OnInit, inject } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { first } from 'rxjs'
-import { FileVersion, ShareLink } from 'src/app/data/share-link'
+import {
+  FileVersion,
+  SHARE_LINK_EXPIRATION_OPTIONS,
+  ShareLink,
+} from 'src/app/data/share-link'
 import { ShareLinkService } from 'src/app/services/rest/share-link.service'
 import { ToastService } from 'src/app/services/toast.service'
 import { environment } from 'src/environments/environment'
@@ -16,12 +20,12 @@ import { environment } from 'src/environments/environment'
   imports: [FormsModule, ReactiveFormsModule, NgxBootstrapIconsModule],
 })
 export class ShareLinksDialogComponent implements OnInit {
-  EXPIRATION_OPTIONS = [
-    { label: $localize`1 day`, value: 1 },
-    { label: $localize`7 days`, value: 7 },
-    { label: $localize`30 days`, value: 30 },
-    { label: $localize`Never`, value: null },
-  ]
+  private activeModal = inject(NgbActiveModal)
+  private shareLinkService = inject(ShareLinkService)
+  private toastService = inject(ToastService)
+  private clipboard = inject(Clipboard)
+
+  readonly expirationOptions = SHARE_LINK_EXPIRATION_OPTIONS
 
   @Input()
   title = $localize`Share Links`
@@ -57,13 +61,6 @@ export class ShareLinksDialogComponent implements OnInit {
   expirationDays: number = 7
 
   useArchiveVersion: boolean = true
-
-  constructor(
-    private activeModal: NgbActiveModal,
-    private shareLinkService: ShareLinkService,
-    private toastService: ToastService,
-    private clipboard: Clipboard
-  ) {}
 
   ngOnInit(): void {
     if (this._documentId !== undefined) this.refresh()

@@ -14,7 +14,7 @@ logger = logging.getLogger("paperless.auth")
 
 
 class AutoLoginMiddleware(MiddlewareMixin):
-    def process_request(self, request: HttpRequest):
+    def process_request(self, request: HttpRequest) -> None:
         # Dont use auto-login with token request
         if request.path.startswith("/api/token/") and request.method == "POST":
             return None
@@ -54,7 +54,7 @@ class HttpRemoteUserMiddleware(PersistentRemoteUserMiddleware):
 
     header = settings.HTTP_REMOTE_USER_HEADER_NAME
 
-    def process_request(self, request: HttpRequest) -> None:
+    def __call__(self, request: HttpRequest) -> None:
         # If remote user auth is enabled only for the frontend, not the API,
         # then we need dont want to authenticate the user for API requests.
         if (
@@ -62,8 +62,8 @@ class HttpRemoteUserMiddleware(PersistentRemoteUserMiddleware):
             and "paperless.auth.PaperlessRemoteUserAuthentication"
             not in settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"]
         ):
-            return
-        return super().process_request(request)
+            return self.get_response(request)
+        return super().__call__(request)
 
 
 class PaperlessRemoteUserAuthentication(authentication.RemoteUserAuthentication):
@@ -83,3 +83,11 @@ class PaperlessBasicAuthentication(authentication.BasicAuthentication):
             raise exceptions.AuthenticationFailed("MFA required")
 
         return user_tuple
+
+    def authenticate_header(self, request):
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if auth_header.lower().startswith("basic "):
+            return super().authenticate_header(request)
+
+        # Still 401 for anonymous API access
+        return authentication.TokenAuthentication.keyword

@@ -8,6 +8,7 @@ import {
   OnInit,
   Output,
   ViewChild,
+  inject,
 } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import {
@@ -15,7 +16,7 @@ import {
   NgbTypeaheadModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
+import { TourNgBootstrap } from 'ngx-ui-tour-ng-bootstrap'
 import { Observable, Subject, from } from 'rxjs'
 import {
   catchError,
@@ -70,11 +71,14 @@ import {
   FILTER_OWNER_DOES_NOT_INCLUDE,
   FILTER_OWNER_ISNULL,
   FILTER_SHARED_BY_USER,
+  FILTER_SIMPLE_TEXT,
+  FILTER_SIMPLE_TITLE,
   FILTER_STORAGE_PATH,
   FILTER_TITLE,
   FILTER_TITLE_CONTENT,
   NEGATIVE_NULL_FILTER_VALUE,
 } from 'src/app/data/filter-rule-type'
+import { SelectionData, SelectionDataItem } from 'src/app/data/results'
 import {
   PermissionAction,
   PermissionType,
@@ -83,11 +87,7 @@ import {
 import { CorrespondentService } from 'src/app/services/rest/correspondent.service'
 import { CustomFieldsService } from 'src/app/services/rest/custom-fields.service'
 import { DocumentTypeService } from 'src/app/services/rest/document-type.service'
-import {
-  DocumentService,
-  SelectionData,
-  SelectionDataItem,
-} from 'src/app/services/rest/document.service'
+import { DocumentService } from 'src/app/services/rest/document.service'
 import { SearchService } from 'src/app/services/rest/search.service'
 import { StoragePathService } from 'src/app/services/rest/storage-path.service'
 import { TagService } from 'src/app/services/rest/tag.service'
@@ -96,6 +96,7 @@ import {
   CustomFieldQueryExpression,
 } from 'src/app/utils/custom-field-query-element'
 import { filterRulesDiffer } from 'src/app/utils/filter-rules'
+import { flattenTags } from 'src/app/utils/flatten-tags'
 import {
   CustomFieldQueriesModel,
   CustomFieldsQueryDropdownComponent,
@@ -171,6 +172,22 @@ const RELATIVE_DATE_QUERYSTRINGS = [
     relativeDate: RelativeDate.YESTERDAY,
     dateQuery: 'yesterday',
   },
+  {
+    relativeDate: RelativeDate.PREVIOUS_WEEK,
+    dateQuery: 'previous week',
+  },
+  {
+    relativeDate: RelativeDate.PREVIOUS_MONTH,
+    dateQuery: 'previous month',
+  },
+  {
+    relativeDate: RelativeDate.PREVIOUS_QUARTER,
+    dateQuery: 'previous quarter',
+  },
+  {
+    relativeDate: RelativeDate.PREVIOUS_YEAR,
+    dateQuery: 'previous year',
+  },
 ]
 
 const DEFAULT_TEXT_FILTER_TARGET_OPTIONS = [
@@ -180,16 +197,18 @@ const DEFAULT_TEXT_FILTER_TARGET_OPTIONS = [
     name: $localize`Title & content`,
   },
   { id: TEXT_FILTER_TARGET_ASN, name: $localize`ASN` },
-  {
-    id: TEXT_FILTER_TARGET_CUSTOM_FIELDS,
-    name: $localize`Custom fields`,
-  },
   { id: TEXT_FILTER_TARGET_MIME_TYPE, name: $localize`File type` },
   {
     id: TEXT_FILTER_TARGET_FULLTEXT_QUERY,
     name: $localize`Advanced search`,
   },
 ]
+
+const DEPRECATED_CUSTOM_FIELDS_TEXT_FILTER_TARGET_OPTION = {
+  // Kept only so legacy saved views can render and be edited away from, remove me eventually
+  id: TEXT_FILTER_TARGET_CUSTOM_FIELDS,
+  name: $localize`Custom fields (Deprecated)`,
+}
 
 const TEXT_FILTER_TARGET_MORELIKE_OPTION = {
   id: TEXT_FILTER_TARGET_FULLTEXT_MORELIKE,
@@ -233,13 +252,22 @@ const DEFAULT_TEXT_FILTER_MODIFIER_OPTIONS = [
     NgbTypeaheadModule,
     FormsModule,
     ReactiveFormsModule,
-    TourNgBootstrapModule,
+    TourNgBootstrap,
   ],
 })
 export class FilterEditorComponent
   extends LoadingComponentWithPermissions
   implements OnInit, OnDestroy, AfterViewInit
 {
+  private documentTypeService = inject(DocumentTypeService)
+  private tagService = inject(TagService)
+  private correspondentService = inject(CorrespondentService)
+  private documentService = inject(DocumentService)
+  private storagePathService = inject(StoragePathService)
+  permissionsService = inject(PermissionsService)
+  private customFieldService = inject(CustomFieldsService)
+  private searchService = inject(SearchService)
+
   generateFilterName() {
     if (this.filterRules.length == 1) {
       let rule = this.filterRules[0]
@@ -294,7 +322,12 @@ export class FilterEditorComponent
           return $localize`Custom fields query`
 
         case FILTER_TITLE:
+        case FILTER_SIMPLE_TITLE:
           return $localize`Title: ${rule.value}`
+
+        case FILTER_TITLE_CONTENT:
+        case FILTER_SIMPLE_TEXT:
+          return $localize`Title & content: ${rule.value}`
 
         case FILTER_ASN:
           return $localize`ASN: ${rule.value}`
@@ -313,19 +346,6 @@ export class FilterEditorComponent
     return ''
   }
 
-  constructor(
-    private documentTypeService: DocumentTypeService,
-    private tagService: TagService,
-    private correspondentService: CorrespondentService,
-    private documentService: DocumentService,
-    private storagePathService: StoragePathService,
-    public permissionsService: PermissionsService,
-    private customFieldService: CustomFieldsService,
-    private searchService: SearchService
-  ) {
-    super()
-  }
-
   @ViewChild('textFilterInput')
   textFilterInput: ElementRef
 
@@ -342,12 +362,16 @@ export class FilterEditorComponent
   _moreLikeDoc: Document
 
   get textFilterTargets() {
+    let targets = DEFAULT_TEXT_FILTER_TARGET_OPTIONS
     if (this.textFilterTarget == TEXT_FILTER_TARGET_FULLTEXT_MORELIKE) {
-      return DEFAULT_TEXT_FILTER_TARGET_OPTIONS.concat([
-        TEXT_FILTER_TARGET_MORELIKE_OPTION,
+      targets = targets.concat([TEXT_FILTER_TARGET_MORELIKE_OPTION])
+    }
+    if (this.textFilterTarget == TEXT_FILTER_TARGET_CUSTOM_FIELDS) {
+      targets = targets.concat([
+        DEPRECATED_CUSTOM_FIELDS_TEXT_FILTER_TARGET_OPTION,
       ])
     }
-    return DEFAULT_TEXT_FILTER_TARGET_OPTIONS
+    return targets
   }
 
   textFilterTarget = TEXT_FILTER_TARGET_TITLE_CONTENT
@@ -402,6 +426,9 @@ export class FilterEditorComponent
 
   @Input()
   set filterRules(value: FilterRule[]) {
+    if (value === this._filterRules) {
+      return
+    }
     this._filterRules = value
 
     this.documentTypeSelectionModel.clear(false)
@@ -423,10 +450,12 @@ export class FilterEditorComponent
     value.forEach((rule) => {
       switch (rule.rule_type) {
         case FILTER_TITLE:
+        case FILTER_SIMPLE_TITLE:
           this._textFilter = rule.value
           this.textFilterTarget = TEXT_FILTER_TARGET_TITLE
           break
         case FILTER_TITLE_CONTENT:
+        case FILTER_SIMPLE_TEXT:
           this._textFilter = rule.value
           this.textFilterTarget = TEXT_FILTER_TARGET_TITLE_CONTENT
           break
@@ -748,12 +777,15 @@ export class FilterEditorComponent
       this.textFilterTarget == TEXT_FILTER_TARGET_TITLE_CONTENT
     ) {
       filterRules.push({
-        rule_type: FILTER_TITLE_CONTENT,
-        value: this._textFilter,
+        rule_type: FILTER_SIMPLE_TEXT,
+        value: this._textFilter.trim(),
       })
     }
     if (this._textFilter && this.textFilterTarget == TEXT_FILTER_TARGET_TITLE) {
-      filterRules.push({ rule_type: FILTER_TITLE, value: this._textFilter })
+      filterRules.push({
+        rule_type: FILTER_SIMPLE_TITLE,
+        value: this._textFilter,
+      })
     }
     if (this.textFilterTarget == TEXT_FILTER_TARGET_ASN) {
       if (
@@ -807,7 +839,7 @@ export class FilterEditorComponent
     ) {
       filterRules.push({
         rule_type: FILTER_FULLTEXT_QUERY,
-        value: this._textFilter,
+        value: this._textFilter.trim(),
       })
     }
     if (
@@ -995,7 +1027,10 @@ export class FilterEditorComponent
       ) {
         existingRule = filterRules.find(
           (fr) =>
-            fr.rule_type == FILTER_TITLE_CONTENT || fr.rule_type == FILTER_TITLE
+            fr.rule_type == FILTER_TITLE_CONTENT ||
+            fr.rule_type == FILTER_SIMPLE_TEXT ||
+            fr.rule_type == FILTER_TITLE ||
+            fr.rule_type == FILTER_SIMPLE_TITLE
         )
         existingRule.rule_type = FILTER_FULLTEXT_QUERY
       }
@@ -1084,6 +1119,9 @@ export class FilterEditorComponent
   @Output()
   filterRulesChange = new EventEmitter<FilterRule[]>()
 
+  @Output()
+  resetFilterRules = new EventEmitter<FilterRule[]>()
+
   @Input()
   set selectionData(selectionData: SelectionData) {
     this.tagDocumentCounts = selectionData?.selected_tags ?? null
@@ -1100,7 +1138,13 @@ export class FilterEditorComponent
   rulesModified: boolean = false
 
   updateRules() {
-    this.filterRulesChange.next(this.filterRules)
+    const updatedRules = this.filterRules
+    this._filterRules = updatedRules
+    this.rulesModified = filterRulesDiffer(
+      this._unmodifiedFilterRules,
+      updatedRules
+    )
+    this.filterRulesChange.next(updatedRules)
   }
 
   get textFilter() {
@@ -1137,7 +1181,7 @@ export class FilterEditorComponent
     ) {
       this.loadingCountTotal++
       this.tagService.listAll().subscribe((result) => {
-        this.tagSelectionModel.items = result.results
+        this.tagSelectionModel.items = flattenTags(result.results)
         this.maybeCompleteLoading()
       })
     }
@@ -1219,8 +1263,9 @@ export class FilterEditorComponent
 
   resetSelected() {
     this.textFilterTarget = TEXT_FILTER_TARGET_TITLE_CONTENT
+    this.documentService.searchQuery = ''
     this.filterRules = this._unmodifiedFilterRules
-    this.updateRules()
+    this.resetFilterRules.next(this.filterRules)
   }
 
   toggleTag(tagId: number) {

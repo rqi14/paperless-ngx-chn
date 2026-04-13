@@ -1,10 +1,11 @@
 import datetime
+import hashlib
 import logging
-import os
 import tempfile
 from pathlib import Path
 from unittest import mock
 
+import pytest
 from auditlog.context import disable_auditlog
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -16,6 +17,7 @@ from django.utils import timezone
 from documents.file_handling import create_source_path_directory
 from documents.file_handling import delete_empty_directories
 from documents.file_handling import generate_filename
+from documents.file_handling import generate_unique_filename
 from documents.models import Correspondent
 from documents.models import CustomField
 from documents.models import CustomFieldInstance
@@ -23,31 +25,24 @@ from documents.models import Document
 from documents.models import DocumentType
 from documents.models import StoragePath
 from documents.tasks import empty_trash
+from documents.tests.factories import DocumentFactory
 from documents.tests.utils import DirectoriesMixin
 from documents.tests.utils import FileSystemAssertsMixin
 
 
 class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(FILENAME_FORMAT="")
-    def test_generate_source_filename(self):
+    def test_generate_source_filename(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
         document.save()
 
-        self.assertEqual(generate_filename(document), f"{document.pk:07d}.pdf")
-
-        document.storage_type = Document.STORAGE_TYPE_GPG
-        self.assertEqual(
-            generate_filename(document),
-            f"{document.pk:07d}.pdf.gpg",
-        )
+        self.assertEqual(generate_filename(document), Path(f"{document.pk:07d}.pdf"))
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_file_renaming(self):
+    def test_file_renaming(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
         document.save()
 
         # Test default source_path
@@ -59,19 +54,14 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         document.filename = generate_filename(document)
 
         # Ensure that filename is properly generated
-        self.assertEqual(document.filename, "none/none.pdf")
-
-        # Enable encryption and check again
-        document.storage_type = Document.STORAGE_TYPE_GPG
-        document.filename = generate_filename(document)
-        self.assertEqual(document.filename, "none/none.pdf.gpg")
+        self.assertEqual(document.filename, Path("none/none.pdf"))
 
         document.save()
 
         # test that creating dirs for the source_path creates the correct directory
         create_source_path_directory(document.source_path)
         Path(document.source_path).touch()
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsDir(settings.ORIGINALS_DIR / "none")
 
         # Set a correspondent and save the document
         document.correspondent = Correspondent.objects.get_or_create(name="test")[0]
@@ -85,19 +75,71 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             settings.ORIGINALS_DIR / "none",
         )
         self.assertIsFile(
-            settings.ORIGINALS_DIR / "test" / "test.pdf.gpg",
+            settings.ORIGINALS_DIR / "test" / "test.pdf",
         )
 
+    @override_settings(FILENAME_FORMAT=None)
+    def test_root_storage_path_change_updates_version_files(self) -> None:
+        old_storage_path = StoragePath.objects.create(
+            name="old-path",
+            path="old/{{title}}",
+        )
+        new_storage_path = StoragePath.objects.create(
+            name="new-path",
+            path="new/{{title}}",
+        )
+
+        root_doc = Document.objects.create(
+            title="rootdoc",
+            mime_type="application/pdf",
+            checksum="root-checksum",
+            storage_path=old_storage_path,
+        )
+        version_doc = Document.objects.create(
+            title="version-title",
+            mime_type="application/pdf",
+            checksum="version-checksum",
+            root_document=root_doc,
+            version_index=1,
+        )
+
+        Document.objects.filter(pk=root_doc.pk).update(
+            filename=generate_filename(root_doc),
+        )
+        Document.objects.filter(pk=version_doc.pk).update(
+            filename=generate_filename(version_doc),
+        )
+        root_doc.refresh_from_db()
+        version_doc.refresh_from_db()
+
+        create_source_path_directory(root_doc.source_path)
+        Path(root_doc.source_path).touch()
+        create_source_path_directory(version_doc.source_path)
+        Path(version_doc.source_path).touch()
+
+        root_doc.storage_path = new_storage_path
+        root_doc.save()
+
+        root_doc.refresh_from_db()
+        version_doc.refresh_from_db()
+
+        self.assertEqual(root_doc.filename, "new/rootdoc.pdf")
+        self.assertEqual(version_doc.filename, "new/rootdoc_v1.pdf")
+        self.assertIsFile(root_doc.source_path)
+        self.assertIsFile(version_doc.source_path)
+        self.assertIsNotFile(settings.ORIGINALS_DIR / "old" / "rootdoc.pdf")
+        self.assertIsNotFile(settings.ORIGINALS_DIR / "old" / "rootdoc_v1.pdf")
+
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_file_renaming_missing_permissions(self):
+    def test_file_renaming_missing_permissions(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
         document.filename = generate_filename(document)
-        self.assertEqual(document.filename, "none/none.pdf")
+        self.assertEqual(document.filename, Path("none/none.pdf"))
         create_source_path_directory(document.source_path)
         document.source_path.touch()
 
@@ -108,7 +150,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         )
 
         # Make the folder read- and execute-only (no writing and no renaming)
-        os.chmod(os.path.join(settings.ORIGINALS_DIR, "none"), 0o555)
+        (settings.ORIGINALS_DIR / "none").chmod(0o555)
 
         # Set a correspondent and save the document
         document.correspondent = Correspondent.objects.get_or_create(name="test")[0]
@@ -120,25 +162,24 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         )
         self.assertEqual(document.filename, "none/none.pdf")
 
-        os.chmod(os.path.join(settings.ORIGINALS_DIR, "none"), 0o777)
+        (settings.ORIGINALS_DIR / "none").chmod(0o777)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_file_renaming_database_error(self):
+    def test_file_renaming_database_error(self) -> None:
         Document.objects.create(
             mime_type="application/pdf",
-            storage_type=Document.STORAGE_TYPE_UNENCRYPTED,
             checksum="AAAAA",
         )
 
         document = Document()
         document.mime_type = "application/pdf"
         document.checksum = "BBBBB"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
         document.filename = generate_filename(document)
-        self.assertEqual(document.filename, "none/none.pdf")
+        self.assertEqual(document.filename, Path("none/none.pdf"))
         create_source_path_directory(document.source_path)
         Path(document.source_path).touch()
 
@@ -160,15 +201,61 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             # Check proper handling of files
             self.assertIsFile(document.source_path)
             self.assertIsFile(
-                os.path.join(settings.ORIGINALS_DIR, "none/none.pdf"),
+                settings.ORIGINALS_DIR / "none" / "none.pdf",
             )
             self.assertEqual(document.filename, "none/none.pdf")
 
+    @override_settings(FILENAME_FORMAT=None)
+    def test_stale_save_recovers_already_moved_files(self) -> None:
+        old_storage_path = StoragePath.objects.create(
+            name="old-path",
+            path="old/{{title}}",
+        )
+        new_storage_path = StoragePath.objects.create(
+            name="new-path",
+            path="new/{{title}}",
+        )
+        original_bytes = b"original"
+        archive_bytes = b"archive"
+
+        doc = Document.objects.create(
+            title="document",
+            mime_type="application/pdf",
+            checksum=hashlib.md5(original_bytes).hexdigest(),
+            archive_checksum=hashlib.md5(archive_bytes).hexdigest(),
+            filename="old/document.pdf",
+            archive_filename="old/document.pdf",
+            storage_path=old_storage_path,
+        )
+        create_source_path_directory(doc.source_path)
+        doc.source_path.write_bytes(original_bytes)
+        create_source_path_directory(doc.archive_path)
+        doc.archive_path.write_bytes(archive_bytes)
+
+        stale_doc = Document.objects.get(pk=doc.pk)
+        fresh_doc = Document.objects.get(pk=doc.pk)
+        fresh_doc.storage_path = new_storage_path
+        fresh_doc.save()
+        doc.refresh_from_db()
+        self.assertEqual(doc.filename, "new/document.pdf")
+        self.assertEqual(doc.archive_filename, "new/document.pdf")
+
+        stale_doc.storage_path = new_storage_path
+        stale_doc.save()
+
+        doc.refresh_from_db()
+        self.assertEqual(doc.filename, "new/document.pdf")
+        self.assertEqual(doc.archive_filename, "new/document.pdf")
+        self.assertIsFile(doc.source_path)
+        self.assertIsFile(doc.archive_path)
+        self.assertIsNotFile(settings.ORIGINALS_DIR / "old" / "document.pdf")
+        self.assertIsNotFile(settings.ARCHIVE_DIR / "old" / "document.pdf")
+
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_document_delete(self):
+    def test_document_delete(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
@@ -183,18 +270,18 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         document.delete()
         empty_trash([document.pk])
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none", "none.pdf"),
+            settings.ORIGINALS_DIR / "none" / "none.pdf",
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsNotDir(settings.ORIGINALS_DIR / "none")
 
     @override_settings(
         FILENAME_FORMAT="{correspondent}/{correspondent}",
-        EMPTY_TRASH_DIR=tempfile.mkdtemp(),
+        EMPTY_TRASH_DIR=Path(tempfile.mkdtemp()),
     )
-    def test_document_delete_trash_dir(self):
+    def test_document_delete_trash_dir(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
@@ -206,20 +293,20 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
 
         # Ensure file was moved to trash after delete
-        self.assertIsNotFile(os.path.join(settings.EMPTY_TRASH_DIR, "none", "none.pdf"))
+        self.assertIsNotFile(Path(settings.EMPTY_TRASH_DIR) / "none" / "none.pdf")
         document.delete()
         empty_trash([document.pk])
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none", "none.pdf"),
+            settings.ORIGINALS_DIR / "none" / "none.pdf",
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
-        self.assertIsFile(os.path.join(settings.EMPTY_TRASH_DIR, "none.pdf"))
-        self.assertIsNotFile(os.path.join(settings.EMPTY_TRASH_DIR, "none_01.pdf"))
+        self.assertIsNotDir(settings.ORIGINALS_DIR / "none")
+        self.assertIsFile(Path(settings.EMPTY_TRASH_DIR) / "none.pdf")
+        self.assertIsNotFile(Path(settings.EMPTY_TRASH_DIR) / "none_01.pdf")
 
         # Create an identical document and ensure it is trashed under a new name
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
         document.filename = generate_filename(document)
         document.save()
@@ -227,28 +314,28 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
         document.delete()
         empty_trash([document.pk])
-        self.assertIsFile(os.path.join(settings.EMPTY_TRASH_DIR, "none_01.pdf"))
+        self.assertIsFile(Path(settings.EMPTY_TRASH_DIR) / "none_01.pdf")
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_document_delete_nofile(self):
+    def test_document_delete_nofile(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         document.delete()
         empty_trash([document.pk])
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{correspondent}")
-    def test_directory_not_empty(self):
+    def test_directory_not_empty(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
         document.filename = generate_filename(document)
-        self.assertEqual(document.filename, "none/none.pdf")
+        self.assertEqual(document.filename, Path("none/none.pdf"))
 
         create_source_path_directory(document.source_path)
 
@@ -261,23 +348,23 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         document.save()
 
         # Check proper handling of files
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "test"))
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsDir(settings.ORIGINALS_DIR / "test")
+        self.assertIsDir(settings.ORIGINALS_DIR / "none")
         self.assertIsFile(important_file)
 
     @override_settings(FILENAME_FORMAT="{document_type} - {title}")
-    def test_document_type(self):
+    def test_document_type(self) -> None:
         dt = DocumentType.objects.create(name="my_doc_type")
         d = Document.objects.create(title="the_doc", mime_type="application/pdf")
 
-        self.assertEqual(generate_filename(d), "none - the_doc.pdf")
+        self.assertEqual(generate_filename(d), Path("none - the_doc.pdf"))
 
         d.document_type = dt
 
-        self.assertEqual(generate_filename(d), "my_doc_type - the_doc.pdf")
+        self.assertEqual(generate_filename(d), Path("my_doc_type - the_doc.pdf"))
 
     @override_settings(FILENAME_FORMAT="{asn} - {title}")
-    def test_asn(self):
+    def test_asn(self) -> None:
         d1 = Document.objects.create(
             title="the_doc",
             mime_type="application/pdf",
@@ -290,16 +377,16 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             archive_serial_number=None,
             checksum="B",
         )
-        self.assertEqual(generate_filename(d1), "652 - the_doc.pdf")
-        self.assertEqual(generate_filename(d2), "none - the_doc.pdf")
+        self.assertEqual(generate_filename(d1), Path("652 - the_doc.pdf"))
+        self.assertEqual(generate_filename(d2), Path("none - the_doc.pdf"))
 
     @override_settings(FILENAME_FORMAT="{title} {tag_list}")
-    def test_tag_list(self):
+    def test_tag_list(self) -> None:
         doc = Document.objects.create(title="doc1", mime_type="application/pdf")
         doc.tags.create(name="tag2")
         doc.tags.create(name="tag1")
 
-        self.assertEqual(generate_filename(doc), "doc1 tag1,tag2.pdf")
+        self.assertEqual(generate_filename(doc), Path("doc1 tag1,tag2.pdf"))
 
         doc = Document.objects.create(
             title="doc2",
@@ -307,10 +394,10 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             mime_type="application/pdf",
         )
 
-        self.assertEqual(generate_filename(doc), "doc2.pdf")
+        self.assertEqual(generate_filename(doc), Path("doc2.pdf"))
 
     @override_settings(FILENAME_FORMAT="//etc/something/{title}")
-    def test_filename_relative(self):
+    def test_filename_relative(self) -> None:
         doc = Document.objects.create(title="doc1", mime_type="application/pdf")
         doc.filename = generate_filename(doc)
         doc.save()
@@ -323,7 +410,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(
         FILENAME_FORMAT="{created_year}-{created_month}-{created_day}",
     )
-    def test_created_year_month_day(self):
+    def test_created_year_month_day(self) -> None:
         d1 = timezone.make_aware(datetime.datetime(2020, 3, 6, 1, 1, 1))
         doc1 = Document.objects.create(
             title="doc1",
@@ -331,36 +418,40 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             created=d1,
         )
 
-        self.assertEqual(generate_filename(doc1), "2020-03-06.pdf")
+        self.assertEqual(generate_filename(doc1), Path("2020-03-06.pdf"))
 
         doc1.created = datetime.date(2020, 11, 16)
 
-        self.assertEqual(generate_filename(doc1), "2020-11-16.pdf")
+        self.assertEqual(generate_filename(doc1), Path("2020-11-16.pdf"))
 
     @override_settings(
         FILENAME_FORMAT="{added_year}-{added_month}-{added_day}",
     )
-    def test_added_year_month_day(self):
-        d1 = timezone.make_aware(datetime.datetime(232, 1, 9, 1, 1, 1))
+    def test_added_year_month_day(self) -> None:
+        d1 = timezone.make_aware(datetime.datetime(1232, 1, 9, 1, 1, 1))
         doc1 = Document.objects.create(
             title="doc1",
             mime_type="application/pdf",
             added=d1,
         )
 
-        self.assertEqual(generate_filename(doc1), "232-01-09.pdf")
+        # Account for 3.14 padding changes
+        expected_year: str = d1.strftime("%Y")
+        expected_filename: Path = Path(f"{expected_year}-01-09.pdf")
+
+        self.assertEqual(generate_filename(doc1), expected_filename)
 
         doc1.added = timezone.make_aware(datetime.datetime(2020, 11, 16, 1, 1, 1))
 
-        self.assertEqual(generate_filename(doc1), "2020-11-16.pdf")
+        self.assertEqual(generate_filename(doc1), Path("2020-11-16.pdf"))
 
     @override_settings(
         FILENAME_FORMAT="{correspondent}/{correspondent}/{correspondent}",
     )
-    def test_nested_directory_cleanup(self):
+    def test_nested_directory_cleanup(self) -> None:
         document = Document()
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
@@ -371,41 +462,39 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         Path(document.source_path).touch()
 
         # Check proper handling of files
-        self.assertIsDir(os.path.join(settings.ORIGINALS_DIR, "none/none"))
+        self.assertIsDir(settings.ORIGINALS_DIR / "none" / "none")
 
         document.delete()
         empty_trash([document.pk])
 
         self.assertIsNotFile(
-            os.path.join(settings.ORIGINALS_DIR, "none/none/none.pdf"),
+            settings.ORIGINALS_DIR / "none" / "none" / "none.pdf",
         )
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none/none"))
-        self.assertIsNotDir(os.path.join(settings.ORIGINALS_DIR, "none"))
+        self.assertIsNotDir(settings.ORIGINALS_DIR / "none" / "none")
+        self.assertIsNotDir(settings.ORIGINALS_DIR / "none")
         self.assertIsDir(settings.ORIGINALS_DIR)
 
     @override_settings(FILENAME_FORMAT="{doc_pk}")
-    def test_format_doc_pk(self):
+    def test_format_doc_pk(self) -> None:
         document = Document()
         document.pk = 1
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
-        self.assertEqual(generate_filename(document), "0000001.pdf")
+        self.assertEqual(generate_filename(document), Path("0000001.pdf"))
 
         document.pk = 13579
 
-        self.assertEqual(generate_filename(document), "0013579.pdf")
+        self.assertEqual(generate_filename(document), Path("0013579.pdf"))
 
     @override_settings(FILENAME_FORMAT=None)
-    def test_format_none(self):
+    def test_format_none(self) -> None:
         document = Document()
         document.pk = 1
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
-        self.assertEqual(generate_filename(document), "0000001.pdf")
+        self.assertEqual(generate_filename(document), Path("0000001.pdf"))
 
-    def test_try_delete_empty_directories(self):
+    def test_try_delete_empty_directories(self) -> None:
         # Create our working directory
         tmp: Path = settings.ORIGINALS_DIR / "test_delete_empty"
         tmp.mkdir(exist_ok=True, parents=True)
@@ -415,33 +504,31 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
         (tmp / "notempty" / "empty").mkdir(exist_ok=True, parents=True)
 
         delete_empty_directories(
-            os.path.join(tmp, "notempty", "empty"),
+            tmp / "notempty" / "empty",
             root=settings.ORIGINALS_DIR,
         )
-        self.assertIsDir(os.path.join(tmp, "notempty"))
-        self.assertIsFile(os.path.join(tmp, "notempty", "file"))
-        self.assertIsNotDir(os.path.join(tmp, "notempty", "empty"))
+        self.assertIsDir(tmp / "notempty")
+        self.assertIsFile(tmp / "notempty" / "file")
+        self.assertIsNotDir(tmp / "notempty" / "empty")
 
     @override_settings(FILENAME_FORMAT="{% if x is None %}/{title]")
-    def test_invalid_format(self):
+    def test_invalid_format(self) -> None:
         document = Document()
         document.pk = 1
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
-        self.assertEqual(generate_filename(document), "0000001.pdf")
+        self.assertEqual(generate_filename(document), Path("0000001.pdf"))
 
     @override_settings(FILENAME_FORMAT="{created__year}")
-    def test_invalid_format_key(self):
+    def test_invalid_format_key(self) -> None:
         document = Document()
         document.pk = 1
         document.mime_type = "application/pdf"
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
-        self.assertEqual(generate_filename(document), "0000001.pdf")
+        self.assertEqual(generate_filename(document), Path("0000001.pdf"))
 
     @override_settings(FILENAME_FORMAT="{title}")
-    def test_duplicates(self):
+    def test_duplicates(self) -> None:
         document = Document.objects.create(
             mime_type="application/pdf",
             title="qwe",
@@ -495,7 +582,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(FILENAME_FORMAT="{title}")
     @mock.patch("documents.signals.handlers.Document.objects.filter")
     @mock.patch("documents.signals.handlers.shutil.move")
-    def test_no_move_only_save(self, mock_move, mock_filter):
+    def test_no_move_only_save(self, mock_move, mock_filter) -> None:
         """
         GIVEN:
             - A document with a filename
@@ -529,9 +616,10 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
 
     @override_settings(
         FILENAME_FORMAT="{{title}}_{{custom_fields|get_cf_value('test')}}",
+        CELERY_TASK_ALWAYS_EAGER=True,
     )
     @mock.patch("documents.signals.handlers.update_filename_and_move_files")
-    def test_select_cf_updated(self, m):
+    def test_select_cf_updated(self, m) -> None:
         """
         GIVEN:
             - A document with a select type custom field
@@ -565,7 +653,7 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             value_select="abc123",
         )
 
-        self.assertEqual(generate_filename(doc), "document_apple.pdf")
+        self.assertEqual(generate_filename(doc), Path("document_apple.pdf"))
 
         # handler should not have been called
         self.assertEqual(m.call_count, 0)
@@ -577,16 +665,16 @@ class TestFileHandling(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
             ],
         }
         cf.save()
-        self.assertEqual(generate_filename(doc), "document_aubergine.pdf")
-        # handler should have been called
+        self.assertEqual(generate_filename(doc), Path("document_aubergine.pdf"))
+        # handler should have been called once via the async task
         self.assertEqual(m.call_count, 1)
 
 
 class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, TestCase):
     @override_settings(FILENAME_FORMAT=None)
-    def test_create_no_format(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_create_no_format(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -603,9 +691,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
-    def test_create_with_format(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_create_with_format(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -631,9 +719,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         )
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
-    def test_move_archive_gone(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_move_archive_gone(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         doc = Document.objects.create(
             mime_type="application/pdf",
@@ -650,10 +738,10 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsNotFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
-    def test_move_archive_exists(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
-        existing_archive_file = os.path.join(settings.ARCHIVE_DIR, "none", "my_doc.pdf")
+    def test_move_archive_exists(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
+        existing_archive_file = settings.ARCHIVE_DIR / "none" / "my_doc.pdf"
         Path(original).touch()
         Path(archive).touch()
         (settings.ARCHIVE_DIR / "none").mkdir(parents=True, exist_ok=True)
@@ -675,9 +763,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertEqual(doc.archive_filename, "none/my_doc_01.pdf")
 
     @override_settings(FILENAME_FORMAT="{title}")
-    def test_move_original_only(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document_01.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "document.pdf")
+    def test_move_original_only(self) -> None:
+        original = settings.ORIGINALS_DIR / "document_01.pdf"
+        archive = settings.ARCHIVE_DIR / "document.pdf"
         Path(original).touch()
         Path(archive).touch()
 
@@ -697,9 +785,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="{title}")
-    def test_move_archive_only(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "document_01.pdf")
+    def test_move_archive_only(self) -> None:
+        original = settings.ORIGINALS_DIR / "document.pdf"
+        archive = settings.ARCHIVE_DIR / "document_01.pdf"
         Path(original).touch()
         Path(archive).touch()
 
@@ -720,18 +808,18 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     @mock.patch("documents.signals.handlers.shutil.move")
-    def test_move_archive_error(self, m):
-        def fake_rename(src, dst):
+    def test_move_archive_error(self, m) -> None:
+        def fake_rename(src, dst) -> None:
             if "archive" in str(src):
                 raise OSError
             else:
-                os.remove(src)
+                Path(src).unlink()
                 Path(dst).touch()
 
         m.side_effect = fake_rename
 
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -750,9 +838,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
-    def test_move_file_gone(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_move_file_gone(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         # Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -771,18 +859,18 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
     @mock.patch("documents.signals.handlers.shutil.move")
-    def test_move_file_error(self, m):
-        def fake_rename(src, dst):
+    def test_move_file_error(self, m) -> None:
+        def fake_rename(src, dst) -> None:
             if "original" in str(src):
                 raise OSError
             else:
-                os.remove(src)
+                Path(src).unlink()
                 Path(dst).touch()
 
         m.side_effect = fake_rename
 
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -801,9 +889,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="")
-    def test_archive_deleted(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_archive_deleted(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document.objects.create(
@@ -829,10 +917,10 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsNotFile(doc.archive_path)
 
     @override_settings(FILENAME_FORMAT="{title}")
-    def test_archive_deleted2(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "document.webp")
-        original2 = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_archive_deleted2(self) -> None:
+        original = settings.ORIGINALS_DIR / "document.webp"
+        original2 = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(original2).touch()
         Path(archive).touch()
@@ -864,9 +952,9 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
         self.assertIsNotFile(doc2.source_path)
 
     @override_settings(FILENAME_FORMAT="{correspondent}/{title}")
-    def test_database_error(self):
-        original = os.path.join(settings.ORIGINALS_DIR, "0000001.pdf")
-        archive = os.path.join(settings.ARCHIVE_DIR, "0000001.pdf")
+    def test_database_error(self) -> None:
+        original = settings.ORIGINALS_DIR / "0000001.pdf"
+        archive = settings.ARCHIVE_DIR / "0000001.pdf"
         Path(original).touch()
         Path(archive).touch()
         doc = Document(
@@ -891,14 +979,14 @@ class TestFileHandlingWithArchive(DirectoriesMixin, FileSystemAssertsMixin, Test
 
 class TestFilenameGeneration(DirectoriesMixin, TestCase):
     @override_settings(FILENAME_FORMAT="{title}")
-    def test_invalid_characters(self):
+    def test_invalid_characters(self) -> None:
         doc = Document.objects.create(
             title="This. is the title.",
             mime_type="application/pdf",
             pk=1,
             checksum="1",
         )
-        self.assertEqual(generate_filename(doc), "This. is the title.pdf")
+        self.assertEqual(generate_filename(doc), Path("This. is the title.pdf"))
 
         doc = Document.objects.create(
             title="my\\invalid/../title:yay",
@@ -906,10 +994,10 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             pk=2,
             checksum="2",
         )
-        self.assertEqual(generate_filename(doc), "my-invalid-..-title-yay.pdf")
+        self.assertEqual(generate_filename(doc), Path("my-invalid-..-title-yay.pdf"))
 
     @override_settings(FILENAME_FORMAT="{created}")
-    def test_date(self):
+    def test_date(self) -> None:
         doc = Document.objects.create(
             title="does not matter",
             created=datetime.date(2020, 5, 21),
@@ -917,9 +1005,9 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             pk=2,
             checksum="2",
         )
-        self.assertEqual(generate_filename(doc), "2020-05-21.pdf")
+        self.assertEqual(generate_filename(doc), Path("2020-05-21.pdf"))
 
-    def test_dynamic_path(self):
+    def test_dynamic_path(self) -> None:
         """
         GIVEN:
             - A document with a defined storage path
@@ -936,9 +1024,9 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             checksum="2",
             storage_path=StoragePath.objects.create(path="TestFolder/{{created}}"),
         )
-        self.assertEqual(generate_filename(doc), "TestFolder/2020-06-25.pdf")
+        self.assertEqual(generate_filename(doc), Path("TestFolder/2020-06-25.pdf"))
 
-    def test_dynamic_path_with_none(self):
+    def test_dynamic_path_with_none(self) -> None:
         """
         GIVEN:
             - A document with a defined storage path
@@ -957,12 +1045,12 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             checksum="2",
             storage_path=StoragePath.objects.create(path="{{asn}} - {{created}}"),
         )
-        self.assertEqual(generate_filename(doc), "none - 2020-06-25.pdf")
+        self.assertEqual(generate_filename(doc), Path("none - 2020-06-25.pdf"))
 
     @override_settings(
         FILENAME_FORMAT_REMOVE_NONE=True,
     )
-    def test_dynamic_path_remove_none(self):
+    def test_dynamic_path_remove_none(self) -> None:
         """
         GIVEN:
             - A document with a defined storage path
@@ -985,7 +1073,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             checksum="2",
             storage_path=sp,
         )
-        self.assertEqual(generate_filename(doc), "TestFolder/2020-06-25.pdf")
+        self.assertEqual(generate_filename(doc), Path("TestFolder/2020-06-25.pdf"))
 
         # Special case, undefined variable, then defined at the start of the template
         # This could lead to an absolute path after we remove the leading -none-, but leave the leading /
@@ -994,9 +1082,9 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             "{{ owner_username }}/{{ created_year }}/{{ correspondent }}/{{ title }}"
         )
         sp.save()
-        self.assertEqual(generate_filename(doc), "2020/does not matter.pdf")
+        self.assertEqual(generate_filename(doc), Path("2020/does not matter.pdf"))
 
-    def test_multiple_doc_paths(self):
+    def test_multiple_doc_paths(self) -> None:
         """
         GIVEN:
             - Two documents, each with different storage paths
@@ -1029,13 +1117,19 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             ),
         )
 
-        self.assertEqual(generate_filename(doc_a), "ThisIsAFolder/4/2020-06-25.pdf")
-        self.assertEqual(generate_filename(doc_b), "SomeImportantNone/2020-07-25.pdf")
+        self.assertEqual(
+            generate_filename(doc_a),
+            Path("ThisIsAFolder/4/2020-06-25.pdf"),
+        )
+        self.assertEqual(
+            generate_filename(doc_b),
+            Path("SomeImportantNone/2020-07-25.pdf"),
+        )
 
     @override_settings(
         FILENAME_FORMAT=None,
     )
-    def test_no_path_fallback(self):
+    def test_no_path_fallback(self) -> None:
         """
         GIVEN:
             - Two documents, one with defined storage path, the other not
@@ -1065,13 +1159,57 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             ),
         )
 
-        self.assertEqual(generate_filename(doc_a), "0000002.pdf")
-        self.assertEqual(generate_filename(doc_b), "SomeImportantNone/2020-07-25.pdf")
+        self.assertEqual(generate_filename(doc_a), Path("0000002.pdf"))
+        self.assertEqual(
+            generate_filename(doc_b),
+            Path("SomeImportantNone/2020-07-25.pdf"),
+        )
+
+    @override_settings(
+        FILENAME_FORMAT=(
+            "{% if correspondent == 'none' %}none/{% endif %}"
+            "{% if correspondent == '-none-' %}dash/{% endif %}"
+            "{% if not correspondent %}false/{% endif %}"
+            "{% if correspondent != 'none' %}notnoneyes/{% else %}notnoneno/{% endif %}"
+            "{{ correspondent or 'missing' }}/{{ title }}"
+        ),
+    )
+    def test_placeholder_matches_none_variants_and_false(self) -> None:
+        """
+        GIVEN:
+            - Templates that compare against 'none', '-none-' and rely on truthiness
+        WHEN:
+            - A document has or lacks a correspondent
+        THEN:
+            - Empty placeholders behave like both strings and evaluate False
+        """
+        doc_without_correspondent = Document.objects.create(
+            title="does not matter",
+            mime_type="application/pdf",
+            checksum="abc",
+        )
+        doc_with_correspondent = Document.objects.create(
+            title="does not matter",
+            mime_type="application/pdf",
+            checksum="def",
+            correspondent=Correspondent.objects.create(name="Acme"),
+        )
+
+        self.assertEqual(
+            generate_filename(doc_without_correspondent),
+            Path(
+                "none/dash/false/notnoneno/missing/does not matter.pdf",
+            ),
+        )
+        self.assertEqual(
+            generate_filename(doc_with_correspondent),
+            Path("notnoneyes/Acme/does not matter.pdf"),
+        )
 
     @override_settings(
         FILENAME_FORMAT="{created_year_short}/{created_month_name_short}/{created_month_name}/{title}",
     )
-    def test_short_names_created(self):
+    def test_short_names_created(self) -> None:
         doc = Document.objects.create(
             title="The Title",
             created=datetime.date(1989, 12, 2),
@@ -1079,12 +1217,12 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             pk=2,
             checksum="2",
         )
-        self.assertEqual(generate_filename(doc), "89/Dec/December/The Title.pdf")
+        self.assertEqual(generate_filename(doc), Path("89/Dec/December/The Title.pdf"))
 
     @override_settings(
         FILENAME_FORMAT="{added_year_short}/{added_month_name}/{added_month_name_short}/{title}",
     )
-    def test_short_names_added(self):
+    def test_short_names_added(self) -> None:
         doc = Document.objects.create(
             title="The Title",
             added=timezone.make_aware(datetime.datetime(1984, 8, 21, 7, 36, 51, 153)),
@@ -1092,12 +1230,12 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             pk=2,
             checksum="2",
         )
-        self.assertEqual(generate_filename(doc), "84/August/Aug/The Title.pdf")
+        self.assertEqual(generate_filename(doc), Path("84/August/Aug/The Title.pdf"))
 
     @override_settings(
         FILENAME_FORMAT="{owner_username}/{title}",
     )
-    def test_document_owner_string(self):
+    def test_document_owner_string(self) -> None:
         """
         GIVEN:
             - Document with an other
@@ -1125,13 +1263,13 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             checksum="3",
         )
 
-        self.assertEqual(generate_filename(owned_doc), "user1/The Title.pdf")
-        self.assertEqual(generate_filename(no_owner_doc), "none/does matter.pdf")
+        self.assertEqual(generate_filename(owned_doc), Path("user1/The Title.pdf"))
+        self.assertEqual(generate_filename(no_owner_doc), Path("none/does matter.pdf"))
 
     @override_settings(
         FILENAME_FORMAT="{original_name}",
     )
-    def test_document_original_filename(self):
+    def test_document_original_filename(self) -> None:
         """
         GIVEN:
             - Document with an original filename
@@ -1172,23 +1310,114 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             original_filename="logs.txt",
         )
 
-        self.assertEqual(generate_filename(doc_with_original), "someepdf.pdf")
+        self.assertEqual(generate_filename(doc_with_original), Path("someepdf.pdf"))
 
         self.assertEqual(
             generate_filename(tricky_with_original),
-            "some pdf with spaces and stuff.pdf",
+            Path("some pdf with spaces and stuff.pdf"),
         )
 
-        self.assertEqual(generate_filename(no_original), "none.pdf")
+        self.assertEqual(generate_filename(no_original), Path("none.pdf"))
 
-        self.assertEqual(generate_filename(text_doc), "logs.txt")
-        self.assertEqual(generate_filename(text_doc, archive_filename=True), "logs.pdf")
+        self.assertEqual(generate_filename(text_doc), Path("logs.txt"))
+        self.assertEqual(
+            generate_filename(text_doc, archive_filename=True),
+            Path("logs.pdf"),
+        )
+
+    @override_settings(FILENAME_FORMAT="{title}")
+    def test_version_index_suffix_for_template_filename(self) -> None:
+        root_doc = Document.objects.create(
+            title="the_doc",
+            mime_type="application/pdf",
+            checksum="root-checksum",
+        )
+        version_doc = Document.objects.create(
+            title="the_doc",
+            mime_type="application/pdf",
+            checksum="version-checksum",
+            root_document=root_doc,
+            version_index=1,
+        )
+
+        self.assertEqual(generate_filename(version_doc), Path("the_doc_v1.pdf"))
+        self.assertEqual(
+            generate_filename(version_doc, counter=1),
+            Path("the_doc_v1_01.pdf"),
+        )
+
+    @override_settings(FILENAME_FORMAT=None)
+    def test_version_index_suffix_for_default_filename(self) -> None:
+        root_doc = Document.objects.create(
+            title="root",
+            mime_type="text/plain",
+            checksum="root-checksum",
+        )
+        version_doc = Document.objects.create(
+            title="root",
+            mime_type="text/plain",
+            checksum="version-checksum",
+            root_document=root_doc,
+            version_index=2,
+        )
+
+        self.assertEqual(
+            generate_filename(version_doc),
+            Path(f"{root_doc.pk:07d}_v2.txt"),
+        )
+        self.assertEqual(
+            generate_filename(version_doc, archive_filename=True),
+            Path(f"{root_doc.pk:07d}_v2.pdf"),
+        )
+
+    @override_settings(FILENAME_FORMAT="{original_name}")
+    def test_version_index_suffix_with_original_name_placeholder(self) -> None:
+        root_doc = Document.objects.create(
+            title="root",
+            mime_type="application/pdf",
+            checksum="root-checksum",
+            original_filename="root-upload.pdf",
+        )
+        version_doc = Document.objects.create(
+            title="root",
+            mime_type="application/pdf",
+            checksum="version-checksum",
+            root_document=root_doc,
+            version_index=1,
+            original_filename="version-upload.pdf",
+        )
+
+        self.assertEqual(generate_filename(version_doc), Path("root-upload_v1.pdf"))
+
+    def test_version_index_suffix_with_storage_path(self) -> None:
+        storage_path = StoragePath.objects.create(
+            name="vtest",
+            path="folder/{{title}}",
+        )
+        root_doc = Document.objects.create(
+            title="storage_doc",
+            mime_type="application/pdf",
+            checksum="root-checksum",
+            storage_path=storage_path,
+        )
+        version_doc = Document.objects.create(
+            title="version_title_should_not_be_used",
+            mime_type="application/pdf",
+            checksum="version-checksum",
+            root_document=root_doc,
+            version_index=3,
+        )
+
+        self.assertEqual(
+            generate_filename(version_doc),
+            Path("folder/storage_doc_v3.pdf"),
+        )
 
     @override_settings(
         FILENAME_FORMAT="XX{correspondent}/{title}",
         FILENAME_FORMAT_REMOVE_NONE=True,
     )
-    def test_remove_none_not_dir(self):
+    def test_remove_none_not_dir(self) -> None:
         """
         GIVEN:
             - A document with & filename format that includes correspondent as part of directory name
@@ -1202,14 +1431,14 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
             title="doc1",
             mime_type="application/pdf",
         )
-        document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
+
         document.save()
 
         # Ensure that filename is properly generated
         document.filename = generate_filename(document)
-        self.assertEqual(document.filename, "XX/doc1.pdf")
+        self.assertEqual(document.filename, Path("XX/doc1.pdf"))
 
-    def test_complex_template_strings(self):
+    def test_complex_template_strings(self) -> None:
         """
         GIVEN:
             - Storage paths with complex conditionals and logic
@@ -1245,19 +1474,19 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
 
         self.assertEqual(
             generate_filename(doc_a),
-            "somepath/some where/2020-06-25/Does Matter.pdf",
+            Path("somepath/some where/2020-06-25/Does Matter.pdf"),
         )
         doc_a.checksum = "5"
 
         self.assertEqual(
             generate_filename(doc_a),
-            "somepath/2024-10-01/Does Matter.pdf",
+            Path("somepath/2024-10-01/Does Matter.pdf"),
         )
 
         sp.path = "{{ document.title|lower }}{{ document.archive_serial_number - 2 }}"
         sp.save()
 
-        self.assertEqual(generate_filename(doc_a), "does matter23.pdf")
+        self.assertEqual(generate_filename(doc_a), Path("does matter23.pdf"))
 
         sp.path = """
                  somepath/
@@ -1276,19 +1505,54 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         sp.save()
         self.assertEqual(
             generate_filename(doc_a),
-            "somepath/asn-000-200/Does Matter/Does Matter.pdf",
+            Path("somepath/asn-000-200/Does Matter/Does Matter.pdf"),
         )
         doc_a.archive_serial_number = 301
         doc_a.save()
         self.assertEqual(
             generate_filename(doc_a),
-            "somepath/asn-201-400/asn-3xx/Does Matter.pdf",
+            Path("somepath/asn-201-400/asn-3xx/Does Matter.pdf"),
+        )
+
+    def test_template_related_context_keeps_legacy_string_coercion(self):
+        """
+        GIVEN:
+            - A storage path template that uses related objects directly as strings
+        WHEN:
+            - Filepath for a document with this format is called
+        THEN:
+            - Related objects coerce to their names (legacy behavior)
+            - Explicit attribute access remains available for new templates
+        """
+        sp = StoragePath.objects.create(
+            name="PARTNER",
+            path=(
+                "{{ document.storage_path|lower }} / "
+                "{{ document.correspondent|lower|replace('mi:', 'mieter/') }} / "
+                "{{ document_type|lower }} / "
+                "{{ title|lower }}"
+            ),
+        )
+        doc = Document.objects.create(
+            title="scan_017562",
+            created=datetime.date(2025, 7, 2),
+            added=timezone.make_aware(datetime.datetime(2026, 3, 3, 11, 53, 16)),
+            mime_type="application/pdf",
+            checksum="test-checksum",
+            storage_path=sp,
+            correspondent=Correspondent.objects.create(name="mi:kochkach"),
+            document_type=DocumentType.objects.create(name="Mietvertrag"),
+        )
+
+        self.assertEqual(
+            generate_filename(doc),
+            Path("partner/mieter/kochkach/mietvertrag/scan_017562.pdf"),
         )
 
     @override_settings(
         FILENAME_FORMAT="{{creation_date}}/{{ title_name_str }}",
     )
-    def test_template_with_undefined_var(self):
+    def test_template_with_undefined_var(self) -> None:
         """
         GIVEN:
             - Filename format with one or more undefined variables
@@ -1311,7 +1575,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         with self.assertLogs(level=logging.WARNING) as capture:
             self.assertEqual(
                 generate_filename(doc_a),
-                "0000002.pdf",
+                Path("0000002.pdf"),
             )
 
             self.assertEqual(len(capture.output), 1)
@@ -1323,14 +1587,14 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
     @override_settings(
         FILENAME_FORMAT="{{created}}/{{ document.save() }}",
     )
-    def test_template_with_security(self):
+    def test_template_with_security(self) -> None:
         """
         GIVEN:
-            - Filename format with one or more undefined variables
+            - Filename format with an unavailable document attribute
         WHEN:
             - Filepath for a document with this format is called
         THEN:
-            - The first undefined variable is logged
+            - The missing attribute is logged
             - The default format is used
         """
         doc_a = Document.objects.create(
@@ -1346,16 +1610,16 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         with self.assertLogs(level=logging.WARNING) as capture:
             self.assertEqual(
                 generate_filename(doc_a),
-                "0000002.pdf",
+                Path("0000002.pdf"),
             )
 
             self.assertEqual(len(capture.output), 1)
             self.assertEqual(
                 capture.output[0],
-                "WARNING:paperless.templating:Template attempted restricted operation: <bound method Model.save of <Document: 2020-06-25 Does Matter>> is not safely callable",
+                "ERROR:paperless.templating:Template variable error: 'dict object' has no attribute 'save'",
             )
 
-    def test_template_with_custom_fields(self):
+    def test_template_with_custom_fields(self) -> None:
         """
         GIVEN:
             - Filename format which accesses custom field data
@@ -1414,7 +1678,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "invoices/1234.pdf",
+                Path("invoices/1234.pdf"),
             )
 
         with override_settings(
@@ -1428,7 +1692,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "Some Title_ChoiceOne.pdf",
+                Path("Some Title_ChoiceOne.pdf"),
             )
 
             # Check for handling Nones well
@@ -1437,7 +1701,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
 
             self.assertEqual(
                 generate_filename(doc_a),
-                "Some Title_Default Value.pdf",
+                Path("Some Title_Default Value.pdf"),
             )
 
         cf.name = "Invoice Number"
@@ -1450,7 +1714,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "invoices/4567.pdf",
+                Path("invoices/4567.pdf"),
             )
 
         with override_settings(
@@ -1458,10 +1722,10 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "invoices/0.pdf",
+                Path("invoices/0.pdf"),
             )
 
-    def test_datetime_filter(self):
+    def test_datetime_filter(self) -> None:
         """
         GIVEN:
             - Filename format with datetime filter
@@ -1497,7 +1761,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "2020/Some Title.pdf",
+                Path("2020/Some Title.pdf"),
             )
 
         with override_settings(
@@ -1505,7 +1769,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "2020-06-25/Some Title.pdf",
+                Path("2020-06-25/Some Title.pdf"),
             )
 
         with override_settings(
@@ -1513,10 +1777,10 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc_a),
-                "2024-10-01/Some Title.pdf",
+                Path("2024-10-01/Some Title.pdf"),
             )
 
-    def test_slugify_filter(self):
+    def test_slugify_filter(self) -> None:
         """
         GIVEN:
             - Filename format with slugify filter
@@ -1540,7 +1804,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc),
-                "some-title-with-special-characters.pdf",
+                Path("some-title-with-special-characters.pdf"),
             )
 
         # Test with correspondent name containing spaces and special chars
@@ -1554,7 +1818,7 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc),
-                "johns-office-workplace/some-title-with-special-characters.pdf",
+                Path("johns-office-workplace/some-title-with-special-characters.pdf"),
             )
 
         # Test with custom fields
@@ -1573,5 +1837,130 @@ class TestFilenameGeneration(DirectoriesMixin, TestCase):
         ):
             self.assertEqual(
                 generate_filename(doc),
-                "brussels-belgium/some-title-with-special-characters.pdf",
+                Path("brussels-belgium/some-title-with-special-characters.pdf"),
             )
+
+
+class TestCustomFieldFilenameUpdates(
+    DirectoriesMixin,
+    FileSystemAssertsMixin,
+    TestCase,
+):
+    def setUp(self):
+        self.cf = CustomField.objects.create(
+            name="flavor",
+            data_type=CustomField.FieldDataType.STRING,
+        )
+        self.doc = Document.objects.create(
+            title="document",
+            mime_type="application/pdf",
+            checksum="abc123",
+        )
+        self.cfi = CustomFieldInstance.objects.create(
+            field=self.cf,
+            document=self.doc,
+            value_text="initial",
+        )
+        return super().setUp()
+
+    @override_settings(FILENAME_FORMAT=None)
+    def test_custom_field_not_in_template_skips_filename_work(self) -> None:
+        storage_path = StoragePath.objects.create(path="{{created}}/{{ title }}")
+        self.doc.storage_path = storage_path
+        self.doc.save()
+        initial_filename = generate_filename(self.doc)
+        Document.objects.filter(pk=self.doc.pk).update(filename=str(initial_filename))
+        self.doc.refresh_from_db()
+        Path(self.doc.source_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.doc.source_path).touch()
+
+        with mock.patch("documents.signals.handlers.generate_unique_filename") as m:
+            m.side_effect = generate_unique_filename
+            self.cfi.value_text = "updated"
+            self.cfi.save()
+
+        self.doc.refresh_from_db()
+        self.assertEqual(Path(self.doc.filename), initial_filename)
+        self.assertEqual(m.call_count, 0)
+
+    @override_settings(FILENAME_FORMAT=None)
+    def test_custom_field_in_template_triggers_filename_update(self) -> None:
+        storage_path = StoragePath.objects.create(
+            path="{{ custom_fields|get_cf_value('flavor') }}/{{ title }}",
+        )
+        self.doc.storage_path = storage_path
+        self.doc.save()
+        initial_filename = generate_filename(self.doc)
+        Document.objects.filter(pk=self.doc.pk).update(filename=str(initial_filename))
+        self.doc.refresh_from_db()
+        Path(self.doc.source_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.doc.source_path).touch()
+
+        with mock.patch("documents.signals.handlers.generate_unique_filename") as m:
+            m.side_effect = generate_unique_filename
+            self.cfi.value_text = "updated"
+            self.cfi.save()
+
+        self.doc.refresh_from_db()
+        expected_filename = Path("updated/document.pdf")
+        self.assertEqual(Path(self.doc.filename), expected_filename)
+        self.assertTrue(Path(self.doc.source_path).is_file())
+        self.assertLessEqual(m.call_count, 1)
+
+    @override_settings(FILENAME_FORMAT=None)
+    def test_overlong_storage_path_keeps_existing_filename(self):
+        initial_filename = generate_filename(self.doc)
+        Document.objects.filter(pk=self.doc.pk).update(filename=str(initial_filename))
+        self.doc.refresh_from_db()
+        Path(self.doc.source_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.doc.source_path).touch()
+
+        self.doc.storage_path = StoragePath.objects.create(path="a" * 1100)
+        self.doc.save()
+
+        self.doc.refresh_from_db()
+        self.assertEqual(Path(self.doc.filename), initial_filename)
+        self.assertTrue(Path(self.doc.source_path).is_file())
+
+
+class TestPathDateLocalization:
+    """
+    Groups all tests related to the `localize_date` function.
+    """
+
+    TEST_DATE = datetime.date(2023, 10, 26)
+
+    @pytest.mark.django_db
+    @pytest.mark.parametrize(
+        "filename_format,expected_filename",
+        [
+            pytest.param(
+                "{{title}}_{{ document.created | localize_date('MMMM', 'es_ES')}}",
+                "My Document_octubre.pdf",
+                id="spanish_month_name",
+            ),
+            pytest.param(
+                "{{title}}_{{ document.created | localize_date('EEEE', 'fr_FR')}}",
+                "My Document_jeudi.pdf",
+                id="french_day_of_week",
+            ),
+            pytest.param(
+                "{{title}}_{{ document.created | localize_date('dd/MM/yyyy', 'en_GB')}}",
+                "My Document_26/10/2023.pdf",
+                id="uk_date_format",
+            ),
+        ],
+    )
+    def test_localize_date_path_building(
+        self,
+        filename_format,
+        expected_filename,
+    ) -> None:
+        document = DocumentFactory.create(
+            title="My Document",
+            mime_type="application/pdf",
+            created=self.TEST_DATE,  # 2023-10-26 (which is a Thursday)
+        )
+        with override_settings(FILENAME_FORMAT=filename_format):
+            filename = generate_filename(document)
+            assert filename == Path(expected_filename)

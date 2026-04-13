@@ -1,4 +1,4 @@
-import { NgTemplateOutlet } from '@angular/common'
+import { LocationStrategy, NgTemplateOutlet } from '@angular/common'
 import {
   Component,
   ElementRef,
@@ -6,6 +6,7 @@ import {
   QueryList,
   ViewChild,
   ViewChildren,
+  inject,
 } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
@@ -24,7 +25,7 @@ import {
   FILTER_HAS_DOCUMENT_TYPE_ANY,
   FILTER_HAS_STORAGE_PATH_ANY,
   FILTER_HAS_TAGS_ALL,
-  FILTER_TITLE_CONTENT,
+  FILTER_SIMPLE_TEXT,
 } from 'src/app/data/filter-rule-type'
 import { ObjectWithId } from 'src/app/data/object-with-id'
 import { GlobalSearchType, SETTINGS_KEYS } from 'src/app/data/ui-settings'
@@ -69,6 +70,17 @@ import { WorkflowEditDialogComponent } from '../../common/edit-dialog/workflow-e
   ],
 })
 export class GlobalSearchComponent implements OnInit {
+  searchService = inject(SearchService)
+  private router = inject(Router)
+  private modalService = inject(NgbModal)
+  private documentService = inject(DocumentService)
+  private documentListViewService = inject(DocumentListViewService)
+  private permissionsService = inject(PermissionsService)
+  private toastService = inject(ToastService)
+  private hotkeyService = inject(HotKeyService)
+  private settingsService = inject(SettingsService)
+  private locationStrategy = inject(LocationStrategy)
+
   public DataType = DataType
   public query: string
   public queryDebounce: Subject<string>
@@ -90,17 +102,7 @@ export class GlobalSearchComponent implements OnInit {
     )
   }
 
-  constructor(
-    public searchService: SearchService,
-    private router: Router,
-    private modalService: NgbModal,
-    private documentService: DocumentService,
-    private documentListViewService: DocumentListViewService,
-    private permissionsService: PermissionsService,
-    private toastService: ToastService,
-    private hotkeyService: HotKeyService,
-    private settingsService: SettingsService
-  ) {
+  constructor() {
     this.queryDebounce = new Subject<string>()
 
     this.queryDebounce
@@ -408,7 +410,10 @@ export class GlobalSearchComponent implements OnInit {
   public runFullSearch() {
     const ruleType = this.useAdvancedForFullSearch
       ? FILTER_FULLTEXT_QUERY
-      : FILTER_TITLE_CONTENT
+      : FILTER_SIMPLE_TEXT
+    this.documentService.searchQuery = this.useAdvancedForFullSearch
+      ? this.query
+      : ''
     this.documentListViewService.quickFilter([
       { rule_type: ruleType, value: this.query },
     ])
@@ -421,10 +426,13 @@ export class GlobalSearchComponent implements OnInit {
     extras: Object = {}
   ) {
     if (newWindow) {
-      const url = this.router.serializeUrl(
+      const serializedUrl = this.router.serializeUrl(
         this.router.createUrlTree(commands, extras)
       )
-      window.open(url, '_blank')
+      const baseHref = this.locationStrategy.getBaseHref()
+      const fullUrl =
+        baseHref.replace(/\/+$/, '') + '/' + serializedUrl.replace(/^\/+/, '')
+      window.open(fullUrl, '_blank')
     } else {
       this.router.navigate(commands, extras)
     }

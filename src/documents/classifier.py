@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import logging
 import pickle
 import re
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterator
     from datetime import datetime
 
@@ -16,15 +18,28 @@ if TYPE_CHECKING:
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.cache import caches
 
+from documents.caching import CACHE_5_MINUTES
 from documents.caching import CACHE_50_MINUTES
 from documents.caching import CLASSIFIER_HASH_KEY
 from documents.caching import CLASSIFIER_MODIFIED_KEY
 from documents.caching import CLASSIFIER_VERSION_KEY
+from documents.caching import StoredLRUCache
 from documents.models import Document
 from documents.models import MatchingModel
 
 logger = logging.getLogger("paperless.classifier")
+
+ADVANCED_TEXT_PROCESSING_ENABLED = (
+    settings.NLTK_LANGUAGE is not None and settings.NLTK_ENABLED
+)
+
+read_cache = caches["read-cache"]
+
+
+RE_DIGIT = re.compile(r"\d")
+RE_WORD = re.compile(r"\b[\w]+\b")  # words that may contain digits
 
 
 class IncompatibleClassifierVersionError(Exception):
@@ -61,7 +76,7 @@ def load_classifier(*, raise_exception: bool = False) -> DocumentClassifier | No
             "Unrecoverable error while loading document "
             "classification model, deleting model file.",
         )
-        Path(settings.MODEL_FILE).unlink
+        Path(settings.MODEL_FILE).unlink()
         classifier = None
         if raise_exception:
             raise e
@@ -83,7 +98,10 @@ class DocumentClassifier:
     # v7 - Updated scikit-learn package version
     # v8 - Added storage path classifier
     # v9 - Changed from hashing to time/ids for re-train check
-    FORMAT_VERSION = 9
+    # v10 - HMAC-signed model file
+    FORMAT_VERSION = 10
+
+    HMAC_SIZE = 32  # SHA-256 digest length
 
     def __init__(self) -> None:
         # last time a document changed and therefore training might be required
@@ -92,79 +110,120 @@ class DocumentClassifier:
         self.last_auto_type_hash: bytes | None = None
 
         self.data_vectorizer = None
+        self.data_vectorizer_hash = None
         self.tags_binarizer = None
         self.tags_classifier = None
         self.correspondent_classifier = None
         self.document_type_classifier = None
         self.storage_path_classifier = None
-
         self._stemmer = None
+        # 10,000 elements roughly use 200 to 500 KB per worker,
+        # and also in the shared Redis cache,
+        # Keep this cache small to minimize lookup and I/O latency.
+        if ADVANCED_TEXT_PROCESSING_ENABLED:
+            self._stem_cache = StoredLRUCache(
+                f"stem_cache_v{self.FORMAT_VERSION}",
+                capacity=10000,
+            )
         self._stop_words = None
+
+    def _update_data_vectorizer_hash(self) -> None:
+        self.data_vectorizer_hash = sha256(
+            pickle.dumps(self.data_vectorizer),
+        ).hexdigest()
+
+    @staticmethod
+    def _compute_hmac(data: bytes) -> bytes:
+        return hmac.new(
+            settings.SECRET_KEY.encode(),
+            data,
+            sha256,
+        ).digest()
 
     def load(self) -> None:
         from sklearn.exceptions import InconsistentVersionWarning
 
+        raw = Path(settings.MODEL_FILE).read_bytes()
+
+        if len(raw) <= self.HMAC_SIZE:
+            raise ClassifierModelCorruptError
+
+        signature = raw[: self.HMAC_SIZE]
+        data = raw[self.HMAC_SIZE :]
+
+        if not hmac.compare_digest(signature, self._compute_hmac(data)):
+            raise ClassifierModelCorruptError
+
         # Catch warnings for processing
         with warnings.catch_warnings(record=True) as w:
-            with Path(settings.MODEL_FILE).open("rb") as f:
-                schema_version = pickle.load(f)
+            try:
+                (
+                    schema_version,
+                    self.last_doc_change_time,
+                    self.last_auto_type_hash,
+                    self.data_vectorizer,
+                    self.tags_binarizer,
+                    self.tags_classifier,
+                    self.correspondent_classifier,
+                    self.document_type_classifier,
+                    self.storage_path_classifier,
+                ) = pickle.loads(data)
+            except Exception as err:
+                raise ClassifierModelCorruptError from err
 
-                if schema_version != self.FORMAT_VERSION:
-                    raise IncompatibleClassifierVersionError(
-                        "Cannot load classifier, incompatible versions.",
-                    )
-                else:
-                    try:
-                        self.last_doc_change_time = pickle.load(f)
-                        self.last_auto_type_hash = pickle.load(f)
-
-                        self.data_vectorizer = pickle.load(f)
-                        self.tags_binarizer = pickle.load(f)
-
-                        self.tags_classifier = pickle.load(f)
-                        self.correspondent_classifier = pickle.load(f)
-                        self.document_type_classifier = pickle.load(f)
-                        self.storage_path_classifier = pickle.load(f)
-                    except Exception as err:
-                        raise ClassifierModelCorruptError from err
-
-            # Check for the warning about unpickling from differing versions
-            # and consider it incompatible
-            sk_learn_warning_url = (
-                "https://scikit-learn.org/stable/"
-                "model_persistence.html"
-                "#security-maintainability-limitations"
+        if schema_version != self.FORMAT_VERSION:
+            raise IncompatibleClassifierVersionError(
+                "Cannot load classifier, incompatible versions.",
             )
-            for warning in w:
-                # The warning is inconsistent, the MLPClassifier is a specific warning, others have not updated yet
-                if issubclass(warning.category, InconsistentVersionWarning) or (
-                    issubclass(warning.category, UserWarning)
-                    and sk_learn_warning_url in str(warning.message)
-                ):
-                    raise IncompatibleClassifierVersionError("sklearn version update")
+
+        self._update_data_vectorizer_hash()
+
+        # Check for the warning about unpickling from differing versions
+        # and consider it incompatible
+        sk_learn_warning_url = (
+            "https://scikit-learn.org/stable/"
+            "model_persistence.html"
+            "#security-maintainability-limitations"
+        )
+        for warning in w:
+            # The warning is inconsistent, the MLPClassifier is a specific warning, others have not updated yet
+            if issubclass(warning.category, InconsistentVersionWarning) or (
+                issubclass(warning.category, UserWarning)
+                and sk_learn_warning_url in str(warning.message)
+            ):
+                raise IncompatibleClassifierVersionError("sklearn version update")
 
     def save(self) -> None:
         target_file: Path = settings.MODEL_FILE
         target_file_temp: Path = target_file.with_suffix(".pickle.part")
 
+        data = pickle.dumps(
+            (
+                self.FORMAT_VERSION,
+                self.last_doc_change_time,
+                self.last_auto_type_hash,
+                self.data_vectorizer,
+                self.tags_binarizer,
+                self.tags_classifier,
+                self.correspondent_classifier,
+                self.document_type_classifier,
+                self.storage_path_classifier,
+            ),
+        )
+
+        signature = self._compute_hmac(data)
+
         with target_file_temp.open("wb") as f:
-            pickle.dump(self.FORMAT_VERSION, f)
-
-            pickle.dump(self.last_doc_change_time, f)
-            pickle.dump(self.last_auto_type_hash, f)
-
-            pickle.dump(self.data_vectorizer, f)
-
-            pickle.dump(self.tags_binarizer, f)
-            pickle.dump(self.tags_classifier, f)
-
-            pickle.dump(self.correspondent_classifier, f)
-            pickle.dump(self.document_type_classifier, f)
-            pickle.dump(self.storage_path_classifier, f)
+            f.write(signature + data)
 
         target_file_temp.rename(target_file)
 
-    def train(self) -> bool:
+    def train(
+        self,
+        status_callback: Callable[[str], None] | None = None,
+    ) -> bool:
+        notify = status_callback if status_callback is not None else lambda _: None
+
         # Get non-inbox documents
         docs_queryset = (
             Document.objects.exclude(
@@ -186,6 +245,7 @@ class DocumentClassifier:
 
         # Step 1: Extract and preprocess training data from the database.
         logger.debug("Gathering data from database...")
+        notify(f"Gathering data from {docs_queryset.count()} document(s)...")
         hasher = sha256()
         for doc in docs_queryset:
             y = -1
@@ -263,13 +323,14 @@ class DocumentClassifier:
 
         # Step 2: vectorize data
         logger.debug("Vectorizing data...")
+        notify("Vectorizing document content...")
 
         def content_generator() -> Iterator[str]:
             """
             Generates the content for documents, but once at a time
             """
             for doc in docs_queryset:
-                yield self.preprocess_content(doc.content)
+                yield self.preprocess_content(doc.content, shared_cache=False)
 
         self.data_vectorizer = CountVectorizer(
             analyzer="word",
@@ -289,6 +350,7 @@ class DocumentClassifier:
         # Step 3: train the classifiers
         if num_tags > 0:
             logger.debug("Training tags classifier...")
+            notify(f"Training tags classifier ({num_tags} tag(s))...")
 
             if num_tags == 1:
                 # Special case where only one tag has auto:
@@ -312,6 +374,9 @@ class DocumentClassifier:
 
         if num_correspondents > 0:
             logger.debug("Training correspondent classifier...")
+            notify(
+                f"Training correspondent classifier ({num_correspondents} correspondent(s))...",
+            )
             self.correspondent_classifier = MLPClassifier(tol=0.01)
             self.correspondent_classifier.fit(data_vectorized, labels_correspondent)
         else:
@@ -322,6 +387,9 @@ class DocumentClassifier:
 
         if num_document_types > 0:
             logger.debug("Training document type classifier...")
+            notify(
+                f"Training document type classifier ({num_document_types} type(s))...",
+            )
             self.document_type_classifier = MLPClassifier(tol=0.01)
             self.document_type_classifier.fit(data_vectorized, labels_document_type)
         else:
@@ -334,6 +402,7 @@ class DocumentClassifier:
             logger.debug(
                 "Training storage paths classifier...",
             )
+            notify(f"Training storage path classifier ({num_storage_paths} path(s))...")
             self.storage_path_classifier = MLPClassifier(tol=0.01)
             self.storage_path_classifier.fit(
                 data_vectorized,
@@ -347,6 +416,7 @@ class DocumentClassifier:
 
         self.last_doc_change_time = latest_doc_change
         self.last_auto_type_hash = hasher.digest()
+        self._update_data_vectorizer_hash()
 
         # Set the classifier information into the cache
         # Caching for 50 minutes, so slightly less than the normal retrain time
@@ -356,30 +426,15 @@ class DocumentClassifier:
 
         return True
 
-    def preprocess_content(self, content: str) -> str:  # pragma: no cover
-        """
-        Process to contents of a document, distilling it down into
-        words which are meaningful to the content
-        """
-
-        # Lower case the document
-        content = content.lower().strip()
-        # Reduce spaces
-        content = re.sub(r"\s+", " ", content)
-        # Get only the letters
-        content = re.sub(r"[^\w\s]", " ", content)
-
-        # If the NLTK language is supported, do further processing
-        if settings.NLTK_LANGUAGE is not None and settings.NLTK_ENABLED:
+    def _init_advanced_text_processing(self):
+        if self._stop_words is None or self._stemmer is None:
             import nltk
             from nltk.corpus import stopwords
             from nltk.stem import SnowballStemmer
-            from nltk.tokenize import word_tokenize
 
             # Not really hacky, since it isn't private and is documented, but
             # set the search path for NLTK data to the single location it should be in
             nltk.data.path = [settings.NLTK_DIR]
-
             try:
                 # Preload the corpus early, to force the lazy loader to transform
                 stopwords.ensure_loaded()
@@ -387,41 +442,100 @@ class DocumentClassifier:
                 # Do some one time setup
                 # Sometimes, somehow, there's multiple threads loading the corpus
                 # and it's not thread safe, raising an AttributeError
-                if self._stemmer is None:
-                    self._stemmer = SnowballStemmer(settings.NLTK_LANGUAGE)
-                if self._stop_words is None:
-                    self._stop_words = set(stopwords.words(settings.NLTK_LANGUAGE))
-
-                # Tokenize
-                # This splits the content into tokens, roughly words
-                words: list[str] = word_tokenize(
-                    content,
-                    language=settings.NLTK_LANGUAGE,
-                )
-
-                meaningful_words = []
-                for word in words:
-                    # Skip stop words
-                    # These are words like "a", "and", "the" which add little meaning
-                    if word in self._stop_words:
-                        continue
-                    # Stem the words
-                    # This reduces the words to their stems.
-                    # "amazement" returns "amaz"
-                    # "amaze" returns "amaz
-                    # "amazed" returns "amaz"
-                    meaningful_words.append(self._stemmer.stem(word))
-
-                return " ".join(meaningful_words)
-
+                self._stemmer = SnowballStemmer(settings.NLTK_LANGUAGE)
+                self._stop_words = frozenset(stopwords.words(settings.NLTK_LANGUAGE))
             except AttributeError:
+                logger.debug("Could not initialize NLTK for advanced text processing.")
+                return False
+        return True
+
+    def stem_and_skip_stop_words(self, words: list[str], *, shared_cache=True):
+        """
+        Reduce a list of words to their stem. Stop words are converted to empty strings.
+        :param words: the list of words to stem
+        """
+
+        def _stem_and_skip_stop_word(word: str):
+            """
+            Reduce a given word to its stem. If it's a stop word, return an empty string.
+            E.g. "amazement", "amaze" and "amazed" all return "amaz".
+            """
+            cached = self._stem_cache.get(word)
+            if cached is not None:
+                return cached
+            elif word in self._stop_words:
+                return ""
+            # Assumption: words that contain numbers are never stemmed
+            elif RE_DIGIT.search(word):
+                return word
+            else:
+                result = self._stemmer.stem(word)
+                self._stem_cache.set(word, result)
+                return result
+
+        if shared_cache:
+            self._stem_cache.load()
+
+        # Stem the words and skip stop words
+        result = " ".join(
+            filter(None, (_stem_and_skip_stop_word(w) for w in words)),
+        )
+        if shared_cache:
+            self._stem_cache.save()
+        return result
+
+    def preprocess_content(
+        self,
+        content: str,
+        *,
+        shared_cache=True,
+    ) -> str:
+        """
+        Process the contents of a document, distilling it down into
+        words which are meaningful to the content.
+
+        A stemmer cache is shared across workers with the parameter "shared_cache".
+        This is unnecessary when training the classifier.
+        """
+
+        # Lower case the document, reduce space,
+        # and keep only letters and digits.
+        content = " ".join(match.group().lower() for match in RE_WORD.finditer(content))
+
+        if ADVANCED_TEXT_PROCESSING_ENABLED:
+            from nltk.tokenize import word_tokenize
+
+            if not self._init_advanced_text_processing():
                 return content
+            # Tokenize
+            # This splits the content into tokens, roughly words
+            words = word_tokenize(content, language=settings.NLTK_LANGUAGE)
+            # Stem the words and skip stop words
+            content = self.stem_and_skip_stop_words(words, shared_cache=shared_cache)
 
         return content
 
+    def _get_vectorizer_cache_key(self, content: str):
+        hash = sha256(content.encode())
+        hash.update(
+            f"|{self.FORMAT_VERSION}|{settings.NLTK_LANGUAGE}|{settings.NLTK_ENABLED}|{self.data_vectorizer_hash}".encode(),
+        )
+        return f"vectorized_content_{hash.hexdigest()}"
+
+    def _vectorize(self, content: str):
+        key = self._get_vectorizer_cache_key(content)
+        serialized_result = read_cache.get(key)
+        if serialized_result is None:
+            result = self.data_vectorizer.transform([self.preprocess_content(content)])
+            read_cache.set(key, pickle.dumps(result), CACHE_5_MINUTES)
+        else:
+            read_cache.touch(key, CACHE_5_MINUTES)
+            result = pickle.loads(serialized_result)
+        return result
+
     def predict_correspondent(self, content: str) -> int | None:
         if self.correspondent_classifier:
-            X = self.data_vectorizer.transform([self.preprocess_content(content)])
+            X = self._vectorize(content)
             correspondent_id = self.correspondent_classifier.predict(X)
             if correspondent_id != -1:
                 return correspondent_id
@@ -432,7 +546,7 @@ class DocumentClassifier:
 
     def predict_document_type(self, content: str) -> int | None:
         if self.document_type_classifier:
-            X = self.data_vectorizer.transform([self.preprocess_content(content)])
+            X = self._vectorize(content)
             document_type_id = self.document_type_classifier.predict(X)
             if document_type_id != -1:
                 return document_type_id
@@ -445,7 +559,7 @@ class DocumentClassifier:
         from sklearn.utils.multiclass import type_of_target
 
         if self.tags_classifier:
-            X = self.data_vectorizer.transform([self.preprocess_content(content)])
+            X = self._vectorize(content)
             y = self.tags_classifier.predict(X)
             tags_ids = self.tags_binarizer.inverse_transform(y)[0]
             if type_of_target(y).startswith("multilabel"):
@@ -464,7 +578,7 @@ class DocumentClassifier:
 
     def predict_storage_path(self, content: str) -> int | None:
         if self.storage_path_classifier:
-            X = self.data_vectorizer.transform([self.preprocess_content(content)])
+            X = self._vectorize(content)
             storage_path_id = self.storage_path_classifier.predict(X)
             if storage_path_id != -1:
                 return storage_path_id

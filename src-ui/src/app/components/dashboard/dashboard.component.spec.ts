@@ -5,8 +5,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing'
 import { By } from '@angular/platform-browser'
 import { RouterTestingModule } from '@angular/router/testing'
 import { NgbAlertModule } from '@ng-bootstrap/ng-bootstrap'
-import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule, TourService } from 'ngx-ui-tour-ng-bootstrap'
+import { allIcons, NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
+import {
+  provideUiTour,
+  TourNgBootstrap,
+  TourService,
+} from 'ngx-ui-tour-ng-bootstrap'
 import { of, throwError } from 'rxjs'
 import { SavedView } from 'src/app/data/saved-view'
 import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
@@ -75,7 +79,7 @@ describe('DashboardComponent', () => {
       imports: [
         NgbAlertModule,
         RouterTestingModule,
-        TourNgBootstrapModule,
+        TourNgBootstrap,
         DragDropModule,
         NgxBootstrapIconsModule.pick(allIcons),
         DashboardComponent,
@@ -106,10 +110,12 @@ describe('DashboardComponent', () => {
               }),
             dashboardViews: saved_views.filter((v) => v.show_on_dashboard),
             allViews: saved_views,
+            setDocumentCount: jest.fn(),
           },
         },
         provideHttpClient(withInterceptorsFromDi()),
         provideHttpClientTesting(),
+        provideUiTour(),
       ],
     }).compileComponents()
 

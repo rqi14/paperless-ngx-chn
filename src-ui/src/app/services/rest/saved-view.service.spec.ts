@@ -17,7 +17,7 @@ const saved_views = [
     id: 1,
     show_on_dashboard: true,
     show_in_sidebar: true,
-    sort_field: 'name',
+    sort_field: 'title',
     sort_reverse: true,
     filter_rules: [],
   },
@@ -26,7 +26,7 @@ const saved_views = [
     id: 2,
     show_on_dashboard: true,
     show_in_sidebar: true,
-    sort_field: 'name',
+    sort_field: 'created',
     sort_reverse: true,
     filter_rules: [],
   },
@@ -35,7 +35,7 @@ const saved_views = [
     id: 3,
     show_on_dashboard: true,
     show_in_sidebar: true,
-    sort_field: 'name',
+    sort_field: 'added',
     sort_reverse: true,
     filter_rules: [],
   },
@@ -44,7 +44,7 @@ const saved_views = [
     id: 4,
     show_on_dashboard: false,
     show_in_sidebar: false,
-    sort_field: 'name',
+    sort_field: 'owner',
     sort_reverse: true,
     filter_rules: [],
   },
@@ -57,6 +57,11 @@ describe(`Additional service tests for SavedViewService`, () => {
   let settingsService
 
   it('should retrieve saved views and sort them', () => {
+    jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.DASHBOARD_VIEWS_VISIBLE_IDS) return [1, 2, 3]
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_VISIBLE_IDS) return [1, 2, 3]
+      return []
+    })
     service.reload()
     const req = httpTestingController.expectOne(
       `${environment.apiBaseUrl}${endpoint}/?page=1&page_size=100000`
@@ -93,7 +98,9 @@ describe(`Additional service tests for SavedViewService`, () => {
   it('should sort dashboard views', () => {
     service['savedViews'] = saved_views
     jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.DASHBOARD_VIEWS_VISIBLE_IDS) return [1, 2, 3]
       if (key === SETTINGS_KEYS.DASHBOARD_VIEWS_SORT_ORDER) return [3, 1, 2]
+      return []
     })
     expect(service.dashboardViews).toEqual([
       saved_views[2],
@@ -102,16 +109,36 @@ describe(`Additional service tests for SavedViewService`, () => {
     ])
   })
 
+  it('should use user-specific dashboard visibility when configured', () => {
+    service['savedViews'] = saved_views
+    jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.DASHBOARD_VIEWS_VISIBLE_IDS) return [4, 2]
+      if (key === SETTINGS_KEYS.DASHBOARD_VIEWS_SORT_ORDER) return []
+    })
+    expect(service.dashboardViews).toEqual([saved_views[1], saved_views[3]])
+  })
+
   it('should sort sidebar views', () => {
     service['savedViews'] = saved_views
     jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_VISIBLE_IDS) return [1, 2, 3]
       if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_SORT_ORDER) return [3, 1, 2]
+      return []
     })
     expect(service.sidebarViews).toEqual([
       saved_views[2],
       saved_views[0],
       saved_views[1],
     ])
+  })
+
+  it('should use user-specific sidebar visibility when configured', () => {
+    service['savedViews'] = saved_views
+    jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_VISIBLE_IDS) return [4, 2]
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_SORT_ORDER) return []
+    })
+    expect(service.sidebarViews).toEqual([saved_views[1], saved_views[3]])
   })
 
   it('should treat empty display_fields as null', () => {
@@ -220,6 +247,43 @@ describe(`Additional service tests for SavedViewService`, () => {
       .flush({
         results: saved_views,
       })
+  })
+
+  it('should accept a callback for reload', () => {
+    const reloadSpy = jest.fn()
+    service.reload(reloadSpy)
+    const req = httpTestingController.expectOne(
+      `${environment.apiBaseUrl}${endpoint}/?page=1&page_size=100000`
+    )
+    req.flush({
+      results: saved_views,
+    })
+    expect(reloadSpy).toHaveBeenCalled()
+  })
+
+  it('should support getting document counts for views', () => {
+    service.maybeRefreshDocumentCounts(saved_views)
+    saved_views.forEach((saved_view) => {
+      const req = httpTestingController.expectOne(
+        `${environment.apiBaseUrl}documents/?page=1&page_size=1&ordering=-${saved_view.sort_field}&fields=id&truncate_content=true`
+      )
+      req.flush({
+        all: [],
+        count: 1,
+        results: [{ id: 1 }],
+      })
+    })
+    expect(service.getDocumentCount(saved_views[0])).toEqual(1)
+  })
+
+  it('should not refresh document counts if setting is disabled', () => {
+    jest.spyOn(settingsService, 'get').mockImplementation((key) => {
+      if (key === SETTINGS_KEYS.SIDEBAR_VIEWS_SHOW_COUNT) return false
+    })
+    service.maybeRefreshDocumentCounts(saved_views)
+    httpTestingController.expectNone(
+      `${environment.apiBaseUrl}documents/?page=1&page_size=1&ordering=-${saved_views[0].sort_field}&fields=id&truncate_content=true`
+    )
   })
 
   beforeEach(() => {

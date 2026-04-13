@@ -3,12 +3,14 @@ import {
   DragDropModule,
   moveItemInArray,
 } from '@angular/cdk/drag-drop'
-import { Component, OnInit } from '@angular/core'
+import { AsyncPipe } from '@angular/common'
+import { Component, OnInit, inject } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
 import { takeUntil } from 'rxjs'
 import { Document } from 'src/app/data/document'
+import { CorrespondentNamePipe } from 'src/app/pipes/correspondent-name.pipe'
+import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { PermissionsService } from 'src/app/services/permissions.service'
 import { DocumentService } from 'src/app/services/rest/document.service'
 import { ConfirmDialogComponent } from '../confirm-dialog.component'
@@ -18,6 +20,9 @@ import { ConfirmDialogComponent } from '../confirm-dialog.component'
   templateUrl: './merge-confirm-dialog.component.html',
   styleUrl: './merge-confirm-dialog.component.scss',
   imports: [
+    AsyncPipe,
+    CorrespondentNamePipe,
+    CustomDatePipe,
     DragDropModule,
     FormsModule,
     ReactiveFormsModule,
@@ -28,6 +33,9 @@ export class MergeConfirmDialogComponent
   extends ConfirmDialogComponent
   implements OnInit
 {
+  private documentService = inject(DocumentService)
+  private permissionService = inject(PermissionsService)
+
   public documentIDs: number[] = []
   public archiveFallback: boolean = false
   public deleteOriginals: boolean = false
@@ -38,12 +46,8 @@ export class MergeConfirmDialogComponent
 
   public metadataDocumentID: number = -1
 
-  constructor(
-    activeModal: NgbActiveModal,
-    private documentService: DocumentService,
-    private permissionService: PermissionsService
-  ) {
-    super(activeModal)
+  constructor() {
+    super()
   }
 
   ngOnInit() {

@@ -2,7 +2,9 @@ import json
 import tempfile
 from io import StringIO
 from pathlib import Path
+from zipfile import ZipFile
 
+import pytest
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -17,13 +19,14 @@ from documents.tests.utils import FileSystemAssertsMixin
 from documents.tests.utils import SampleDirMixin
 
 
+@pytest.mark.management
 class TestCommandImport(
     DirectoriesMixin,
     FileSystemAssertsMixin,
     SampleDirMixin,
     TestCase,
 ):
-    def test_check_manifest_exists(self):
+    def test_check_manifest_exists(self) -> None:
         """
         GIVEN:
             - Source directory exists
@@ -38,13 +41,14 @@ class TestCommandImport(
                 "document_importer",
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
+                skip_checks=True,
             )
-            self.assertIn(
-                "That directory doesn't appear to contain a manifest.json file.",
-                str(e),
-            )
+        self.assertIn(
+            "That directory doesn't appear to contain a manifest.json file.",
+            str(e.exception),
+        )
 
-    def test_check_manifest_malformed(self):
+    def test_check_manifest_malformed(self) -> None:
         """
         GIVEN:
             - Source directory exists
@@ -64,13 +68,14 @@ class TestCommandImport(
                 "document_importer",
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
+                skip_checks=True,
             )
-            self.assertIn(
-                "The manifest file contains a record which does not refer to an actual document file.",
-                str(e),
-            )
+        self.assertIn(
+            "The manifest file contains a record which does not refer to an actual document file.",
+            str(e.exception),
+        )
 
-    def test_check_manifest_file_not_found(self):
+    def test_check_manifest_file_not_found(self) -> None:
         """
         GIVEN:
             - Source directory exists
@@ -93,10 +98,11 @@ class TestCommandImport(
                 "document_importer",
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
+                skip_checks=True,
             )
-            self.assertIn('The manifest file refers to "noexist.pdf"', str(e))
+        self.assertIn('The manifest file refers to "noexist.pdf"', str(e.exception))
 
-    def test_import_permission_error(self):
+    def test_import_permission_error(self) -> None:
         """
         GIVEN:
             - Original file which cannot be read from
@@ -116,28 +122,35 @@ class TestCommandImport(
             # No read permissions
             original_path.chmod(0o222)
 
+            manifest_path = Path(temp_dir) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    [
+                        {
+                            "model": "documents.document",
+                            EXPORTER_FILE_NAME: "original.pdf",
+                            EXPORTER_ARCHIVE_NAME: "archive.pdf",
+                        },
+                    ],
+                ),
+            )
+
             cmd = Command()
             cmd.source = Path(temp_dir)
-            cmd.manifest = [
-                {
-                    "model": "documents.document",
-                    EXPORTER_FILE_NAME: "original.pdf",
-                    EXPORTER_ARCHIVE_NAME: "archive.pdf",
-                },
-            ]
+            cmd.manifest_paths = [manifest_path]
             cmd.data_only = False
             with self.assertRaises(CommandError) as cm:
                 cmd.check_manifest_validity()
-                self.assertInt("Failed to read from original file", str(cm.exception))
+            self.assertIn("Failed to read from original file", str(cm.exception))
 
             original_path.chmod(0o444)
             archive_path.chmod(0o222)
 
             with self.assertRaises(CommandError) as cm:
                 cmd.check_manifest_validity()
-                self.assertInt("Failed to read from archive file", str(cm.exception))
+            self.assertIn("Failed to read from archive file", str(cm.exception))
 
-    def test_import_source_not_existing(self):
+    def test_import_source_not_existing(self) -> None:
         """
         GIVEN:
             - Source given doesn't exist
@@ -147,10 +160,10 @@ class TestCommandImport(
             - CommandError is raised indicating the issue
         """
         with self.assertRaises(CommandError) as cm:
-            call_command("document_importer", Path("/tmp/notapath"))
-            self.assertInt("That path doesn't exist", str(cm.exception))
+            call_command("document_importer", Path("/tmp/notapath"), skip_checks=True)
+        self.assertIn("That path doesn't exist", str(cm.exception))
 
-    def test_import_source_not_readable(self):
+    def test_import_source_not_readable(self) -> None:
         """
         GIVEN:
             - Source given isn't readable
@@ -163,13 +176,13 @@ class TestCommandImport(
             path = Path(temp_dir)
             path.chmod(0o222)
             with self.assertRaises(CommandError) as cm:
-                call_command("document_importer", path)
-                self.assertInt(
-                    "That path doesn't appear to be readable",
-                    str(cm.exception),
-                )
+                call_command("document_importer", path, skip_checks=True)
+            self.assertIn(
+                "That path doesn't appear to be readable",
+                str(cm.exception),
+            )
 
-    def test_import_source_does_not_exist(self):
+    def test_import_source_does_not_exist(self) -> None:
         """
         GIVEN:
             - Source directory does not exist
@@ -183,11 +196,15 @@ class TestCommandImport(
         self.assertIsNotFile(path)
 
         with self.assertRaises(CommandError) as e:
-            call_command("document_importer", "--no-progress-bar", str(path))
+            call_command(
+                "document_importer",
+                "--no-progress-bar",
+                str(path),
+                skip_checks=True,
+            )
+        self.assertIn("That path doesn't exist", str(e.exception))
 
-            self.assertIn("That path doesn't exist", str(e))
-
-    def test_import_files_exist(self):
+    def test_import_files_exist(self) -> None:
         """
         GIVEN:
             - Source directory does exist
@@ -209,6 +226,7 @@ class TestCommandImport(
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
                 stdout=stdout,
+                skip_checks=True,
             )
         stdout.seek(0)
         self.assertIn(
@@ -216,7 +234,7 @@ class TestCommandImport(
             str(stdout.read()),
         )
 
-    def test_import_with_user_exists(self):
+    def test_import_with_user_exists(self) -> None:
         """
         GIVEN:
             - Source directory does exist
@@ -237,6 +255,7 @@ class TestCommandImport(
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
                 stdout=stdout,
+                skip_checks=True,
             )
         stdout.seek(0)
         self.assertIn(
@@ -244,7 +263,7 @@ class TestCommandImport(
             stdout.read(),
         )
 
-    def test_import_with_documents_exists(self):
+    def test_import_with_documents_exists(self) -> None:
         """
         GIVEN:
             - Source directory does exist
@@ -258,8 +277,8 @@ class TestCommandImport(
 
         Document.objects.create(
             content="Content",
-            checksum="42995833e01aea9b3edee44bbfdd7ce1",
-            archive_checksum="62acb0bcbfbcaa62ca6ad3668e4e404b",
+            checksum="1093cf6e32adbd16b06969df09215d42c4a3a8938cc18b39455953f08d1ff2ab",
+            archive_checksum="706124ecde3c31616992fa979caed17a726b1c9ccdba70e82a4ff796cea97ccf",
             title="wow1",
             filename="0000001.pdf",
             mime_type="application/pdf",
@@ -273,6 +292,7 @@ class TestCommandImport(
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
                 stdout=stdout,
+                skip_checks=True,
             )
         stdout.seek(0)
         self.assertIn(
@@ -280,7 +300,7 @@ class TestCommandImport(
             str(stdout.read()),
         )
 
-    def test_import_no_metadata_or_version_file(self):
+    def test_import_no_metadata_or_version_file(self) -> None:
         """
         GIVEN:
             - A source directory with a manifest file only
@@ -294,19 +314,20 @@ class TestCommandImport(
         (self.dirs.scratch_dir / "manifest.json").touch()
 
         # We're not building a manifest, so it fails, but this test doesn't care
-        with self.assertRaises(json.decoder.JSONDecodeError):
+        with self.assertRaises(CommandError):
             call_command(
                 "document_importer",
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
                 stdout=stdout,
+                skip_checks=True,
             )
         stdout.seek(0)
         stdout_str = str(stdout.read())
 
         self.assertIn("No version.json or metadata.json file located", stdout_str)
 
-    def test_import_version_file(self):
+    def test_import_version_file(self) -> None:
         """
         GIVEN:
             - A source directory with a manifest file and version file
@@ -323,15 +344,56 @@ class TestCommandImport(
         )
 
         # We're not building a manifest, so it fails, but this test doesn't care
-        with self.assertRaises(json.decoder.JSONDecodeError):
+        with self.assertRaises(CommandError):
             call_command(
                 "document_importer",
                 "--no-progress-bar",
                 str(self.dirs.scratch_dir),
                 stdout=stdout,
+                skip_checks=True,
             )
         stdout.seek(0)
         stdout_str = str(stdout.read())
 
         self.assertIn("Version mismatch:", stdout_str)
         self.assertIn("importing 2.8.1", stdout_str)
+
+    def test_import_zipped_export(self) -> None:
+        """
+        GIVEN:
+            - A zip file with correct content (manifest.json and version.json inside)
+        WHEN:
+            - An import is attempted using the zip file as the source
+        THEN:
+            - The command reads from the zip without warnings or errors
+        """
+
+        stdout = StringIO()
+        zip_path = self.dirs.scratch_dir / "export.zip"
+
+        # Create manifest.json and version.json in a temp dir
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_dir_path = Path(temp_dir)
+
+            (temp_dir_path / "manifest.json").touch()
+            (temp_dir_path / "version.json").touch()
+
+            # Create the zip file
+            with ZipFile(zip_path, "w") as zf:
+                zf.write(temp_dir_path / "manifest.json", arcname="manifest.json")
+                zf.write(temp_dir_path / "version.json", arcname="version.json")
+
+        # Try to import from the zip file
+        with self.assertRaises(json.decoder.JSONDecodeError):
+            call_command(
+                "document_importer",
+                "--no-progress-bar",
+                str(zip_path),
+                stdout=stdout,
+                skip_checks=True,
+            )
+        stdout.seek(0)
+        stdout_str = str(stdout.read())
+
+        # There should be no error or warnings. Therefore the output should be empty.
+        self.assertEqual(stdout_str, "")

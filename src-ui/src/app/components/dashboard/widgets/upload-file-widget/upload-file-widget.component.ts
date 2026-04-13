@@ -1,5 +1,5 @@
 import { NgClass, NgTemplateOutlet } from '@angular/common'
-import { Component, QueryList, ViewChildren } from '@angular/core'
+import { Component, QueryList, ViewChildren, inject } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import {
   NgbAlert,
@@ -7,7 +7,7 @@ import {
   NgbProgressbarModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
+import { TourNgBootstrap } from 'ngx-ui-tour-ng-bootstrap'
 import { ComponentWithPermissions } from 'src/app/components/with-permissions/with-permissions.component'
 import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
@@ -33,19 +33,15 @@ import { WidgetFrameComponent } from '../widget-frame/widget-frame.component'
     NgbAlertModule,
     NgbProgressbarModule,
     NgxBootstrapIconsModule,
-    TourNgBootstrapModule,
+    TourNgBootstrap,
   ],
 })
 export class UploadFileWidgetComponent extends ComponentWithPermissions {
-  @ViewChildren(NgbAlert) alerts: QueryList<NgbAlert>
+  private websocketStatusService = inject(WebsocketStatusService)
+  private uploadDocumentsService = inject(UploadDocumentsService)
+  settingsService = inject(SettingsService)
 
-  constructor(
-    private websocketStatusService: WebsocketStatusService,
-    private uploadDocumentsService: UploadDocumentsService,
-    public settingsService: SettingsService
-  ) {
-    super()
-  }
+  @ViewChildren(NgbAlert) alerts: QueryList<NgbAlert>
 
   getStatus() {
     return this.websocketStatusService.getConsumerStatus()

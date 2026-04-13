@@ -1,5 +1,12 @@
 import { AsyncPipe, NgTemplateOutlet } from '@angular/common'
-import { Component, forwardRef, Input, OnDestroy, OnInit } from '@angular/core'
+import {
+  Component,
+  forwardRef,
+  inject,
+  Input,
+  OnDestroy,
+  OnInit,
+} from '@angular/core'
 import {
   FormsModule,
   NG_VALUE_ACCESSOR,
@@ -21,7 +28,7 @@ import {
   tap,
 } from 'rxjs'
 import { Document } from 'src/app/data/document'
-import { FILTER_TITLE } from 'src/app/data/filter-rule-type'
+import { FILTER_SIMPLE_TITLE } from 'src/app/data/filter-rule-type'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
 import { DocumentService } from 'src/app/services/rest/document.service'
 import { AbstractInputComponent } from '../abstract-input'
@@ -52,6 +59,8 @@ export class DocumentLinkComponent
   extends AbstractInputComponent<any[]>
   implements OnInit, OnDestroy
 {
+  private documentsService = inject(DocumentService)
+
   documentsInput$ = new Subject<string>()
   foundDocuments$: Observable<Document[]>
   loading = false
@@ -73,10 +82,6 @@ export class DocumentLinkComponent
 
   get selectedDocumentIDs(): number[] {
     return this.selectedDocuments.map((d) => d.id)
-  }
-
-  constructor(private documentsService: DocumentService) {
-    super()
   }
 
   ngOnInit() {
@@ -116,7 +121,7 @@ export class DocumentLinkComponent
               null,
               'created',
               true,
-              [{ rule_type: FILTER_TITLE, value: title }],
+              [{ rule_type: FILTER_SIMPLE_TITLE, value: title }],
               { truncate_content: true }
             )
             .pipe(

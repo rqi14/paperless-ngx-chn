@@ -6,7 +6,7 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop'
 import { NgClass } from '@angular/common'
-import { Component, HostListener, OnInit } from '@angular/core'
+import { Component, HostListener, inject, OnInit } from '@angular/core'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import {
   NgbCollapseModule,
@@ -16,12 +16,12 @@ import {
   NgbPopoverModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
+import { TourNgBootstrap } from 'ngx-ui-tour-ng-bootstrap'
 import { Observable } from 'rxjs'
 import { first } from 'rxjs/operators'
 import { Document } from 'src/app/data/document'
 import { SavedView } from 'src/app/data/saved-view'
-import { SETTINGS_KEYS } from 'src/app/data/ui-settings'
+import { CollapsibleSection, SETTINGS_KEYS } from 'src/app/data/ui-settings'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { ComponentCanDeactivate } from 'src/app/guards/dirty-doc.guard'
 import { DocumentTitlePipe } from 'src/app/pipes/document-title.pipe'
@@ -44,11 +44,14 @@ import { SettingsService } from 'src/app/services/settings.service'
 import { TasksService } from 'src/app/services/tasks.service'
 import { ToastService } from 'src/app/services/toast.service'
 import { environment } from 'src/environments/environment'
+import { ChatComponent } from '../chat/chat/chat.component'
 import { ProfileEditDialogComponent } from '../common/profile-edit-dialog/profile-edit-dialog.component'
 import { DocumentDetailComponent } from '../document-detail/document-detail.component'
 import { ComponentWithPermissions } from '../with-permissions/with-permissions.component'
 import { GlobalSearchComponent } from './global-search/global-search.component'
 import { ToastsDropdownComponent } from './toasts-dropdown/toasts-dropdown.component'
+
+const SCROLL_THRESHOLD = 16
 
 @Component({
   selector: 'pngx-app-frame',
@@ -59,6 +62,7 @@ import { ToastsDropdownComponent } from './toasts-dropdown/toasts-dropdown.compo
     DocumentTitlePipe,
     IfPermissionsDirective,
     ToastsDropdownComponent,
+    ChatComponent,
     RouterModule,
     NgClass,
     NgbDropdownModule,
@@ -67,34 +71,38 @@ import { ToastsDropdownComponent } from './toasts-dropdown/toasts-dropdown.compo
     NgbNavModule,
     NgxBootstrapIconsModule,
     DragDropModule,
-    TourNgBootstrapModule,
+    TourNgBootstrap,
   ],
 })
 export class AppFrameComponent
   extends ComponentWithPermissions
   implements OnInit, ComponentCanDeactivate
 {
-  versionString = `${environment.appTitle} ${environment.version}`
+  router = inject(Router)
+  private activatedRoute = inject(ActivatedRoute)
+  private openDocumentsService = inject(OpenDocumentsService)
+  savedViewService = inject(SavedViewService)
+  private remoteVersionService = inject(RemoteVersionService)
+  settingsService = inject(SettingsService)
+  tasksService = inject(TasksService)
+  private readonly toastService = inject(ToastService)
+  private modalService = inject(NgbModal)
+  permissionsService = inject(PermissionsService)
+  private djangoMessagesService = inject(DjangoMessagesService)
+
   appRemoteVersion: AppRemoteVersion
 
   isMenuCollapsed: boolean = true
 
   slimSidebarAnimating: boolean = false
 
-  constructor(
-    public router: Router,
-    private activatedRoute: ActivatedRoute,
-    private openDocumentsService: OpenDocumentsService,
-    public savedViewService: SavedViewService,
-    private remoteVersionService: RemoteVersionService,
-    public settingsService: SettingsService,
-    public tasksService: TasksService,
-    private readonly toastService: ToastService,
-    private modalService: NgbModal,
-    public permissionsService: PermissionsService,
-    private djangoMessagesService: DjangoMessagesService
-  ) {
+  public mobileSearchHidden: boolean = false
+
+  private lastScrollY: number = 0
+
+  constructor() {
     super()
+    const permissionsService = this.permissionsService
 
     if (
       permissionsService.currentUserCan(
@@ -102,11 +110,15 @@ export class AppFrameComponent
         PermissionType.SavedView
       )
     ) {
-      this.savedViewService.reload()
+      this.savedViewService.reload(() => {
+        this.savedViewService.maybeRefreshDocumentCounts()
+      })
     }
   }
 
   ngOnInit(): void {
+    this.lastScrollY = window.scrollY
+
     if (this.settingsService.get(SETTINGS_KEYS.UPDATE_CHECKING_ENABLED)) {
       this.checkForUpdates()
     }
@@ -136,14 +148,79 @@ export class AppFrameComponent
 
   toggleSlimSidebar(): void {
     this.slimSidebarAnimating = true
-    this.slimSidebarEnabled = !this.slimSidebarEnabled
+    const slimSidebarEnabled = !this.slimSidebarEnabled
+    this.settingsService.set(SETTINGS_KEYS.SLIM_SIDEBAR, slimSidebarEnabled)
+    if (slimSidebarEnabled) {
+      this.settingsService.set(SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED, [
+        CollapsibleSection.ATTRIBUTES,
+      ])
+    }
+    this.settingsService
+      .storeSettings()
+      .pipe(first())
+      .subscribe({
+        error: (error) => {
+          this.toastService.showError(
+            $localize`An error occurred while saving settings.`
+          )
+          console.warn(error)
+        },
+      })
     setTimeout(() => {
       this.slimSidebarAnimating = false
     }, 200) // slightly longer than css animation for slim sidebar
   }
 
+  toggleAttributesSections(event?: Event): void {
+    event?.preventDefault()
+    event?.stopPropagation()
+    this.attributesSectionsCollapsed = !this.attributesSectionsCollapsed
+  }
+
+  get versionString(): string {
+    return `${environment.appTitle} v${this.settingsService.get(SETTINGS_KEYS.VERSION)}${environment.tag === 'prod' ? '' : ` #${environment.tag}`}`
+  }
+
   get customAppTitle(): string {
     return this.settingsService.get(SETTINGS_KEYS.APP_TITLE)
+  }
+
+  get canSaveSettings(): boolean {
+    return (
+      this.permissionsService.currentUserCan(
+        PermissionAction.Change,
+        PermissionType.UISettings
+      ) &&
+      this.permissionsService.currentUserCan(
+        PermissionAction.Add,
+        PermissionType.UISettings
+      )
+    )
+  }
+
+  get canManageAttributes(): boolean {
+    return (
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Tag
+      ) ||
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.Correspondent
+      ) ||
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.DocumentType
+      ) ||
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.StoragePath
+      ) ||
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.CustomField
+      )
+    )
   }
 
   get slimSidebarEnabled(): boolean {
@@ -163,6 +240,67 @@ export class AppFrameComponent
           console.warn(error)
         },
       })
+  }
+
+  get attributesSectionsCollapsed(): boolean {
+    return this.settingsService
+      .get(SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED)
+      ?.includes(CollapsibleSection.ATTRIBUTES)
+  }
+
+  set attributesSectionsCollapsed(collapsed: boolean) {
+    // TODO: refactor to be able to toggle individual sections, if implemented
+    this.settingsService.set(
+      SETTINGS_KEYS.ATTRIBUTES_SECTIONS_COLLAPSED,
+      collapsed ? [CollapsibleSection.ATTRIBUTES] : []
+    )
+    this.settingsService
+      .storeSettings()
+      .pipe(first())
+      .subscribe({
+        error: (error) => {
+          this.toastService.showError(
+            $localize`An error occurred while saving settings.`
+          )
+          console.warn(error)
+        },
+      })
+  }
+
+  get aiEnabled(): boolean {
+    return this.settingsService.get(SETTINGS_KEYS.AI_ENABLED)
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    if (!this.isMobileViewport()) {
+      this.mobileSearchHidden = false
+    }
+  }
+
+  @HostListener('window:scroll')
+  onWindowScroll(): void {
+    const currentScrollY = window.scrollY
+
+    if (!this.isMobileViewport() || this.isMenuCollapsed === false) {
+      this.mobileSearchHidden = false
+      this.lastScrollY = currentScrollY
+      return
+    }
+
+    const delta = currentScrollY - this.lastScrollY
+
+    if (currentScrollY <= 0 || delta < -SCROLL_THRESHOLD) {
+      this.mobileSearchHidden = false
+    } else if (currentScrollY > SCROLL_THRESHOLD && delta > SCROLL_THRESHOLD) {
+      this.mobileSearchHidden = true
+    }
+
+    this.lastScrollY = currentScrollY
+  }
+
+  private isMobileViewport(): boolean {
+    return window.innerWidth < 768
   }
 
   closeMenu() {
@@ -278,5 +416,12 @@ export class AppFrameComponent
 
   onLogout() {
     this.openDocumentsService.closeAll()
+  }
+
+  get showSidebarCounts(): boolean {
+    return (
+      this.settingsService.get(SETTINGS_KEYS.SIDEBAR_VIEWS_SHOW_COUNT) &&
+      !this.settingsService.organizingSidebarSavedViews
+    )
   }
 }

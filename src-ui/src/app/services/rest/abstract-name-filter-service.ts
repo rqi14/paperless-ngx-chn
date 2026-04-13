@@ -1,3 +1,4 @@
+import { Injectable } from '@angular/core'
 import { Observable } from 'rxjs'
 import { ObjectWithId } from 'src/app/data/object-with-id'
 import { PermissionsObject } from 'src/app/data/object-with-permissions'
@@ -7,7 +8,9 @@ export enum BulkEditObjectOperation {
   SetPermissions = 'set_permissions',
   Delete = 'delete',
 }
-
+@Injectable({
+  providedIn: 'root',
+})
 export abstract class AbstractNameFilterService<
   T extends ObjectWithId,
 > extends AbstractPaperlessService<T> {
@@ -34,12 +37,21 @@ export abstract class AbstractNameFilterService<
     objects: Array<number>,
     operation: BulkEditObjectOperation,
     permissions: { owner: number; set_permissions: PermissionsObject } = null,
-    merge: boolean = null
+    merge: boolean = null,
+    all: boolean = false,
+    filters: { [key: string]: any } = null
   ): Observable<string> {
-    const params = {
-      objects,
+    const params: any = {
       object_type: this.resourceName,
       operation,
+    }
+    if (all) {
+      params['all'] = true
+      if (filters) {
+        params['filters'] = filters
+      }
+    } else {
+      params['objects'] = objects
     }
     if (operation === BulkEditObjectOperation.SetPermissions) {
       params['owner'] = permissions?.owner

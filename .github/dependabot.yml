@@ -1,6 +1,5 @@
 # Please see the documentation for all configuration options:
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 # Required for uv support for now
 enable-beta-ecosystems: true
@@ -13,12 +12,11 @@ updates:
     open-pull-requests-limit: 10
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     labels:
       - "frontend"
       - "dependencies"
-    # Add reviewers
-    reviewers:
-      - "paperless-ngx/frontend"
     groups:
       frontend-angular-dependencies:
         patterns:
@@ -40,35 +38,62 @@ updates:
     directory: "/"
     # Check for updates once a week
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 7
     labels:
       - "backend"
       - "dependencies"
-    # Add reviewers
-    reviewers:
-      - "paperless-ngx/backend"
     groups:
+      # Development & CI/CD Tooling
       development:
         patterns:
           - "*pytest*"
           - "ruff"
-          - "mkdocs-material"
-          - "pre-commit*"
-      django:
+          - "zensical"
+          - "prek*"
+      # Django & DRF Ecosystem
+      django-ecosystem:
         patterns:
           - "*django*"
           - "drf-*"
-      major-versions:
+          - "djangorestframework"
+          - "whitenoise"
+          - "bleach"
+          - "jinja2"
+      # Async, Task Queuing & Caching
+      async-tasks:
+        patterns:
+          - "celery*"
+          - "channels*"
+          - "flower"
+          - "redis"
+      # Document, PDF, and OCR Processing
+      document-processing:
+        patterns:
+          - "ocrmypdf"
+          - "pdf2image"
+          - "zxing-cpp"
+          - "tika-client"
+          - "gotenberg-client"
+          - "python-magic"
+          - "python-gnupg"
+      # Data, NLP, and Search
+      data-nlp-search:
+        patterns:
+          - "nltk"
+          - "scikit-learn"
+          - "langdetect"
+          - "rapidfuzz"
+          - "whoosh-reloaded"
+      # Utilities (Patch Updates)
+      utilities-patch:
         update-types:
-          - "major"
-      small-changes:
+          - "patch"
+      # Utilities (Minor Updates)
+      utilities-minor:
         update-types:
           - "minor"
-          - "patch"
-      pre-built:
-        patterns:
-          - psycopg*
-          - zxing-cpp
   # Enable updates for GitHub Actions
   - package-ecosystem: "github-actions"
     target-branch: "dev"
@@ -76,12 +101,11 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every month
       interval: "monthly"
+    cooldown:
+      default-days: 7
     labels:
       - "ci-cd"
       - "dependencies"
-    # Add reviewers
-    reviewers:
-      - "paperless-ngx/ci-cd"
     groups:
       actions:
         update-types:
@@ -90,12 +114,14 @@ updates:
           - "patch"
   # Update Dockerfile in root directory
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.devcontainer/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
-    reviewers:
-      - "paperless-ngx/ci-cd"
     labels:
       - "dependencies"
     commit-message:
@@ -105,10 +131,10 @@ updates:
   - package-ecosystem: "docker-compose"
     directory: "/docker/compose/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
-    reviewers:
-      - "paperless-ngx/ci-cd"
     labels:
       - "dependencies"
     commit-message:
@@ -131,3 +157,16 @@ updates:
       postgres:
         patterns:
           - "docker.io/library/postgres*"
+      greenmail:
+        patterns:
+          - "docker.io/greenmail*"
+  - package-ecosystem: "pre-commit" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    groups:
+      pre-commit-dependencies:
+        patterns:
+          - "*"

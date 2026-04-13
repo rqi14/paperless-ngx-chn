@@ -1,6 +1,7 @@
 import { AsyncPipe, NgClass, NgTemplateOutlet } from '@angular/common'
 import {
   Component,
+  inject,
   OnDestroy,
   OnInit,
   QueryList,
@@ -20,7 +21,7 @@ import {
   NgbPaginationModule,
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule } from 'ngx-ui-tour-ng-bootstrap'
+import { TourNgBootstrap } from 'ngx-ui-tour-ng-bootstrap'
 import { filter, first, map, Subject, switchMap, takeUntil } from 'rxjs'
 import {
   DEFAULT_DISPLAY_FIELDS,
@@ -46,7 +47,10 @@ import { UsernamePipe } from 'src/app/pipes/username.pipe'
 import { DocumentListViewService } from 'src/app/services/document-list-view.service'
 import { HotKeyService } from 'src/app/services/hot-key.service'
 import { OpenDocumentsService } from 'src/app/services/open-documents.service'
-import { PermissionsService } from 'src/app/services/permissions.service'
+import {
+  PermissionAction,
+  PermissionsService,
+} from 'src/app/services/permissions.service'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { SettingsService } from 'src/app/services/settings.service'
 import { ToastService } from 'src/app/services/toast.service'
@@ -55,6 +59,7 @@ import {
   filterRulesDiffer,
   isFullTextFilterRule,
 } from 'src/app/utils/filter-rules'
+import { ClearableBadgeComponent } from '../common/clearable-badge/clearable-badge.component'
 import { CustomFieldDisplayComponent } from '../common/custom-field-display/custom-field-display.component'
 import { PageHeaderComponent } from '../common/page-header/page-header.component'
 import { PreviewPopupComponent } from '../common/preview-popup/preview-popup.component'
@@ -71,6 +76,7 @@ import { SaveViewConfigDialogComponent } from './save-view-config-dialog/save-vi
   templateUrl: './document-list.component.html',
   styleUrls: ['./document-list.component.scss'],
   imports: [
+    ClearableBadgeComponent,
     CustomFieldDisplayComponent,
     PageHeaderComponent,
     BulkEditorComponent,
@@ -96,31 +102,27 @@ import { SaveViewConfigDialogComponent } from './save-view-config-dialog/save-vi
     NgbPaginationModule,
     NgClass,
     RouterModule,
-    TourNgBootstrapModule,
+    TourNgBootstrap,
   ],
 })
 export class DocumentListComponent
   extends ComponentWithPermissions
   implements OnInit, OnDestroy
 {
+  list = inject(DocumentListViewService)
+  savedViewService = inject(SavedViewService)
+  route = inject(ActivatedRoute)
+  private router = inject(Router)
+  private toastService = inject(ToastService)
+  private modalService = inject(NgbModal)
+  private websocketStatusService = inject(WebsocketStatusService)
+  openDocumentsService = inject(OpenDocumentsService)
+  settingsService = inject(SettingsService)
+  private hotKeyService = inject(HotKeyService)
+  permissionService = inject(PermissionsService)
+
   DisplayField = DisplayField
   DisplayMode = DisplayMode
-
-  constructor(
-    public list: DocumentListViewService,
-    public savedViewService: SavedViewService,
-    public route: ActivatedRoute,
-    private router: Router,
-    private toastService: ToastService,
-    private modalService: NgbModal,
-    private websocketStatusService: WebsocketStatusService,
-    public openDocumentsService: OpenDocumentsService,
-    public settingsService: SettingsService,
-    private hotKeyService: HotKeyService,
-    public permissionService: PermissionsService
-  ) {
-    super()
-  }
 
   @ViewChild('filterEditor')
   private filterEditor: FilterEditorComponent
@@ -149,12 +151,18 @@ export class DocumentListComponent
 
   unmodifiedFilterRules: FilterRule[] = []
   private unmodifiedSavedView: SavedView
+  private activeSavedView: SavedView | null = null
 
   private unsubscribeNotifier: Subject<any> = new Subject()
 
   get savedViewIsModified(): boolean {
-    if (!this.list.activeSavedViewId || !this.unmodifiedSavedView) return false
-    else {
+    if (
+      !this.list.activeSavedViewId ||
+      !this.unmodifiedSavedView ||
+      !this.activeSavedViewCanChange
+    ) {
+      return false
+    } else {
       return (
         this.unmodifiedSavedView.sort_field !== this.list.sortField ||
         this.unmodifiedSavedView.sort_reverse !== this.list.sortReverse ||
@@ -179,6 +187,16 @@ export class DocumentListComponent
         )
       )
     }
+  }
+
+  get activeSavedViewCanChange(): boolean {
+    if (!this.activeSavedView) {
+      return false
+    }
+    return this.permissionService.currentUserHasObjectPermissions(
+      PermissionAction.Change,
+      this.activeSavedView
+    )
   }
 
   get isFiltered() {
@@ -213,8 +231,16 @@ export class DocumentListComponent
     this.list.setSort(event.column, event.reverse)
   }
 
+  onFilterRulesChange(filterRules: FilterRule[]) {
+    this.list.setFilterRules(filterRules)
+  }
+
+  onFilterRulesReset(filterRules: FilterRule[]) {
+    this.list.setFilterRules(filterRules, true)
+  }
+
   get isBulkEditing(): boolean {
-    return this.list.selected.size > 0
+    return this.list.hasSelection
   }
 
   toggleDisplayField(field: DisplayField) {
@@ -257,17 +283,21 @@ export class DocumentListComponent
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe(({ view }) => {
         if (!view) {
+          this.activeSavedView = null
           this.router.navigate(['404'], {
             replaceUrl: true,
           })
           return
         }
+        this.activeSavedView = view
         this.unmodifiedSavedView = view
         this.list.activateSavedViewWithQueryParams(
           view,
           convertToParamMap(this.route.snapshot.queryParams)
         )
-        this.list.reload()
+        this.list.reload(() => {
+          this.savedViewService.setDocumentCount(view, this.list.collectionSize)
+        })
         this.updateDisplayCustomFields()
         this.unmodifiedFilterRules = view.filter_rules
       })
@@ -283,6 +313,7 @@ export class DocumentListComponent
           // loading a saved view on /documents
           this.loadViewConfig(parseInt(queryParams.get('view')))
         } else {
+          this.activeSavedView = null
           this.list.activateSavedView(null)
           this.list.loadFromQueryParams(queryParams)
           this.unmodifiedFilterRules = []
@@ -296,10 +327,10 @@ export class DocumentListComponent
       })
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe(() => {
-        if (this.list.selected.size > 0) {
+        if (this.list.hasSelection) {
           this.list.selectNone()
         } else if (this.isFiltered) {
-          this.filterEditor.resetSelected()
+          this.resetFilters()
         }
       })
 
@@ -325,7 +356,7 @@ export class DocumentListComponent
       .pipe(takeUntil(this.unsubscribeNotifier))
       .subscribe(() => {
         if (this.list.documents.length > 0) {
-          if (this.list.selected.size > 0) {
+          if (this.list.hasSelection) {
             this.openDocumentDetail(Array.from(this.list.selected)[0])
           } else {
             this.openDocumentDetail(this.list.documents[0])
@@ -365,7 +396,7 @@ export class DocumentListComponent
   }
 
   saveViewConfig() {
-    if (this.list.activeSavedViewId != null) {
+    if (this.list.activeSavedViewId != null && this.activeSavedViewCanChange) {
       let savedView: SavedView = {
         id: this.list.activeSavedViewId,
         filter_rules: this.list.filterRules,
@@ -379,6 +410,7 @@ export class DocumentListComponent
         .pipe(first())
         .subscribe({
           next: (view) => {
+            this.activeSavedView = view
             this.unmodifiedSavedView = view
             this.toastService.showInfo(
               $localize`View "${this.list.activeSavedViewTitle}" saved successfully.`
@@ -400,9 +432,16 @@ export class DocumentListComponent
       .getCached(viewID)
       .pipe(first())
       .subscribe((view) => {
+        if (!view) {
+          this.activeSavedView = null
+          return
+        }
+        this.activeSavedView = view
         this.unmodifiedSavedView = view
         this.list.activateSavedView(view)
-        this.list.reload()
+        this.list.reload(() => {
+          this.savedViewService.setDocumentCount(view, this.list.collectionSize)
+        })
       })
   }
 
@@ -415,24 +454,48 @@ export class DocumentListComponent
       modal.componentInstance.buttonsEnabled = false
       let savedView: SavedView = {
         name: formValue.name,
-        show_on_dashboard: formValue.showOnDashboard,
-        show_in_sidebar: formValue.showInSideBar,
         filter_rules: this.list.filterRules,
         sort_reverse: this.list.sortReverse,
         sort_field: this.list.sortField,
         display_mode: this.list.displayMode,
         display_fields: this.activeDisplayFields,
       }
+      const permissions = formValue.permissions_form
+      if (permissions) {
+        if (permissions.owner !== null && permissions.owner !== undefined) {
+          savedView.owner = permissions.owner
+        }
+        if (permissions.set_permissions) {
+          savedView['set_permissions'] = permissions.set_permissions
+        }
+      }
 
       this.savedViewService
         .create(savedView)
         .pipe(first())
         .subscribe({
-          next: () => {
-            modal.close()
-            this.toastService.showInfo(
-              $localize`View "${savedView.name}" created successfully.`
+          next: (createdView) => {
+            this.saveCreatedViewVisibility(
+              createdView,
+              formValue.showOnDashboard,
+              formValue.showInSideBar
             )
+              .pipe(first())
+              .subscribe({
+                next: () => {
+                  modal.close()
+                  this.toastService.showInfo(
+                    $localize`View "${savedView.name}" created successfully.`
+                  )
+                },
+                error: (error) => {
+                  modal.close()
+                  this.toastService.showError(
+                    $localize`View "${savedView.name}" created successfully, but could not update visibility settings.`,
+                    error
+                  )
+                },
+              })
           },
           error: (httpError) => {
             let error = httpError.error
@@ -444,6 +507,28 @@ export class DocumentListComponent
           },
         })
     })
+  }
+
+  private saveCreatedViewVisibility(
+    createdView: SavedView,
+    showOnDashboard: boolean,
+    showInSideBar: boolean
+  ) {
+    const dashboardViewIds = this.savedViewService.dashboardViews.map(
+      (v) => v.id
+    )
+    const sidebarViewIds = this.savedViewService.sidebarViews.map((v) => v.id)
+    if (showOnDashboard) {
+      dashboardViewIds.push(createdView.id)
+    }
+    if (showInSideBar) {
+      sidebarViewIds.push(createdView.id)
+    }
+
+    return this.settingsService.updateSavedViewsVisibility(
+      dashboardViewIds,
+      sidebarViewIds
+    )
   }
 
   openDocumentDetail(document: Document | number) {

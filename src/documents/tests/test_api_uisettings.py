@@ -7,12 +7,13 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from documents.tests.utils import DirectoriesMixin
+from paperless.version import __full_version_str__
 
 
 class TestApiUiSettings(DirectoriesMixin, APITestCase):
     ENDPOINT = "/api/ui_settings/"
 
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.test_user = User.objects.create_superuser(username="test")
         self.test_user.first_name = "Test"
@@ -20,7 +21,17 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
         self.test_user.save()
         self.client.force_authenticate(user=self.test_user)
 
-    def test_api_get_ui_settings(self):
+    @override_settings(
+        APP_TITLE=None,
+        APP_LOGO=None,
+        AUDIT_LOG_ENABLED=True,
+        EMPTY_TRASH_DELAY=30,
+        ENABLE_UPDATE_CHECK="default",
+        EMAIL_ENABLED=False,
+        GMAIL_OAUTH_ENABLED=False,
+        OUTLOOK_OAUTH_ENABLED=False,
+    )
+    def test_api_get_ui_settings(self) -> None:
         response = self.client.get(self.ENDPOINT, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.maxDiff = None
@@ -39,6 +50,7 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
         self.assertDictEqual(
             response.data["settings"],
             {
+                "version": __full_version_str__,
                 "app_title": None,
                 "app_logo": None,
                 "auditlog_enabled": True,
@@ -47,10 +59,11 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
                     "backend_setting": "default",
                 },
                 "email_enabled": False,
+                "ai_enabled": False,
             },
         )
 
-    def test_api_set_ui_settings(self):
+    def test_api_set_ui_settings(self) -> None:
         settings = {
             "settings": {
                 "dark_mode": {
@@ -73,7 +86,7 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
             settings["settings"],
         )
 
-    def test_api_set_ui_settings_insufficient_global_permissions(self):
+    def test_api_set_ui_settings_insufficient_global_permissions(self) -> None:
         not_superuser = User.objects.create_user(username="test_not_superuser")
         self.client.force_authenticate(user=not_superuser)
 
@@ -93,7 +106,7 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_api_set_ui_settings_sufficient_global_permissions(self):
+    def test_api_set_ui_settings_sufficient_global_permissions(self) -> None:
         not_superuser = User.objects.create_user(username="test_not_superuser")
         not_superuser.user_permissions.add(
             *Permission.objects.filter(codename__contains="uisettings"),
@@ -117,6 +130,30 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_settings_must_be_dict(self) -> None:
+        """
+        GIVEN:
+            - API request to update ui_settings with settings not being a dict
+        WHEN:
+            - API is called
+        THEN:
+            - Correct HTTP 400 response
+        """
+        response = self.client.post(
+            self.ENDPOINT,
+            json.dumps(
+                {
+                    "settings": "not a dict",
+                },
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(
+            "Expected a dictionary",
+            str(response.data["settings"]),
+        )
+
     @override_settings(
         OAUTH_CALLBACK_BASE_URL="http://localhost:8000",
         GMAIL_OAUTH_CLIENT_ID="abc123",
@@ -126,7 +163,7 @@ class TestApiUiSettings(DirectoriesMixin, APITestCase):
         OUTLOOK_OAUTH_CLIENT_SECRET="jkl012",
         OUTLOOK_OAUTH_ENABLED=True,
     )
-    def test_settings_includes_oauth_urls_if_enabled(self):
+    def test_settings_includes_oauth_urls_if_enabled(self) -> None:
         response = self.client.get(self.ENDPOINT, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(

@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.test import TestCase
 from django.test import override_settings
+from faker import Faker
 
 from documents.models import Correspondent
 from documents.models import Document
@@ -17,16 +18,19 @@ class TestDocument(TestCase):
         self.originals_dir = tempfile.mkdtemp()
         self.thumb_dir = tempfile.mkdtemp()
 
-        override_settings(
+        self.overrides = override_settings(
             ORIGINALS_DIR=self.originals_dir,
             THUMBNAIL_DIR=self.thumb_dir,
-        ).enable()
+        )
+
+        self.overrides.enable()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.originals_dir)
         shutil.rmtree(self.thumb_dir)
+        self.overrides.disable()
 
-    def test_file_deletion(self):
+    def test_file_deletion(self) -> None:
         document = Document.objects.create(
             correspondent=Correspondent.objects.create(name="Test0"),
             title="Title",
@@ -41,14 +45,24 @@ class TestDocument(TestCase):
         Path(file_path).touch()
         Path(thumb_path).touch()
 
-        with mock.patch("documents.signals.handlers.os.unlink") as mock_unlink:
+        with mock.patch(
+            "documents.signals.handlers.Path.unlink",
+            autospec=True,
+        ) as mock_unlink:
             document.delete()
             empty_trash([document.pk])
-            mock_unlink.assert_any_call(file_path)
-            mock_unlink.assert_any_call(thumb_path)
-            self.assertEqual(mock_unlink.call_count, 2)
 
-    def test_document_soft_delete(self):
+            target_paths: set[str] = {str(file_path), str(thumb_path)}
+
+            actual_deletions = [
+                call
+                for call in mock_unlink.call_args_list
+                if str(call.args[0]) in target_paths
+            ]
+
+            self.assertEqual(len(actual_deletions), 2)
+
+    def test_document_soft_delete(self) -> None:
         document = Document.objects.create(
             correspondent=Correspondent.objects.create(name="Test0"),
             title="Title",
@@ -63,7 +77,12 @@ class TestDocument(TestCase):
         Path(file_path).touch()
         Path(thumb_path).touch()
 
-        with mock.patch("documents.signals.handlers.os.unlink") as mock_unlink:
+        target_paths: set[str] = {str(file_path), str(thumb_path)}
+
+        with mock.patch(
+            "documents.signals.handlers.Path.unlink",
+            autospec=True,
+        ) as mock_unlink:
             document.delete()
             self.assertEqual(mock_unlink.call_count, 0)
 
@@ -74,9 +93,38 @@ class TestDocument(TestCase):
 
             document.delete()
             empty_trash([document.pk])
-            self.assertEqual(mock_unlink.call_count, 2)
 
-    def test_file_name(self):
+            actual_deletions = [
+                call
+                for call in mock_unlink.call_args_list
+                if str(call.args[0]) in target_paths
+            ]
+
+            self.assertEqual(len(actual_deletions), 2)
+
+    def test_delete_root_deletes_versions(self) -> None:
+        root = Document.objects.create(
+            correspondent=Correspondent.objects.create(name="Test0"),
+            title="Head",
+            content="content",
+            checksum="checksum",
+            mime_type="application/pdf",
+        )
+        Document.objects.create(
+            root_document=root,
+            correspondent=root.correspondent,
+            title="Version",
+            content="content",
+            checksum="checksum2",
+            mime_type="application/pdf",
+        )
+
+        root.delete()
+
+        self.assertEqual(Document.objects.count(), 0)
+        self.assertEqual(Document.deleted_objects.count(), 2)
+
+    def test_file_name(self) -> None:
         doc = Document(
             mime_type="application/pdf",
             title="test",
@@ -84,7 +132,7 @@ class TestDocument(TestCase):
         )
         self.assertEqual(doc.get_public_filename(), "2020-12-25 test.pdf")
 
-    def test_file_name_jpg(self):
+    def test_file_name_jpg(self) -> None:
         doc = Document(
             mime_type="image/jpeg",
             title="test",
@@ -92,7 +140,7 @@ class TestDocument(TestCase):
         )
         self.assertEqual(doc.get_public_filename(), "2020-12-25 test.jpg")
 
-    def test_file_name_unknown(self):
+    def test_file_name_unknown(self) -> None:
         doc = Document(
             mime_type="application/zip",
             title="test",
@@ -100,10 +148,74 @@ class TestDocument(TestCase):
         )
         self.assertEqual(doc.get_public_filename(), "2020-12-25 test.zip")
 
-    def test_file_name_invalid_type(self):
+    def test_file_name_invalid_type(self) -> None:
         doc = Document(
             mime_type="image/jpegasd",
             title="test",
             created=date(2020, 12, 25),
         )
         self.assertEqual(doc.get_public_filename(), "2020-12-25 test")
+
+    def test_suggestion_content_uses_latest_version_content_for_root_documents(
+        self,
+    ) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+            content="outdated root content",
+        )
+        version = Document.objects.create(
+            title="v1",
+            checksum="v1",
+            mime_type="application/pdf",
+            root_document=root,
+            content="latest version content",
+        )
+
+        self.assertEqual(root.suggestion_content, version.content)
+
+    def test_content_length_is_per_document_row_for_versions(self) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+            content="abc",
+        )
+        version = Document.objects.create(
+            title="v1",
+            checksum="v1",
+            mime_type="application/pdf",
+            root_document=root,
+            content="abcdefgh",
+        )
+
+        root.refresh_from_db()
+        version.refresh_from_db()
+
+        self.assertEqual(root.content_length, 3)
+        self.assertEqual(version.content_length, 8)
+
+
+def test_suggestion_content() -> None:
+    """
+    Check that the document for suggestion is cropped, only if it exceeds the length limit.
+    """
+    fake_text = Faker().text(max_nb_chars=1201000)
+
+    # Do not crop content under 1.2M chars
+    content_under_limit = fake_text[:1200000]
+    doc = Document(
+        title="test",
+        created=date(2025, 6, 1),
+        content=content_under_limit,
+    )
+    assert doc.suggestion_content == content_under_limit
+
+    # If over the limit, crop to 1M char (800K from the beginning, 200K from the end)
+    content_over_limit = fake_text[:1200001]
+    expected_cropped_content = (
+        content_over_limit[:800000] + " " + content_over_limit[-200000:]
+    )
+    doc.content = content_over_limit
+    assert doc.suggestion_content == expected_cropped_content

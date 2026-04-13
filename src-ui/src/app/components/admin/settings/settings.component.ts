@@ -2,10 +2,10 @@ import { AsyncPipe, ViewportScroller } from '@angular/common'
 import {
   AfterViewInit,
   Component,
-  Inject,
   LOCALE_ID,
   OnDestroy,
   OnInit,
+  inject,
 } from '@angular/core'
 import {
   FormControl,
@@ -49,6 +49,7 @@ import {
   PermissionsService,
 } from 'src/app/services/permissions.service'
 import { GroupService } from 'src/app/services/rest/group.service'
+import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { UserService } from 'src/app/services/rest/user.service'
 import {
   LanguageOption,
@@ -56,21 +57,23 @@ import {
 } from 'src/app/services/settings.service'
 import { SystemStatusService } from 'src/app/services/system-status.service'
 import { Toast, ToastService } from 'src/app/services/toast.service'
+import { locationReload } from 'src/app/utils/navigation'
 import { CheckComponent } from '../../common/input/check/check.component'
 import { ColorComponent } from '../../common/input/color/color.component'
 import { PermissionsGroupComponent } from '../../common/input/permissions/permissions-group/permissions-group.component'
 import { PermissionsUserComponent } from '../../common/input/permissions/permissions-user/permissions-user.component'
 import { SelectComponent } from '../../common/input/select/select.component'
 import { PageHeaderComponent } from '../../common/page-header/page-header.component'
+import { PdfEditorEditMode } from '../../common/pdf-editor/pdf-editor-edit-mode'
+import { PdfZoomScale } from '../../common/pdf-viewer/pdf-viewer.types'
 import { SystemStatusDialogComponent } from '../../common/system-status-dialog/system-status-dialog.component'
-import { ZoomSetting } from '../../document-detail/document-detail.component'
 import { ComponentWithPermissions } from '../../with-permissions/with-permissions.component'
 
 enum SettingsNavIDs {
   General = 1,
-  Permissions = 2,
-  Notifications = 3,
-  SavedViews = 4,
+  Documents = 2,
+  Permissions = 3,
+  Notifications = 4,
 }
 
 const systemLanguage = { code: '', name: $localize`Use system language` }
@@ -78,6 +81,25 @@ const systemDateFormat = {
   code: '',
   name: $localize`Use date format of display language`,
 }
+
+export enum DocumentDetailFieldID {
+  ArchiveSerialNumber = 'archive_serial_number',
+  Correspondent = 'correspondent',
+  DocumentType = 'document_type',
+  StoragePath = 'storage_path',
+  Tags = 'tags',
+}
+
+const documentDetailFieldOptions = [
+  {
+    id: DocumentDetailFieldID.ArchiveSerialNumber,
+    label: $localize`Archive serial number`,
+  },
+  { id: DocumentDetailFieldID.Correspondent, label: $localize`Correspondent` },
+  { id: DocumentDetailFieldID.DocumentType, label: $localize`Document type` },
+  { id: DocumentDetailFieldID.StoragePath, label: $localize`Storage path` },
+  { id: DocumentDetailFieldID.Tags, label: $localize`Tags` },
+]
 
 @Component({
   selector: 'pngx-settings',
@@ -104,6 +126,21 @@ export class SettingsComponent
   extends ComponentWithPermissions
   implements OnInit, AfterViewInit, OnDestroy, DirtyComponent
 {
+  private documentListViewService = inject(DocumentListViewService)
+  private toastService = inject(ToastService)
+  private settings = inject(SettingsService)
+  currentLocale = inject(LOCALE_ID)
+  private viewportScroller = inject(ViewportScroller)
+  private activatedRoute = inject(ActivatedRoute)
+  readonly tourService = inject(TourService)
+  private usersService = inject(UserService)
+  private groupsService = inject(GroupService)
+  private router = inject(Router)
+  permissionsService = inject(PermissionsService)
+  private modalService = inject(NgbModal)
+  private systemStatusService = inject(SystemStatusService)
+  private savedViewsService = inject(SavedViewService)
+
   activeNavID: number
 
   settingsForm = new FormGroup({
@@ -127,8 +164,10 @@ export class SettingsComponent
     defaultPermsEditGroups: new FormControl(null),
     useNativePdfViewer: new FormControl(null),
     pdfViewerDefaultZoom: new FormControl(null),
+    pdfEditorDefaultEditMode: new FormControl(null),
     documentEditingRemoveInboxTags: new FormControl(null),
     documentEditingOverlayThumbnail: new FormControl(null),
+    documentDetailsHiddenFields: new FormControl([]),
     searchDbOnly: new FormControl(null),
     searchLink: new FormControl(null),
 
@@ -138,6 +177,7 @@ export class SettingsComponent
     notificationsConsumerSuppressOnDashboard: new FormControl(null),
 
     savedViewsWarnOnUnsavedChange: new FormControl(null),
+    sidebarViewsShowCount: new FormControl(null),
   })
 
   SettingsNavIDs = SettingsNavIDs
@@ -156,7 +196,11 @@ export class SettingsComponent
 
   public readonly GlobalSearchType = GlobalSearchType
 
-  public readonly ZoomSetting = ZoomSetting
+  public readonly PdfZoomScale = PdfZoomScale
+
+  public readonly PdfEditorEditMode = PdfEditorEditMode
+
+  public readonly documentDetailFieldOptions = documentDetailFieldOptions
 
   get systemStatusHasErrors(): boolean {
     return (
@@ -167,7 +211,8 @@ export class SettingsComponent
       this.systemStatus.tasks.classifier_status ===
         SystemStatusItemStatus.ERROR ||
       this.systemStatus.tasks.sanity_check_status ===
-        SystemStatusItemStatus.ERROR
+        SystemStatusItemStatus.ERROR ||
+      this.systemStatus.websocket_connected === SystemStatusItemStatus.ERROR
     )
   }
 
@@ -179,24 +224,11 @@ export class SettingsComponent
     )
   }
 
-  constructor(
-    private documentListViewService: DocumentListViewService,
-    private toastService: ToastService,
-    private settings: SettingsService,
-    @Inject(LOCALE_ID) public currentLocale: string,
-    private viewportScroller: ViewportScroller,
-    private activatedRoute: ActivatedRoute,
-    public readonly tourService: TourService,
-    private usersService: UserService,
-    private groupsService: GroupService,
-    private router: Router,
-    public permissionsService: PermissionsService,
-    private modalService: NgbModal,
-    private systemStatusService: SystemStatusService
-  ) {
+  constructor() {
     super()
     this.settings.settingsSaved.subscribe(() => {
       if (!this.savePending) this.initialize()
+      this.savedViewsService.maybeRefreshDocumentCounts()
     })
   }
 
@@ -286,6 +318,9 @@ export class SettingsComponent
       pdfViewerDefaultZoom: this.settings.get(
         SETTINGS_KEYS.PDF_VIEWER_ZOOM_SETTING
       ),
+      pdfEditorDefaultEditMode: this.settings.get(
+        SETTINGS_KEYS.PDF_EDITOR_DEFAULT_EDIT_MODE
+      ),
       displayLanguage: this.settings.getLanguage(),
       dateLocale: this.settings.get(SETTINGS_KEYS.DATE_LOCALE),
       dateFormat: this.settings.get(SETTINGS_KEYS.DATE_FORMAT),
@@ -308,6 +343,9 @@ export class SettingsComponent
       savedViewsWarnOnUnsavedChange: this.settings.get(
         SETTINGS_KEYS.SAVED_VIEWS_WARN_ON_UNSAVED_CHANGE
       ),
+      sidebarViewsShowCount: this.settings.get(
+        SETTINGS_KEYS.SIDEBAR_VIEWS_SHOW_COUNT
+      ),
       defaultPermsOwner: this.settings.get(SETTINGS_KEYS.DEFAULT_PERMS_OWNER),
       defaultPermsViewUsers: this.settings.get(
         SETTINGS_KEYS.DEFAULT_PERMS_VIEW_USERS
@@ -326,6 +364,9 @@ export class SettingsComponent
       ),
       documentEditingOverlayThumbnail: this.settings.get(
         SETTINGS_KEYS.DOCUMENT_EDITING_OVERLAY_THUMBNAIL
+      ),
+      documentDetailsHiddenFields: this.settings.get(
+        SETTINGS_KEYS.DOCUMENT_DETAILS_HIDDEN_FIELDS
       ),
       searchDbOnly: this.settings.get(SETTINGS_KEYS.SEARCH_DB_ONLY),
       searchLink: this.settings.get(SETTINGS_KEYS.SEARCH_FULL_TYPE),
@@ -388,7 +429,7 @@ export class SettingsComponent
       this.settingsForm.patchValue(currentFormValue)
     }
 
-    if (this.permissionsService.isAdmin()) {
+    if (this.canViewSystemStatus) {
       this.systemStatusService.get().subscribe((status) => {
         this.systemStatus = status
       })
@@ -450,6 +491,10 @@ export class SettingsComponent
       this.settingsForm.value.pdfViewerDefaultZoom
     )
     this.settings.set(
+      SETTINGS_KEYS.PDF_EDITOR_DEFAULT_EDIT_MODE,
+      this.settingsForm.value.pdfEditorDefaultEditMode
+    )
+    this.settings.set(
       SETTINGS_KEYS.DATE_LOCALE,
       this.settingsForm.value.dateLocale
     )
@@ -486,6 +531,10 @@ export class SettingsComponent
       this.settingsForm.value.savedViewsWarnOnUnsavedChange
     )
     this.settings.set(
+      SETTINGS_KEYS.SIDEBAR_VIEWS_SHOW_COUNT,
+      this.settingsForm.value.sidebarViewsShowCount
+    )
+    this.settings.set(
       SETTINGS_KEYS.DEFAULT_PERMS_OWNER,
       this.settingsForm.value.defaultPermsOwner
     )
@@ -514,6 +563,10 @@ export class SettingsComponent
       this.settingsForm.value.documentEditingOverlayThumbnail
     )
     this.settings.set(
+      SETTINGS_KEYS.DOCUMENT_DETAILS_HIDDEN_FIELDS,
+      this.settingsForm.value.documentDetailsHiddenFields
+    )
+    this.settings.set(
       SETTINGS_KEYS.SEARCH_DB_ONLY,
       this.settingsForm.value.searchDbOnly
     )
@@ -539,7 +592,7 @@ export class SettingsComponent
             savedToast.content = $localize`Settings were saved successfully. Reload is required to apply some changes.`
             savedToast.actionName = $localize`Reload now`
             savedToast.action = () => {
-              location.reload()
+              locationReload()
             }
           }
 
@@ -572,6 +625,36 @@ export class SettingsComponent
 
   clearThemeColor() {
     this.settingsForm.get('themeColor').patchValue('')
+  }
+
+  isDocumentDetailFieldShown(fieldId: string): boolean {
+    const hiddenFields =
+      this.settingsForm.value.documentDetailsHiddenFields || []
+    return !hiddenFields.includes(fieldId)
+  }
+
+  toggleDocumentDetailField(fieldId: string, checked: boolean) {
+    const hiddenFields = new Set(
+      this.settingsForm.value.documentDetailsHiddenFields || []
+    )
+    if (checked) {
+      hiddenFields.delete(fieldId)
+    } else {
+      hiddenFields.add(fieldId)
+    }
+    this.settingsForm
+      .get('documentDetailsHiddenFields')
+      .setValue(Array.from(hiddenFields))
+  }
+
+  public get canViewSystemStatus(): boolean {
+    return (
+      this.permissionsService.isAdmin() ||
+      this.permissionsService.currentUserCan(
+        PermissionAction.View,
+        PermissionType.SystemStatus
+      )
+    )
   }
 
   showSystemStatus() {

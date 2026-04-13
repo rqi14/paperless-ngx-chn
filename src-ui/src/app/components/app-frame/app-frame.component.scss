@@ -19,6 +19,10 @@
     height: 0.8em;
   }
 
+  .view-name {
+    max-width: calc(100% - 50px)
+  }
+
   .nav-group:not(:has(.app-link)) .sidebar-heading {
     display: none !important;
   }
@@ -39,6 +43,23 @@
 @media (max-width: 767.98px) {
   .sidebar {
     top: 3.5rem;
+  }
+
+  .search-container {
+    max-height: 4.5rem;
+    overflow: hidden;
+    transition: max-height .2s ease, opacity .2s ease, padding-top .2s ease, padding-bottom .2s ease;
+
+    &.mobile-hidden {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+  }
+
+  main.mobile-search-hidden {
+    padding-top: 56px;
   }
 }
 
@@ -173,6 +194,15 @@ main {
   }
 }
 
+.attributes-row .attributes-expand-btn {
+  opacity: 0.2;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.attributes-row:hover .attributes-expand-btn {
+  opacity: 1;
+}
+
 .sidebar-heading {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -187,7 +217,7 @@ main {
   list-style-type: none;
 
   &:hover .close {
-    display: block;
+    display: flex;
   }
 
   .close {
@@ -244,7 +274,7 @@ main {
   }
 }
 
-@media screen and (min-width: 366px) and (max-width: 768px) {
+@media screen and (min-width: 376px) and (max-width: 768px) {
   .navbar-toggler {
     // compensate for 2 buttons on the right
     margin-right: 45px;
@@ -277,7 +307,7 @@ main {
 .navbar .dropdown-menu {
   font-size: 0.875rem; // body size
 
-  a i-bs {
+  a i-bs, button i-bs {
     opacity: 0.6;
   }
 }

@@ -20,7 +20,7 @@
                     @for (docId of value; track docId) {
                       @if (getDocumentTitle(docId)) {
                           <a routerLink="/documents/{{docId}}" class="badge bg-body text-primary" title="View" i18n-title>
-                              <i-bs width="0.9em" height="0.9em" name="file-text"></i-bs>&nbsp;<span>{{ getDocumentTitle(docId) }}</span>
+                              <i-bs width="0.9em" height="0.9em" name="file-text" class="me-1"></i-bs><span>{{ getDocumentTitle(docId) }}</span>
                           </a>
                       }
                     }
@@ -34,6 +34,9 @@
             }
             @case (CustomFieldDataType.Select) {
                 <span [ngbTooltip]="nameTooltip">{{getSelectValue(field, value)}}</span>
+            }
+            @case (CustomFieldDataType.LongText) {
+                <p class="mb-0" [ngbTooltip]="nameTooltip">{{value | slice:0:20}}{{value.length > 20 ? '...' : ''}}</p>
             }
             @default {
               <span [ngbTooltip]="nameTooltip">{{value}}</span>

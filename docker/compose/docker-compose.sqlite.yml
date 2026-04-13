@@ -21,7 +21,6 @@
 #
 # For more extensive installation and update instructions, refer to the
 # documentation.
-
 services:
   broker:
     image: docker.io/library/redis:8
@@ -43,6 +42,7 @@ services:
     env_file: docker-compose.env
     environment:
       PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBENGINE: sqlite
 volumes:
   data:
   media:

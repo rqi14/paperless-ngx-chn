@@ -8,17 +8,17 @@ common [OCR](#ocr) related settings and some frontend settings. If set, these wi
 preference over the settings via environment variables. If not set, the environment setting
 or applicable default will be utilized instead.
 
--   If you run paperless on docker, `paperless.conf` is not used.
-    Rather, configure paperless by copying necessary options to
-    `docker-compose.env`.
+- If you run paperless on docker, `paperless.conf` is not used.
+  Rather, configure paperless by copying necessary options to
+  `docker-compose.env`.
 
--   If you are running paperless on anything else, paperless will search
-    for the configuration file in these locations and use the first one
-    it finds:
-    -   The environment variable `PAPERLESS_CONFIGURATION_PATH`
-    -   `/path/to/paperless/paperless.conf`
-    -   `/etc/paperless.conf`
-    -   `/usr/local/etc/paperless.conf`
+- If you are running paperless on anything else, paperless will search
+  for the configuration file in these locations and use the first one
+  it finds:
+  - The environment variable `PAPERLESS_CONFIGURATION_PATH`
+  - `/path/to/paperless/paperless.conf`
+  - `/etc/paperless.conf`
+  - `/usr/local/etc/paperless.conf`
 
 ## Required services
 
@@ -50,112 +50,208 @@ matcher.
 
 ### Database
 
-#### [`PAPERLESS_DBENGINE=<engine_name>`](#PAPERLESS_DBENGINE) {#PAPERLESS_DBENGINE}
+By default, Paperless uses **SQLite** with a database stored at `data/db.sqlite3`.
+For multi-user or higher-throughput deployments, **PostgreSQL** (recommended) or
+**MariaDB** can be used instead by setting [`PAPERLESS_DBENGINE`](#PAPERLESS_DBENGINE)
+and the relevant connection variables.
 
-: Optional, gives the ability to choose Postgres or MariaDB for
-database engine. Available options are `postgresql` and
-`mariadb`.
+#### [`PAPERLESS_DBENGINE=<engine>`](#PAPERLESS_DBENGINE) {#PAPERLESS_DBENGINE}
 
-    Default is `postgresql`.
+: Specifies the database engine to use. Accepted values are `sqlite`, `postgresql`,
+and `mariadb`.
+
+    Defaults to `sqlite` if not set.
+
+    PostgreSQL and MariaDB both require [`PAPERLESS_DBHOST`](#PAPERLESS_DBHOST) to be
+    set. SQLite does not use any other connection variables; the database file is always
+    located at `<PAPERLESS_DATA_DIR>/db.sqlite3`.
 
     !!! warning
-
-        Using MariaDB comes with some caveats. See [MySQL Caveats](advanced_usage.md#mysql-caveats).
+        Using MariaDB comes with some caveats.
+        See [MySQL Caveats](advanced_usage.md#mysql-caveats).
 
 #### [`PAPERLESS_DBHOST=<hostname>`](#PAPERLESS_DBHOST) {#PAPERLESS_DBHOST}
 
-: By default, sqlite is used as the database backend. This can be
-changed here.
-
-    Set PAPERLESS_DBHOST and another database will be used instead of
-    sqlite.
+: Hostname of the PostgreSQL or MariaDB database server. Required when
+`PAPERLESS_DBENGINE` is `postgresql` or `mariadb`.
 
 #### [`PAPERLESS_DBPORT=<port>`](#PAPERLESS_DBPORT) {#PAPERLESS_DBPORT}
 
-: Adjust port if necessary.
+: Port to use when connecting to PostgreSQL or MariaDB.
 
-    Default is 5432.
+    Defaults to `5432` for PostgreSQL and `3306` for MariaDB.
 
 #### [`PAPERLESS_DBNAME=<name>`](#PAPERLESS_DBNAME) {#PAPERLESS_DBNAME}
 
-: Database name in PostgreSQL or MariaDB.
+: Name of the PostgreSQL or MariaDB database to connect to.
 
-    Defaults to "paperless".
+    Defaults to `paperless`.
 
-#### [`PAPERLESS_DBUSER=<name>`](#PAPERLESS_DBUSER) {#PAPERLESS_DBUSER}
+#### [`PAPERLESS_DBUSER=<user>`](#PAPERLESS_DBUSER) {#PAPERLESS_DBUSER}
 
-: Database user in PostgreSQL or MariaDB.
+: Username for authenticating with the PostgreSQL or MariaDB database.
 
-    Defaults to "paperless".
+    Defaults to `paperless`.
 
 #### [`PAPERLESS_DBPASS=<password>`](#PAPERLESS_DBPASS) {#PAPERLESS_DBPASS}
 
-: Database password for PostgreSQL or MariaDB.
+: Password for the PostgreSQL or MariaDB database user.
 
-    Defaults to "paperless".
+    Defaults to `paperless`.
 
-#### [`PAPERLESS_DBSSLMODE=<mode>`](#PAPERLESS_DBSSLMODE) {#PAPERLESS_DBSSLMODE}
+#### [`PAPERLESS_DB_OPTIONS=<options>`](#PAPERLESS_DB_OPTIONS) {#PAPERLESS_DB_OPTIONS}
 
-: SSL mode to use when connecting to PostgreSQL or MariaDB.
+: Advanced database connection options as a semicolon-delimited key-value string.
+Keys and values are separated by `=`. Dot-notation produces nested option
+dictionaries; for example, `pool.max_size=20` sets
+`OPTIONS["pool"]["max_size"] = 20`.
 
-    See [the official documentation about
-    sslmode for PostgreSQL](https://www.postgresql.org/docs/current/libpq-ssl.html).
+    Options specified here are merged over the engine defaults. Unrecognised keys
+    are passed through to the underlying database driver without validation, so a
+    typo will be silently ignored rather than producing an error.
 
-    See [the official documentation about
-    sslmode for MySQL and MariaDB](https://dev.mysql.com/doc/refman/8.0/en/connection-options.html#option_general_ssl-mode).
+    Refer to your database driver's documentation for the full set of accepted keys:
 
-    *Note*: SSL mode values differ between PostgreSQL and MariaDB.
+    - PostgreSQL: [libpq connection parameters](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-PARAMKEYWORDS)
+    - MariaDB: [MariaDB Connector/Python](https://mariadb.com/kb/en/mariadb-connector-python/)
+    - SQLite: [SQLite PRAGMA statements](https://www.sqlite.org/pragma.html)
 
-    Default is `prefer` for PostgreSQL and `PREFERRED` for MariaDB.
+    !!! note "PostgreSQL connection pooling"
 
-#### [`PAPERLESS_DBSSLROOTCERT=<ca-path>`](#PAPERLESS_DBSSLROOTCERT) {#PAPERLESS_DBSSLROOTCERT}
+        Pool size is controlled via `pool.min_size` and `pool.max_size`. When
+        configuring pooling, ensure your PostgreSQL `max_connections` is large enough
+        to handle all pool connections across all workers:
+        `(web_workers + celery_workers) * pool.max_size + safety_margin`.
 
-: SSL root certificate path
+    **Examples:**
 
-    See [the official documentation about
-    sslmode for PostgreSQL](https://www.postgresql.org/docs/current/libpq-ssl.html).
-    Changes path of `root.crt`.
+    ```bash title="PostgreSQL: require SSL, set a custom CA certificate, and limit the pool size"
+    PAPERLESS_DB_OPTIONS="sslmode=require;sslrootcert=/certs/ca.pem;pool.max_size=5"
+    ```
 
-    See [the official documentation about
-    sslmode for MySQL and MariaDB](https://dev.mysql.com/doc/refman/8.0/en/connection-options.html#option_general_ssl-ca).
+    ```bash title="MariaDB: require SSL with a custom CA certificate"
+    PAPERLESS_DB_OPTIONS="ssl_mode=REQUIRED;ssl.ca=/certs/ca.pem"
+    ```
 
-    Defaults to unset, using the documented path in the home directory.
+    ```bash title="SQLite: set a busy timeout of 30 seconds"
+    # PostgreSQL: set a connection timeout
+    PAPERLESS_DB_OPTIONS="connect_timeout=10"
+    ```
 
-#### [`PAPERLESS_DBSSLCERT=<client-cert-path>`](#PAPERLESS_DBSSLCERT) {#PAPERLESS_DBSSLCERT}
+#### ~~[`PAPERLESS_DBSSLMODE`](#PAPERLESS_DBSSLMODE)~~ {#PAPERLESS_DBSSLMODE}
 
-: SSL client certificate path
+!!! failure "Removed in v3"
 
-    See [the official documentation about
-    sslmode for PostgreSQL](https://www.postgresql.org/docs/current/libpq-ssl.html).
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
 
-    See [the official documentation about
-    sslmode for MySQL and MariaDB](https://dev.mysql.com/doc/refman/8.0/en/connection-options.html#option_general_ssl-cert).
+    ```bash title="PostgreSQL"
+    PAPERLESS_DB_OPTIONS="sslmode=require"
+    ```
 
-    Changes path of `postgresql.crt`.
+    ```bash title="MariaDB"
+    PAPERLESS_DB_OPTIONS="ssl_mode=REQUIRED"
+    ```
 
-    Defaults to unset, using the documented path in the home directory.
+#### ~~[`PAPERLESS_DBSSLROOTCERT`](#PAPERLESS_DBSSLROOTCERT)~~ {#PAPERLESS_DBSSLROOTCERT}
 
-#### [`PAPERLESS_DBSSLKEY=<client-cert-key>`](#PAPERLESS_DBSSLKEY) {#PAPERLESS_DBSSLKEY}
+!!! failure "Removed in v3"
 
-: SSL client key path
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
 
-    See [the official documentation about
-    sslmode for PostgreSQL](https://www.postgresql.org/docs/current/libpq-ssl.html).
+    ```bash title="PostgreSQL"
+    PAPERLESS_DB_OPTIONS="sslrootcert=/path/to/ca.pem"
+    ```
 
-    See [the official documentation about
-    sslmode for MySQL and MariaDB](https://dev.mysql.com/doc/refman/8.0/en/connection-options.html#option_general_ssl-key).
+    ```bash title="MariaDB"
+    PAPERLESS_DB_OPTIONS="ssl.ca=/path/to/ca.pem"
+    ```
 
-    Changes path of `postgresql.key`.
+#### ~~[`PAPERLESS_DBSSLCERT`](#PAPERLESS_DBSSLCERT)~~ {#PAPERLESS_DBSSLCERT}
 
-    Defaults to unset, using the documented path in the home directory.
+!!! failure "Removed in v3"
 
-#### [`PAPERLESS_DB_TIMEOUT=<int>`](#PAPERLESS_DB_TIMEOUT) {#PAPERLESS_DB_TIMEOUT}
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
 
-: Amount of time for a database connection to wait for the database to
-unlock. Mostly applicable for sqlite based installation. Consider changing
-to postgresql if you are having concurrency problems with sqlite.
+    ```bash title="PostgreSQL"
+    PAPERLESS_DB_OPTIONS="sslcert=/path/to/client.crt"
+    ```
 
-    Defaults to unset, keeping the Django defaults.
+    ```bash title="MariaDB"
+    PAPERLESS_DB_OPTIONS="ssl.cert=/path/to/client.crt"
+    ```
+
+#### ~~[`PAPERLESS_DBSSLKEY`](#PAPERLESS_DBSSLKEY)~~ {#PAPERLESS_DBSSLKEY}
+
+!!! failure "Removed in v3"
+
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
+
+    ```bash title="PostgreSQL"
+    PAPERLESS_DB_OPTIONS="sslkey=/path/to/client.key"
+    ```
+
+    ```bash title="MariaDB"
+    PAPERLESS_DB_OPTIONS="ssl.key=/path/to/client.key"
+    ```
+
+#### ~~[`PAPERLESS_DB_TIMEOUT`](#PAPERLESS_DB_TIMEOUT)~~ {#PAPERLESS_DB_TIMEOUT}
+
+!!! failure "Removed in v3"
+
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
+
+    ```bash title="SQLite"
+    PAPERLESS_DB_OPTIONS="timeout=30"
+    ```
+
+    ```bash title="PostgreSQL or MariaDB"
+    PAPERLESS_DB_OPTIONS="connect_timeout=30"
+    ```
+
+#### ~~[`PAPERLESS_DB_POOLSIZE`](#PAPERLESS_DB_POOLSIZE)~~ {#PAPERLESS_DB_POOLSIZE}
+
+!!! failure "Removed in v3"
+
+    Use [`PAPERLESS_DB_OPTIONS`](#PAPERLESS_DB_OPTIONS) instead.
+
+    ```bash
+    PAPERLESS_DB_OPTIONS="pool.max_size=10"
+    ```
+
+#### [`PAPERLESS_DB_READ_CACHE_ENABLED=<bool>`](#PAPERLESS_DB_READ_CACHE_ENABLED) {#PAPERLESS_DB_READ_CACHE_ENABLED}
+
+: Caches the database read query results into Redis. This can significantly improve application response times by caching database queries, at the cost of slightly increased memory usage.
+
+    Defaults to `false`.
+
+    !!! danger
+
+        **Do not modify the database outside the application while it is running.**
+        This includes actions such as restoring a backup, upgrading the database, or performing manual inserts. All external modifications must be done **only when the application is stopped**.
+        After making any such changes, you **must invalidate the DB read cache** using the `invalidate_cachalot` management command.
+
+#### [`PAPERLESS_READ_CACHE_TTL=<int>`](#PAPERLESS_READ_CACHE_TTL) {#PAPERLESS_READ_CACHE_TTL}
+
+: Specifies how long (in seconds) read data should be cached.
+
+    Allowed values are between `1` (one second) and `31536000` (one year). Defaults to `3600` (one hour).
+
+    !!! warning
+
+        A high TTL increases memory usage over time. Memory may be used until end of TTL, even if the cache is invalidated with the `invalidate_cachalot` command.
+
+In case of an out-of-memory (OOM) situation, Redis may stop accepting new data — including cache entries, scheduled tasks, and documents to consume.
+If your system has limited RAM, consider configuring a dedicated Redis instance for the read cache, with a memory limit and the eviction policy set to `allkeys-lru`.
+For more details, refer to the [Redis eviction policy documentation](https://redis.io/docs/latest/develop/reference/eviction/), and see the `PAPERLESS_READ_CACHE_REDIS_URL` setting to specify a separate Redis broker.
+
+#### [`PAPERLESS_READ_CACHE_REDIS_URL=<url>`](#PAPERLESS_READ_CACHE_REDIS_URL) {#PAPERLESS_READ_CACHE_REDIS_URL}
+
+: Defines the Redis instance used for the read cache.
+
+    Defaults to `None`.
+
+    !!! Note
+    If this value is not set, the same Redis instance used for scheduled tasks will be used for caching as well.
 
 ## Optional Services
 
@@ -200,7 +296,7 @@ and watch out for indentation if editing the YAML file.
 
 ### Email Parsing
 
-#### [`PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT=<int>`(#PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT) {#PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT}
+#### [`PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT=<int>`](#PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT) {#PAPERLESS_EMAIL_PARSE_DEFAULT_LAYOUT}
 
 : The default layout to use for emails that are consumed as documents. Must be one of the integer choices below. Note that mail
 rules can specify this setting, thus this fallback is used for the default selection and for .eml files consumed by other means.
@@ -306,6 +402,12 @@ Defaults to `/usr/share/nltk_data`
 
 : This is where paperless will store the classification model.
 
+    !!! warning
+
+        The classification model uses Python's pickle serialization format.
+        Ensure this file is only writable by the paperless user, as a
+        maliciously crafted model file could execute arbitrary code when loaded.
+
     Defaults to `PAPERLESS_DATA_DIR/classification_model.pickle`.
 
 ## Logging
@@ -326,14 +428,20 @@ Defaults to `/usr/share/nltk_data`
 
 #### [`PAPERLESS_SECRET_KEY=<key>`](#PAPERLESS_SECRET_KEY) {#PAPERLESS_SECRET_KEY}
 
-: Paperless uses this to make session tokens. If you expose paperless
-on the internet, you need to change this, since the default secret
-is well known.
+: **Required.** Paperless uses this to make session tokens and sign
+sensitive data. Paperless will refuse to start if this is not set.
 
     Use any sequence of characters. The more, the better. You don't
-    need to remember this. Just face-roll your keyboard.
+    need to remember this. You can generate a suitable key with:
 
-    Default is listed in the file `src/paperless/settings.py`.
+        python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+
+    !!! warning
+
+        This setting has no default value. You **must** set it before
+        starting Paperless. Existing installations that relied on the
+        previous default value should set `PAPERLESS_SECRET_KEY` to
+        that value to avoid invalidating existing sessions and tokens.
 
 #### [`PAPERLESS_URL=<url>`](#PAPERLESS_URL) {#PAPERLESS_URL}
 
@@ -578,6 +686,9 @@ See the corresponding [django-allauth documentation](https://docs.allauth.org/en
 for a list of provider configurations. You will also need to include the relevant Django 'application' inside the
 [PAPERLESS_APPS](#PAPERLESS_APPS) setting to activate that specific authentication provider (e.g. `allauth.socialaccount.providers.openid_connect` for the [OIDC Connect provider](https://docs.allauth.org/en/latest/socialaccount/providers/openid_connect.html)).
 
+: For OpenID Connect providers, set `settings.token_auth_method` if your identity provider
+requires a specific token endpoint authentication method.
+
     Defaults to None, which does not enable any third party authentication systems.
 
 #### [`PAPERLESS_SOCIAL_AUTO_SIGNUP=<bool>`](#PAPERLESS_SOCIAL_AUTO_SIGNUP) {#PAPERLESS_SOCIAL_AUTO_SIGNUP}
@@ -598,13 +709,19 @@ system. See the corresponding
 
 : Sync groups from the third party authentication system (e.g. OIDC) to Paperless-ngx. When enabled, users will be added or removed from groups based on their group membership in the third party authentication system. Groups must already exist in Paperless-ngx and have the same name as in the third party authentication system. Groups are updated upon logging in via the third party authentication system, see the corresponding [django-allauth documentation](https://docs.allauth.org/en/dev/socialaccount/signals.html).
 
-: In order to pass groups from the authentication system you will need to update your [PAPERLESS_SOCIALACCOUNT_PROVIDERS](#PAPERLESS_SOCIALACCOUNT_PROVIDERS) setting by adding a top-level "SCOPES" setting which includes "groups", e.g.:
+: In order to pass groups from the authentication system you will need to update your [PAPERLESS_SOCIALACCOUNT_PROVIDERS](#PAPERLESS_SOCIALACCOUNT_PROVIDERS) setting by adding a top-level "SCOPES" setting which includes "groups", or the custom groups claim configured in [`PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM`](#PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM) e.g.:
 
     ```json
     {"openid_connect":{"SCOPE": ["openid","profile","email","groups"]...
     ```
 
     Defaults to False
+
+#### [`PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM=<str>`](#PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM) {#PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS_CLAIM}
+
+: Allows you to define a custom groups claim. See [PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS](#PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS) which is required for this setting to take effect.
+
+    Defaults to "groups"
 
 #### [`PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS=<comma-separated-list>`](#PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS) {#PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS}
 
@@ -665,6 +782,14 @@ If both the [PAPERLESS_ACCOUNT_DEFAULT_GROUPS](#PAPERLESS_ACCOUNT_DEFAULT_GROUPS
 
     Defaults to 1209600 (2 weeks)
 
+#### [`PAPERLESS_TOKEN_THROTTLE_RATE=<rate>`](#PAPERLESS_TOKEN_THROTTLE_RATE) {#PAPERLESS_TOKEN_THROTTLE_RATE}
+
+: Rate limit for the API token authentication endpoint (`/api/token/`), used to mitigate brute-force login attempts.
+Uses Django REST Framework's [throttle rate format](https://www.django-rest-framework.org/api-guide/throttling/#setting-the-throttling-policy),
+e.g. `5/min`, `100/hour`, `1000/day`.
+
+    Defaults to `5/min`
+
 ## OCR settings {#ocr}
 
 Paperless uses [OCRmyPDF](https://ocrmypdf.readthedocs.io/en/latest/)
@@ -696,11 +821,14 @@ parsing documents.
 
 #### [`PAPERLESS_OCR_MODE=<mode>`](#PAPERLESS_OCR_MODE) {#PAPERLESS_OCR_MODE}
 
-: Tell paperless when and how to perform ocr on your documents. Three
+: Tell paperless when and how to perform ocr on your documents. Four
 modes are available:
 
-    -   `skip`: Paperless skips all pages and will perform ocr only on
-        pages where no text is present. This is the safest option.
+    -   `auto` (default): Paperless detects whether a document already
+        has embedded text via pdftotext. If sufficient text is found,
+        OCR is skipped for that document (`--skip-text`). If no text is
+        present, OCR runs normally. This is the safest option for mixed
+        document collections.
 
     -   `redo`: Paperless will OCR all pages of your documents and
         attempt to replace any existing text layers with new text. This
@@ -718,24 +846,59 @@ modes are available:
         significantly larger and text won't appear as sharp when zoomed
         in.
 
-    The default is `skip`, which only performs OCR when necessary and
-    always creates archived documents.
+    -   `off`: Paperless never invokes the OCR engine. For PDFs, text
+        is extracted via pdftotext only. For image documents, text will
+        be empty. Archive file generation still works via format
+        conversion (no Tesseract or Ghostscript required).
 
-    Read more about this in the [OCRmyPDF
+    The default is `auto`.
+
+    For the `skip`, `redo`, and `force` modes, read more about OCR
+    behaviour in the [OCRmyPDF
     documentation](https://ocrmypdf.readthedocs.io/en/latest/advanced.html#when-ocr-is-skipped).
 
-#### [`PAPERLESS_OCR_SKIP_ARCHIVE_FILE=<mode>`](#PAPERLESS_OCR_SKIP_ARCHIVE_FILE) {#PAPERLESS_OCR_SKIP_ARCHIVE_FILE}
+#### [`PAPERLESS_ARCHIVE_FILE_GENERATION=<mode>`](#PAPERLESS_ARCHIVE_FILE_GENERATION) {#PAPERLESS_ARCHIVE_FILE_GENERATION}
 
-: Specify when you would like paperless to skip creating an archived
-version of your documents. This is useful if you don't want to have two
-almost-identical versions of your documents in the media folder.
+: Controls when paperless creates a PDF/A archive version of your
+documents. Archive files are stored alongside the original and are used
+for display in the web interface.
 
-    -   `never`: Never skip creating an archived version.
-    -   `with_text`: Skip creating an archived version for documents
-    that already have embedded text.
-    -   `always`: Always skip creating an archived version.
+    -   `auto` (default): Produce archives for scanned or image-based
+        documents. Skip archive generation for born-digital PDFs that
+        already contain embedded text. This is the recommended setting
+        for mixed document collections.
+    -   `always`: Always produce a PDF/A archive when the parser
+        supports it, regardless of whether the document already has
+        text.
+    -   `never`: Never produce an archive. Only the original file is
+        stored. Saves disk space but the web viewer will display the
+        original file directly.
 
-    The default is `never`.
+    **Behaviour by file type and mode** (`auto` column shows the default):
+
+    | Document type              | `never` | `auto` (default)           | `always` |
+    | -------------------------- | ------- | -------------------------- | -------- |
+    | Scanned image (TIFF, JPEG) | No      | **Yes**                    | Yes      |
+    | Image-based PDF            | No      | **Yes** (short/no text, untagged) | Yes |
+    | Born-digital PDF           | No      | No (tagged or has embedded text)  | Yes |
+    | Plain text, email, HTML    | No      | No                         | No       |
+    | DOCX / ODT (via Tika)      | Yes\*   | Yes\*                      | Yes\*    |
+
+    \* Tika always produces a PDF rendition for display; this counts as
+    the archive regardless of the setting.
+
+    !!! note
+
+        This setting applies to the built-in Tesseract parser. Parsers
+        that must always convert documents to PDF for display (e.g. DOCX,
+        ODT via Tika) will produce a PDF regardless of this setting.
+
+    !!! note
+
+        The **remote OCR parser** (Azure AI) always produces a searchable
+        PDF and stores it as the archive copy, regardless of this setting.
+        `ARCHIVE_FILE_GENERATION=never` has no effect when the remote
+        parser handles a document.
 
 #### [`PAPERLESS_OCR_CLEAN=<mode>`](#PAPERLESS_OCR_CLEAN) {#PAPERLESS_OCR_CLEAN}
 
@@ -926,21 +1089,10 @@ paperless will process in parallel on a single document.
         process very large documents faster, use a higher thread per worker
         count.
 
-    The default is a balance between the two, according to your CPU core
-    count, with a slight favor towards threads per worker:
-
-    | CPU core count | Workers | Threads |
-    | -------------- | ------- | ------- |
-    | > 1            | > 1     | > 1     |
-    | > 2            | > 2     | > 1     |
-    | > 4            | > 2     | > 2     |
-    | > 6            | > 2     | > 3     |
-    | > 8            | > 2     | > 4     |
-    | > 12           | > 3     | > 4     |
-    | > 16           | > 4     | > 4     |
-
-    If you only specify PAPERLESS_TASK_WORKERS, paperless will adjust
-    PAPERLESS_THREADS_PER_WORKER automatically.
+    If unset, paperless uses `max(floor(cpu_count / PAPERLESS_TASK_WORKERS), 1)`
+    threads per worker. The idea behind this is that as long as there are enough cores,
+    the total number of threads should less than or equal to the total number of (logical)
+    CPU cores.
 
 #### [`PAPERLESS_WORKER_TIMEOUT=<num>`](#PAPERLESS_WORKER_TIMEOUT) {#PAPERLESS_WORKER_TIMEOUT}
 
@@ -964,7 +1116,23 @@ still perform some basic text pre-processing before matching.
 
 : See also `PAPERLESS_NLTK_DIR`.
 
-    Defaults to 1.
+    Defaults to true, enabling the feature.
+
+#### [`PAPERLESS_DATE_PARSER_LANGUAGES=<lang>`](#PAPERLESS_DATE_PARSER_LANGUAGES) {#PAPERLESS_DATE_PARSER_LANGUAGES}
+
+Specifies which language Paperless should use when parsing dates from documents.
+
+    This should be a language code supported by the dateparser library,
+    for example: "en", or a combination such as "en+de".
+    Locales are also supported (e.g., "en-AU").
+    Multiple languages can be combined using "+", for example: "en+de" or "en-AU+de".
+    For valid values, refer to the list of supported languages and locales in the [dateparser documentation](https://dateparser.readthedocs.io/en/latest/supported_locales.html).
+
+    Set this to match the languages in which most of your documents are written.
+    If not set, Paperless will attempt to infer the language(s) from the OCR configuration (`PAPERLESS_OCR_LANGUAGE`).
+
+!!! note
+This format differs from the `PAPERLESS_OCR_LANGUAGE` setting, which uses ISO 639-2 codes (3 letters, e.g., "eng+deu" for Tesseract OCR).
 
 #### [`PAPERLESS_EMAIL_TASK_CRON=<cron expression>`](#PAPERLESS_EMAIL_TASK_CRON) {#PAPERLESS_EMAIL_TASK_CRON}
 
@@ -993,19 +1161,55 @@ should be a valid crontab(5) expression describing when to run.
 
     Defaults to `0 0 * * *` or daily at midnight.
 
+#### [`PAPERLESS_SEARCH_LANGUAGE=<language>`](#PAPERLESS_SEARCH_LANGUAGE) {#PAPERLESS_SEARCH_LANGUAGE}
+
+: Sets the stemmer language for the full-text search index.
+Stemming improves recall by matching word variants (e.g. "running" matches "run").
+Changing this setting causes the index to be rebuilt automatically on next startup.
+An invalid value raises an error at startup.
+
+: Use the ISO 639-1 two-letter code (e.g. `en`, `de`, `fr`). Lowercase full names
+(e.g. `english`, `german`, `french`) are also accepted. The capitalized names shown
+in the [Tantivy Language enum](https://docs.rs/tantivy/latest/tantivy/tokenizer/enum.Language.html)
+documentation are **not** valid — use the lowercase equivalent.
+
+: If not set, paperless infers the language from
+[`PAPERLESS_OCR_LANGUAGE`](#PAPERLESS_OCR_LANGUAGE). If the OCR language has no
+Tantivy stemmer equivalent, stemming is disabled.
+
+    Defaults to unset (inferred from `PAPERLESS_OCR_LANGUAGE`).
+
+#### [`PAPERLESS_ADVANCED_FUZZY_SEARCH_THRESHOLD=<float>`](#PAPERLESS_ADVANCED_FUZZY_SEARCH_THRESHOLD) {#PAPERLESS_ADVANCED_FUZZY_SEARCH_THRESHOLD}
+
+: When set to a float value, approximate/fuzzy matching is applied alongside exact
+matching. Fuzzy results rank below exact matches. A value of `0.5` is a reasonable
+starting point. Leave unset to disable fuzzy matching entirely.
+
+    Defaults to unset (disabled).
+
 #### [`PAPERLESS_SANITY_TASK_CRON=<cron expression>`](#PAPERLESS_SANITY_TASK_CRON) {#PAPERLESS_SANITY_TASK_CRON}
 
-: Configures the scheduled sanity checker frequency.
+: Configures the scheduled sanity checker frequency. The value should be a
+valid crontab(5) expression describing when to run.
 
 : If set to the string "disable", the sanity checker will not run automatically.
 
     Defaults to `30 0 * * sun` or Sunday at 30 minutes past midnight.
 
+#### [`PAPERLESS_WORKFLOW_SCHEDULED_TASK_CRON=<cron expression>`](#PAPERLESS_WORKFLOW_SCHEDULED_TASK_CRON) {#PAPERLESS_WORKFLOW_SCHEDULED_TASK_CRON}
+
+: Configures the scheduled workflow check frequency. The value should be a
+valid crontab(5) expression describing when to run.
+
+: If set to the string "disable", scheduled workflows will not run.
+
+    Defaults to `5 */1 * * *` or every hour at 5 minutes past the hour.
+
 #### [`PAPERLESS_ENABLE_COMPRESSION=<bool>`](#PAPERLESS_ENABLE_COMPRESSION) {#PAPERLESS_ENABLE_COMPRESSION}
 
 : Enables compression of the responses from the webserver.
 
-: Defaults to 1, enabling compression.
+: Defaults to true, enabling compression.
 
     !!! note
 
@@ -1070,8 +1274,9 @@ via the consumption directory, you can disable the consumer to save resources.
 
 #### [`PAPERLESS_CONSUMER_DELETE_DUPLICATES=<bool>`](#PAPERLESS_CONSUMER_DELETE_DUPLICATES) {#PAPERLESS_CONSUMER_DELETE_DUPLICATES}
 
-: When the consumer detects a duplicate document, it will not touch
-the original document. This default behavior can be changed here.
+: As of version 3.0 Paperless-ngx allows duplicate documents to be consumed by default, _except_ when
+this setting is enabled. When enabled, Paperless will check if a document with the same hash already
+exists in the system and delete the duplicate file from the consumption directory without consuming it.
 
     Defaults to false.
 
@@ -1099,29 +1304,45 @@ don't exist yet.
 
 #### [`PAPERLESS_CONSUMER_IGNORE_PATTERNS=<json>`](#PAPERLESS_CONSUMER_IGNORE_PATTERNS) {#PAPERLESS_CONSUMER_IGNORE_PATTERNS}
 
-: By default, paperless ignores certain files and folders in the
-consumption directory, such as system files created by the Mac OS
-or hidden folders some tools use to store data.
+: Additional regex patterns for files to ignore in the consumption directory. Patterns are matched against filenames only (not full paths)
+using Python's `re.match()`, which anchors at the start of the filename.
 
-    This can be adjusted by configuring a custom json array with
-    patterns to exclude.
+    See the [watchfiles documentation](https://watchfiles.helpmanual.io/api/filters/#watchfiles.BaseFilter.ignore_entity_patterns)
 
-    For example, `.DS_STORE/*` will ignore any files found in a folder
-    named `.DS_STORE`, including `.DS_STORE/bar.pdf` and `foo/.DS_STORE/bar.pdf`
+    This setting is for additional patterns beyond the built-in defaults. Common system files and directories are already ignored automatically.
+    The patterns will be compiled via Python's standard `re` module.
 
-    A pattern like `._*` will ignore anything starting with `._`, including:
-    `._foo.pdf` and `._bar/foo.pdf`
+    Example custom patterns:
 
-    Defaults to
-    `[".DS_Store", ".DS_STORE", "._*", ".stfolder/*", ".stversions/*", ".localized/*", "desktop.ini", "@eaDir/*", "Thumbs.db"]`.
+    ```json
+    ["^temp_", "\\.bak$", "^~"]
+    ```
 
-#### [`PAPERLESS_CONSUMER_BARCODE_SCANNER=<string>`](#PAPERLESS_CONSUMER_BARCODE_SCANNER) {#PAPERLESS_CONSUMER_BARCODE_SCANNER}
+    This would ignore:
 
-: Sets the barcode scanner used for barcode functionality.
+    - Files starting with `temp_` (e.g., `temp_scan.pdf`)
+    - Files ending with `.bak` (e.g., `document.pdf.bak`)
+    - Files starting with `~` (e.g., `~$document.docx`)
 
-    Currently, "PYZBAR" (the default) or "ZXING" might be selected.
-    If you have problems that your Barcodes/QR-Codes are not detected
-    (especially with bad scan quality and/or small codes), try the other one.
+    Defaults to `[]` (empty list, uses only built-in defaults).
+
+    The default ignores are `[.DS_Store, .DS_STORE, ._*, desktop.ini, Thumbs.db]` and cannot be overridden.
+
+#### [`PAPERLESS_CONSUMER_IGNORE_DIRS=<json>`](#PAPERLESS_CONSUMER_IGNORE_DIRS) {#PAPERLESS_CONSUMER_IGNORE_DIRS}
+
+: Additional directory names to ignore in the consumption directory. Directories matching these names (and all their contents) will be skipped.
+
+    This setting is for additional directories beyond the built-in defaults. Matching is done by directory name only, not full path.
+
+    Example:
+
+    ```json
+    ["temp", "incoming", ".hidden"]
+    ```
+
+    Defaults to `[]` (empty list, uses only built-in defaults).
+
+    The default ignores are `[.stfolder, .stversions, .localized, @eaDir, .Spotlight-V100, .Trashes, __MACOSX]` and cannot be overridden.
 
 #### [`PAPERLESS_PRE_CONSUME_SCRIPT=<filename>`](#PAPERLESS_PRE_CONSUME_SCRIPT) {#PAPERLESS_PRE_CONSUME_SCRIPT}
 
@@ -1212,50 +1433,58 @@ within your documents.
 
     Defaults to false.
 
-### Polling {#polling}
+#### [`PAPERLESS_CONSUMER_POLLING_INTERVAL=<num>`](#PAPERLESS_CONSUMER_POLLING_INTERVAL) {#PAPERLESS_CONSUMER_POLLING_INTERVAL}
 
-#### [`PAPERLESS_CONSUMER_POLLING=<num>`](#PAPERLESS_CONSUMER_POLLING) {#PAPERLESS_CONSUMER_POLLING}
+: Configures how the consumer detects new files in the consumption directory.
 
-: If paperless won't find documents added to your consume folder, it
-might not be able to automatically detect filesystem changes. In
-that case, specify a polling interval in seconds here, which will
-then cause paperless to periodically check your consumption
-directory for changes. This will also disable listening for file
-system changes with `inotify`.
+    When set to `0` (default), paperless uses native filesystem notifications for efficient, immediate detection of new files.
 
-    Defaults to 0, which disables polling and uses filesystem
-    notifications.
+    When set to a positive number, paperless polls the consumption directory at that interval in seconds. Use polling for network filesystems (NFS, SMB/CIFS) where native notifications may not work reliably.
 
-#### [`PAPERLESS_CONSUMER_POLLING_RETRY_COUNT=<num>`](#PAPERLESS_CONSUMER_POLLING_RETRY_COUNT) {#PAPERLESS_CONSUMER_POLLING_RETRY_COUNT}
+    Defaults to 0.
 
-: If consumer polling is enabled, sets the maximum number of times
-paperless will check for a file to remain unmodified. If a file's
-modification time and size are identical for two consecutive checks, it
-will be consumed.
+#### [`PAPERLESS_CONSUMER_STABILITY_DELAY=<num>`](#PAPERLESS_CONSUMER_STABILITY_DELAY) {#PAPERLESS_CONSUMER_STABILITY_DELAY}
 
-    Defaults to 5.
+: Sets the time in seconds that a file must remain unchanged (same size and modification time) before paperless will begin consuming it.
 
-#### [`PAPERLESS_CONSUMER_POLLING_DELAY=<num>`](#PAPERLESS_CONSUMER_POLLING_DELAY) {#PAPERLESS_CONSUMER_POLLING_DELAY}
+    Increase this value if you experience issues with files being consumed before they are fully written, particularly on slower network storage or
+    with certain scanner quirks
 
-: If consumer polling is enabled, sets the delay in seconds between
-each check (above) paperless will do while waiting for a file to
-remain unmodified.
+    Defaults to 5.0 seconds.
 
-    Defaults to 5.
+## Workflow webhooks
 
-### iNotify {#inotify}
+#### [`PAPERLESS_WEBHOOKS_ALLOWED_SCHEMES=<str>`](#PAPERLESS_WEBHOOKS_ALLOWED_SCHEMES) {#PAPERLESS_WEBHOOKS_ALLOWED_SCHEMES}
 
-#### [`PAPERLESS_CONSUMER_INOTIFY_DELAY=<num>`](#PAPERLESS_CONSUMER_INOTIFY_DELAY) {#PAPERLESS_CONSUMER_INOTIFY_DELAY}
+: A comma-separated list of allowed schemes for webhooks. This setting
+controls which URL schemes are permitted for webhook URLs.
 
-: Sets the time in seconds the consumer will wait for additional
-events from inotify before the consumer will consider a file ready
-and begin consumption. Certain scanners or network setups may
-generate multiple events for a single file, leading to multiple
-consumers working on the same file. Configure this to prevent that.
+    Defaults to `http,https`.
 
-    Defaults to 0.5 seconds.
+#### [`PAPERLESS_WEBHOOKS_ALLOWED_PORTS=<str>`](#PAPERLESS_WEBHOOKS_ALLOWED_PORTS) {#PAPERLESS_WEBHOOKS_ALLOWED_PORTS}
+
+: A comma-separated list of allowed ports for webhooks. This setting
+controls which ports are permitted for webhook URLs. For example, if you
+set this to `80,443`, webhooks will only be sent to URLs that use these
+ports.
+
+    Defaults to empty list, which allows all ports.
+
+#### [`PAPERLESS_WEBHOOKS_ALLOW_INTERNAL_REQUESTS=<bool>`](#PAPERLESS_WEBHOOKS_ALLOW_INTERNAL_REQUESTS) {#PAPERLESS_WEBHOOKS_ALLOW_INTERNAL_REQUESTS}
+
+: If set to false, webhooks cannot be sent to internal URLs (e.g., localhost).
+
+    Defaults to true, which allows internal requests.
 
 ## Incoming Mail {#incoming_mail}
+
+#### [`PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS=<bool>`](#PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS) {#PAPERLESS_EMAIL_ALLOW_INTERNAL_HOSTS}
+
+: If set to false, incoming mail account connections are blocked when the
+configured IMAP hostname resolves to a non-public address (for example,
+localhost, link-local, or RFC1918 private ranges).
+
+    Defaults to true, which allows internal hosts.
 
 ### Email OAuth {#email_oauth}
 
@@ -1450,6 +1679,20 @@ assigns or creates tags if a properly formatted barcode is detected.
 
     Please refer to the Python regex documentation for more information.
 
+#### [`PAPERLESS_CONSUMER_TAG_BARCODE_SPLIT=<bool>`](#PAPERLESS_CONSUMER_TAG_BARCODE_SPLIT) {#PAPERLESS_CONSUMER_TAG_BARCODE_SPLIT}
+
+: Enables splitting of documents on tag barcodes, similar to how ASN barcodes work.
+
+    When enabled, documents will be split into separate PDFs at pages containing
+    tag barcodes that match the configured `PAPERLESS_CONSUMER_TAG_BARCODE_MAPPING`
+    patterns. The page with the tag barcode will be retained in the new document.
+
+    Each split document will have the detected tags assigned to it.
+
+    This only has an effect if `PAPERLESS_CONSUMER_ENABLE_TAG_BARCODE` is also enabled.
+
+    Defaults to false.
+
 ## Audit Trail
 
 #### [`PAPERLESS_AUDIT_LOG_ENABLED=<bool>`](#PAPERLESS_AUDIT_LOG_ENABLED) {#PAPERLESS_AUDIT_LOG_ENABLED}
@@ -1509,6 +1752,16 @@ processing. This only has an effect if
 : Configures the schedule to empty the trash of expired deleted documents.
 
     Defaults to `0 1 * * *`, once per day.
+
+## Share links
+
+#### [`PAPERLESS_SHARE_LINK_BUNDLE_CLEANUP_CRON=<cron expression>`](#PAPERLESS_SHARE_LINK_BUNDLE_CLEANUP_CRON) {#PAPERLESS_SHARE_LINK_BUNDLE_CLEANUP_CRON}
+
+: Controls how often Paperless-ngx removes expired share link bundles (and their generated ZIP archives).
+
+: If set to the string "disable", expired bundles are not cleaned up automatically.
+
+    Defaults to `0 2 * * *`, once per day at 02:00.
 
 ## Binaries
 
@@ -1665,6 +1918,11 @@ started by the container.
 
 : Path to an image file in the /media/logo directory, must include 'logo', e.g. `/logo/Atari_logo.svg`
 
+!!! note
+
+    The logo file will be viewable by anyone with access to the Paperless instance login page,
+    so consider your choice of logo carefully and removing exif data from images before uploading.
+
 #### [`PAPERLESS_ENABLE_UPDATE_CHECK=<bool>`](#PAPERLESS_ENABLE_UPDATE_CHECK) {#PAPERLESS_ENABLE_UPDATE_CHECK}
 
 !!! note
@@ -1706,3 +1964,93 @@ password. All of these options come from their similarly-named [Django settings]
 #### [`PAPERLESS_EMAIL_USE_SSL=<bool>`](#PAPERLESS_EMAIL_USE_SSL) {#PAPERLESS_EMAIL_USE_SSL}
 
 : Defaults to false.
+
+## Remote OCR
+
+#### [`PAPERLESS_REMOTE_OCR_ENGINE=<str>`](#PAPERLESS_REMOTE_OCR_ENGINE) {#PAPERLESS_REMOTE_OCR_ENGINE}
+
+: The remote OCR engine to use. Currently only Azure AI is supported as "azureai".
+
+    Defaults to None, which disables remote OCR.
+
+#### [`PAPERLESS_REMOTE_OCR_API_KEY=<str>`](#PAPERLESS_REMOTE_OCR_API_KEY) {#PAPERLESS_REMOTE_OCR_API_KEY}
+
+: The API key to use for the remote OCR engine.
+
+    Defaults to None.
+
+#### [`PAPERLESS_REMOTE_OCR_ENDPOINT=<str>`](#PAPERLESS_REMOTE_OCR_ENDPOINT) {#PAPERLESS_REMOTE_OCR_ENDPOINT}
+
+: The endpoint to use for the remote OCR engine. This is required for Azure AI.
+
+    Defaults to None.
+
+## AI {#ai}
+
+#### [`PAPERLESS_AI_ENABLED=<bool>`](#PAPERLESS_AI_ENABLED) {#PAPERLESS_AI_ENABLED}
+
+: Enables the AI features in Paperless. This includes the AI-based
+suggestions. This setting is required to be set to true in order to use the AI features.
+
+    Defaults to false.
+
+#### [`PAPERLESS_AI_LLM_EMBEDDING_BACKEND=<str>`](#PAPERLESS_AI_LLM_EMBEDDING_BACKEND) {#PAPERLESS_AI_LLM_EMBEDDING_BACKEND}
+
+: The embedding backend to use for RAG. This can be either "openai" or "huggingface".
+
+    Defaults to None.
+
+#### [`PAPERLESS_AI_LLM_EMBEDDING_MODEL=<str>`](#PAPERLESS_AI_LLM_EMBEDDING_MODEL) {#PAPERLESS_AI_LLM_EMBEDDING_MODEL}
+
+: The model to use for the embedding backend for RAG. This can be set to any of the embedding models supported by the current embedding backend. If not supplied, defaults to "text-embedding-3-small" for OpenAI and "sentence-transformers/all-MiniLM-L6-v2" for Huggingface.
+
+    Defaults to None.
+
+#### [`PAPERLESS_AI_LLM_BACKEND=<str>`](#PAPERLESS_AI_LLM_BACKEND) {#PAPERLESS_AI_LLM_BACKEND}
+
+: The AI backend to use. This can be either "openai" or "ollama". If set to "ollama", the AI
+features will be run locally on your machine. If set to "openai", the AI features will be run
+using the OpenAI API. This setting is required to be set to use the AI features.
+
+    Defaults to None.
+
+    !!! note
+
+        The OpenAI API is a paid service. You will need to set up an OpenAI account and
+        will be charged for usage incurred by Paperless-ngx features and your document data
+        will (of course) be sent to the OpenAI API. Paperless-ngx does not endorse the use of the
+        OpenAI API in any way.
+
+        Refer to the OpenAI terms of service, and use at your own risk.
+
+#### [`PAPERLESS_AI_LLM_MODEL=<str>`](#PAPERLESS_AI_LLM_MODEL) {#PAPERLESS_AI_LLM_MODEL}
+
+: The model to use for the AI backend, i.e. "gpt-3.5-turbo", "gpt-4" or any of the models supported by the
+current backend. If not supplied, defaults to "gpt-3.5-turbo" for OpenAI and "llama3.1" for Ollama.
+
+    Defaults to None.
+
+#### [`PAPERLESS_AI_LLM_API_KEY=<str>`](#PAPERLESS_AI_LLM_API_KEY) {#PAPERLESS_AI_LLM_API_KEY}
+
+: The API key to use for the AI backend. This is required for the OpenAI backend (optional for others).
+
+    Defaults to None.
+
+#### [`PAPERLESS_AI_LLM_ENDPOINT=<str>`](#PAPERLESS_AI_LLM_ENDPOINT) {#PAPERLESS_AI_LLM_ENDPOINT}
+
+: The endpoint / url to use for the AI backend. This is required for the Ollama backend (optional for others).
+
+    Defaults to None.
+
+#### [`PAPERLESS_AI_LLM_ALLOW_INTERNAL_ENDPOINTS=<bool>`](#PAPERLESS_AI_LLM_ALLOW_INTERNAL_ENDPOINTS) {#PAPERLESS_AI_LLM_ALLOW_INTERNAL_ENDPOINTS}
+
+: If set to false, Paperless blocks AI endpoint URLs that resolve to non-public addresses (e.g., localhost, etc).
+
+    Defaults to true, which allows internal endpoints.
+
+#### [`PAPERLESS_AI_LLM_INDEX_TASK_CRON=<cron expression>`](#PAPERLESS_AI_LLM_INDEX_TASK_CRON) {#PAPERLESS_AI_LLM_INDEX_TASK_CRON}
+
+: Configures the schedule to update the AI embeddings of text content and metadata for all documents. Only performed if
+AI is enabled and the LLM embedding backend is set.
+
+    Defaults to `10 2 * * *`, once per day.

@@ -1,4 +1,11 @@
-import { Directive, EventEmitter, Input, OnInit, Output } from '@angular/core'
+import {
+  Directive,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  inject,
+} from '@angular/core'
 import { FormGroup } from '@angular/forms'
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap'
 import { Observable } from 'rxjs'
@@ -24,19 +31,17 @@ export enum EditDialogMode {
 
 @Directive()
 export abstract class EditDialogComponent<
-    T extends ObjectWithPermissions | ObjectWithId,
-  >
+  T extends ObjectWithPermissions | ObjectWithId,
+>
   extends LoadingComponentWithPermissions
   implements OnInit
 {
-  constructor(
-    protected service: AbstractPaperlessService<T>,
-    private activeModal: NgbActiveModal,
-    private userService: UserService,
-    protected settingsService: SettingsService
-  ) {
-    super()
-  }
+  protected service = inject<AbstractPaperlessService<T>>(
+    AbstractPaperlessService
+  )
+  protected activeModal = inject(NgbActiveModal)
+  protected userService = inject(UserService)
+  protected settingsService = inject(SettingsService)
 
   users: User[]
 
@@ -142,9 +147,13 @@ export abstract class EditDialogComponent<
     )
   }
 
+  protected getFormValues(): any {
+    return Object.assign({}, this.objectForm.value)
+  }
+
   save() {
     this.error = null
-    const formValues = Object.assign({}, this.objectForm.value)
+    const formValues = this.getFormValues()
     const permissionsObject: PermissionsFormObject =
       this.objectForm.get('permissions_form')?.value
     if (permissionsObject) {

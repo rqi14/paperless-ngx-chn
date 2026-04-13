@@ -3,11 +3,14 @@ from __future__ import annotations
 import functools
 import inspect
 import json
+import logging
 import operator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import FieldError
 from django.db.models import Case
 from django.db.models import CharField
 from django.db.models import Count
@@ -39,6 +42,7 @@ from documents.models import Document
 from documents.models import DocumentType
 from documents.models import PaperlessTask
 from documents.models import ShareLink
+from documents.models import ShareLinkBundle
 from documents.models import StoragePath
 from documents.models import Tag
 
@@ -74,6 +78,8 @@ DATETIME_KWARGS = [
 CUSTOM_FIELD_QUERY_MAX_DEPTH = 10
 CUSTOM_FIELD_QUERY_MAX_ATOMS = 20
 
+logger = logging.getLogger("paperless.api")
+
 
 class CorrespondentFilterSet(FilterSet):
     class Meta:
@@ -91,6 +97,12 @@ class TagFilterSet(FilterSet):
             "id": ID_KWARGS,
             "name": CHAR_KWARGS,
         }
+
+    is_root = BooleanFilter(
+        label="Is root tag",
+        field_name="tn_parent",
+        lookup_expr="isnull",
+    )
 
 
 class DocumentTypeFilterSet(FilterSet):
@@ -113,7 +125,7 @@ class StoragePathFilterSet(FilterSet):
 
 
 class ObjectFilter(Filter):
-    def __init__(self, *, exclude=False, in_list=False, field_name=""):
+    def __init__(self, *, exclude=False, in_list=False, field_name="") -> None:
         super().__init__()
         self.exclude = exclude
         self.in_list = in_list
@@ -153,11 +165,39 @@ class InboxFilter(Filter):
 
 @extend_schema_field(serializers.CharField)
 class TitleContentFilter(Filter):
-    def filter(self, qs, value):
+    # Deprecated but retained for existing saved views. UI uses Tantivy-backed `text` / `title_search` params.
+    def filter(self, qs: Any, value: Any) -> Any:
+        value = value.strip() if isinstance(value, str) else value
         if value:
-            return qs.filter(Q(title__icontains=value) | Q(content__icontains=value))
+            logger.warning(
+                "Deprecated document filter parameter 'title_content' used; use `text` instead.",
+            )
+            try:
+                return qs.filter(
+                    Q(title__icontains=value) | Q(effective_content__icontains=value),
+                )
+            except FieldError:
+                return qs.filter(
+                    Q(title__icontains=value) | Q(content__icontains=value),
+                )
         else:
             return qs
+
+
+@extend_schema_field(serializers.CharField)
+class EffectiveContentFilter(Filter):
+    def filter(self, qs: Any, value: Any) -> Any:
+        value = value.strip() if isinstance(value, str) else value
+        if not value:
+            return qs
+        try:
+            return qs.filter(
+                **{f"effective_content__{self.lookup_expr}": value},
+            )
+        except FieldError:
+            return qs.filter(
+                **{f"content__{self.lookup_expr}": value},
+            )
 
 
 @extend_schema_field(serializers.BooleanField)
@@ -208,7 +248,11 @@ class CustomFieldFilterSet(FilterSet):
 @extend_schema_field(serializers.CharField)
 class CustomFieldsFilter(Filter):
     def filter(self, qs, value):
+        value = value.strip() if isinstance(value, str) else value
         if value:
+            logger.warning(
+                "Deprecated document filter parameter 'custom_fields__icontains' used; use `custom_field_query` or advanced Tantivy field syntax instead.",
+            )
             fields_with_matching_selects = CustomField.objects.filter(
                 extra_data__icontains=value,
             )
@@ -230,6 +274,7 @@ class CustomFieldsFilter(Filter):
                 | qs.filter(custom_fields__value_monetary__icontains=value)
                 | qs.filter(custom_fields__value_document_ids__icontains=value)
                 | qs.filter(custom_fields__value_select__in=option_ids)
+                | qs.filter(custom_fields__value_long_text__icontains=value)
             )
         else:
             return qs
@@ -237,6 +282,7 @@ class CustomFieldsFilter(Filter):
 
 class MimeTypeFilter(Filter):
     def filter(self, qs, value):
+        value = value.strip() if isinstance(value, str) else value
         if value:
             return qs.filter(mime_type__icontains=value)
         else:
@@ -244,7 +290,7 @@ class MimeTypeFilter(Filter):
 
 
 class SelectField(serializers.CharField):
-    def __init__(self, custom_field: CustomField):
+    def __init__(self, custom_field: CustomField) -> None:
         self._options = custom_field.extra_data["select_options"]
         super().__init__(max_length=16)
 
@@ -314,6 +360,7 @@ class CustomFieldQueryParser:
         CustomField.FieldDataType.MONETARY: ("basic", "string", "arithmetic"),
         CustomField.FieldDataType.DOCUMENTLINK: ("basic", "containment"),
         CustomField.FieldDataType.SELECT: ("basic",),
+        CustomField.FieldDataType.LONG_TEXT: ("basic", "string"),
     }
 
     DATE_COMPONENTS = [
@@ -664,7 +711,7 @@ class CustomFieldQueryParser:
 
 @extend_schema_field(serializers.CharField)
 class CustomFieldQueryFilter(Filter):
-    def __init__(self, validation_prefix):
+    def __init__(self, validation_prefix) -> None:
         """
         A filter that filters documents based on custom field name and value.
 
@@ -710,10 +757,17 @@ class DocumentFilterSet(FilterSet):
 
     is_in_inbox = InboxFilter()
 
+    # Deprecated, but keep for now for existing saved views
     title_content = TitleContentFilter()
+
+    content__istartswith = EffectiveContentFilter(lookup_expr="istartswith")
+    content__iendswith = EffectiveContentFilter(lookup_expr="iendswith")
+    content__icontains = EffectiveContentFilter(lookup_expr="icontains")
+    content__iexact = EffectiveContentFilter(lookup_expr="iexact")
 
     owner__id__none = ObjectFilter(field_name="owner", exclude=True)
 
+    # Deprecated, UI no longer includes CF text-search mode, but keep for now for existing saved views
     custom_fields__icontains = CustomFieldsFilter()
 
     custom_fields__id__all = ObjectFilter(field_name="custom_fields__field")
@@ -752,7 +806,6 @@ class DocumentFilterSet(FilterSet):
         fields = {
             "id": ID_KWARGS,
             "title": CHAR_KWARGS,
-            "content": CHAR_KWARGS,
             "archive_serial_number": INT_KWARGS,
             "created": DATE_KWARGS,
             "added": DATETIME_KWARGS,
@@ -783,6 +836,29 @@ class ShareLinkFilterSet(FilterSet):
             "created": DATETIME_KWARGS,
             "expiration": DATETIME_KWARGS,
         }
+
+
+class ShareLinkBundleFilterSet(FilterSet):
+    documents = Filter(method="filter_documents")
+
+    class Meta:
+        model = ShareLinkBundle
+        fields = {
+            "created": DATETIME_KWARGS,
+            "expiration": DATETIME_KWARGS,
+            "status": ["exact"],
+        }
+
+    def filter_documents(self, queryset, name, value):
+        ids = []
+        if value:
+            try:
+                ids = [int(item) for item in value.split(",") if item]
+            except ValueError:
+                return queryset.none()
+        if not ids:
+            return queryset
+        return queryset.filter(documents__in=ids).distinct()
 
 
 class PaperlessTaskFilterSet(FilterSet):
@@ -845,7 +921,10 @@ class DocumentsOrderingFilter(OrderingFilter):
 
             annotation = None
             match field.data_type:
-                case CustomField.FieldDataType.STRING:
+                case (
+                    CustomField.FieldDataType.STRING
+                    | CustomField.FieldDataType.LONG_TEXT
+                ):
                     annotation = Subquery(
                         CustomFieldInstance.objects.filter(
                             document_id=OuterRef("id"),

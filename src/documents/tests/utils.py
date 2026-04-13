@@ -20,7 +20,9 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 from django.test import override_settings
 
+from documents.consumer import AsnCheckPlugin
 from documents.consumer import ConsumerPlugin
+from documents.consumer import ConsumerPreflightPlugin
 from documents.data_models import ConsumableDocument
 from documents.data_models import DocumentMetadataOverrides
 from documents.data_models import DocumentSource
@@ -31,11 +33,11 @@ from documents.plugins.helpers import ProgressStatusOptions
 def setup_directories():
     dirs = namedtuple("Dirs", ())
 
-    dirs.data_dir = Path(tempfile.mkdtemp())
-    dirs.scratch_dir = Path(tempfile.mkdtemp())
-    dirs.media_dir = Path(tempfile.mkdtemp())
-    dirs.consumption_dir = Path(tempfile.mkdtemp())
-    dirs.static_dir = Path(tempfile.mkdtemp())
+    dirs.data_dir = Path(tempfile.mkdtemp()).resolve()
+    dirs.scratch_dir = Path(tempfile.mkdtemp()).resolve()
+    dirs.media_dir = Path(tempfile.mkdtemp()).resolve()
+    dirs.consumption_dir = Path(tempfile.mkdtemp()).resolve()
+    dirs.static_dir = Path(tempfile.mkdtemp()).resolve()
     dirs.index_dir = dirs.data_dir / "index"
     dirs.originals_dir = dirs.media_dir / "documents" / "originals"
     dirs.thumbnail_dir = dirs.media_dir / "documents" / "thumbnails"
@@ -67,7 +69,7 @@ def setup_directories():
     return dirs
 
 
-def remove_dirs(dirs):
+def remove_dirs(dirs) -> None:
     shutil.rmtree(dirs.media_dir, ignore_errors=True)
     shutil.rmtree(dirs.data_dir, ignore_errors=True)
     shutil.rmtree(dirs.scratch_dir, ignore_errors=True)
@@ -155,11 +157,17 @@ class DirectoriesMixin:
     """
 
     def setUp(self) -> None:
+        from documents.search import reset_backend
+
+        reset_backend()
         self.dirs = setup_directories()
         super().setUp()
 
     def tearDown(self) -> None:
+        from documents.search import reset_backend
+
         super().tearDown()
+        reset_backend()
         remove_dirs(self.dirs)
 
 
@@ -168,23 +176,23 @@ class FileSystemAssertsMixin:
     Utilities for checks various state information of the file system
     """
 
-    def assertIsFile(self, path: PathLike | str):
+    def assertIsFile(self, path: PathLike | str) -> None:
         self.assertTrue(Path(path).resolve().is_file(), f"File does not exist: {path}")
 
-    def assertIsNotFile(self, path: PathLike | str):
+    def assertIsNotFile(self, path: PathLike | str) -> None:
         self.assertFalse(Path(path).resolve().is_file(), f"File does exist: {path}")
 
-    def assertIsDir(self, path: PathLike | str):
+    def assertIsDir(self, path: PathLike | str) -> None:
         self.assertTrue(Path(path).resolve().is_dir(), f"Dir does not exist: {path}")
 
-    def assertIsNotDir(self, path: PathLike | str):
+    def assertIsNotDir(self, path: PathLike | str) -> None:
         self.assertFalse(Path(path).resolve().is_dir(), f"Dir does exist: {path}")
 
     def assertFilesEqual(
         self,
         path1: PathLike | str,
         path2: PathLike | str,
-    ):
+    ) -> None:
         path1 = Path(path1)
         path2 = Path(path2)
         import hashlib
@@ -194,7 +202,7 @@ class FileSystemAssertsMixin:
 
         self.assertEqual(hash1, hash2, "File SHA256 mismatch")
 
-    def assertFileCountInDir(self, path: PathLike | str, count: int):
+    def assertFileCountInDir(self, path: PathLike | str, count: int) -> None:
         path = Path(path).resolve()
         self.assertTrue(path.is_dir(), f"Path {path} is not a directory")
         files = [x for x in path.iterdir() if x.is_file()]
@@ -292,7 +300,7 @@ class TestMigrations(TransactionTestCase):
     migrate_to = None
     auto_migrate = True
 
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
 
         assert self.migrate_from and self.migrate_to, (
@@ -315,7 +323,7 @@ class TestMigrations(TransactionTestCase):
         if self.auto_migrate:
             self.performMigration()
 
-    def performMigration(self):
+    def performMigration(self) -> None:
         # Run the migration to test
         executor = MigrationExecutor(connection)
         executor.loader.build_graph()  # reload.
@@ -323,8 +331,21 @@ class TestMigrations(TransactionTestCase):
 
         self.apps = executor.loader.project_state(self.migrate_to).apps
 
-    def setUpBeforeMigration(self, apps):
+    def setUpBeforeMigration(self, apps) -> None:
         pass
+
+    def tearDown(self) -> None:
+        """
+        Ensure the database schema is restored to the latest migration after
+        each migration test, so subsequent tests run against HEAD.
+        """
+        try:
+            executor = MigrationExecutor(connection)
+            executor.loader.build_graph()
+            targets = executor.loader.graph.leaf_nodes()
+            executor.migrate(targets)
+        finally:
+            super().tearDown()
 
 
 class SampleDirMixin:
@@ -344,12 +365,29 @@ class GetConsumerMixin:
     ) -> Generator[ConsumerPlugin, None, None]:
         # Store this for verification
         self.status = DummyProgressManager(filepath.name, None)
+        doc = ConsumableDocument(
+            source,
+            original_file=filepath,
+            mailrule_id=mailrule_id or None,
+        )
+        preflight_plugin = ConsumerPreflightPlugin(
+            doc,
+            overrides or DocumentMetadataOverrides(),
+            self.status,  # type: ignore
+            self.dirs.scratch_dir,
+            "task-id",
+        )
+        preflight_plugin.setup()
+        asncheck_plugin = AsnCheckPlugin(
+            doc,
+            overrides or DocumentMetadataOverrides(),
+            self.status,  # type: ignore
+            self.dirs.scratch_dir,
+            "task-id",
+        )
+        asncheck_plugin.setup()
         reader = ConsumerPlugin(
-            ConsumableDocument(
-                source,
-                original_file=filepath,
-                mailrule_id=mailrule_id or None,
-            ),
+            doc,
             overrides or DocumentMetadataOverrides(),
             self.status,  # type: ignore
             self.dirs.scratch_dir,
@@ -357,6 +395,8 @@ class GetConsumerMixin:
         )
         reader.setup()
         try:
+            preflight_plugin.run()
+            asncheck_plugin.run()
             yield reader
         finally:
             reader.cleanup()
@@ -380,7 +420,7 @@ class DummyProgressManager:
         self.open()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
 
     def open(self) -> None:
@@ -395,7 +435,11 @@ class DummyProgressManager:
         message: str,
         current_progress: int,
         max_progress: int,
-        extra_args: dict[str, str | int] | None = None,
+        *,
+        document_id: int | None = None,
+        owner_id: int | None = None,
+        users_can_view: list[int] | None = None,
+        groups_can_view: list[int] | None = None,
     ) -> None:
         # Ensure the layer is open
         self.open()
@@ -409,9 +453,10 @@ class DummyProgressManager:
                 "max_progress": max_progress,
                 "status": status,
                 "message": message,
+                "document_id": document_id,
+                "owner_id": owner_id,
+                "users_can_view": users_can_view or [],
+                "groups_can_view": groups_can_view or [],
             },
         }
-        if extra_args is not None:
-            payload["data"].update(extra_args)
-
         self.payloads.append(payload)

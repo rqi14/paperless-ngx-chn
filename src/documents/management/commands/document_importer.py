@@ -1,18 +1,20 @@
 import json
 import logging
 import os
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from zipfile import ZipFile
+from zipfile import is_zipfile
 
-import tqdm
+import ijson
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import FieldDoesNotExist
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django.core.serializers.base import DeserializationError
 from django.db import IntegrityError
@@ -22,6 +24,7 @@ from django.db.models.signals import post_save
 from filelock import FileLock
 
 from documents.file_handling import create_source_path_directory
+from documents.management.commands.base import PaperlessCommand
 from documents.management.commands.mixins import CryptMixin
 from documents.models import Correspondent
 from documents.models import CustomField
@@ -29,11 +32,12 @@ from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Note
+from documents.models import ShareLinkBundle
 from documents.models import Tag
-from documents.parsers import run_convert
 from documents.settings import EXPORTER_ARCHIVE_NAME
 from documents.settings import EXPORTER_CRYPTO_SETTINGS_NAME
 from documents.settings import EXPORTER_FILE_NAME
+from documents.settings import EXPORTER_SHARE_LINK_BUNDLE_NAME
 from documents.settings import EXPORTER_THUMBNAIL_NAME
 from documents.signals.handlers import check_paths_and_prune_custom_fields
 from documents.signals.handlers import update_filename_and_move_files
@@ -44,30 +48,37 @@ if settings.AUDIT_LOG_ENABLED:
     from auditlog.registry import auditlog
 
 
+def iter_manifest_records(path: Path) -> Generator[dict, None, None]:
+    """Yield records one at a time from a manifest JSON array via ijson."""
+    try:
+        with path.open("rb") as f:
+            yield from ijson.items(f, "item")
+    except ijson.JSONError as e:
+        raise CommandError(f"Failed to parse manifest file {path}: {e}") from e
+
+
 @contextmanager
-def disable_signal(sig, receiver, sender) -> Generator:
+def disable_signal(sig, receiver, sender, *, weak: bool | None = None) -> Generator:
     try:
         sig.disconnect(receiver=receiver, sender=sender)
         yield
     finally:
-        sig.connect(receiver=receiver, sender=sender)
+        kwargs = {"weak": weak} if weak is not None else {}
+        sig.connect(receiver=receiver, sender=sender, **kwargs)
 
 
-class Command(CryptMixin, BaseCommand):
+class Command(CryptMixin, PaperlessCommand):
     help = (
         "Using a manifest.json file, load the data from there, and import the "
         "documents it refers to."
     )
 
-    def add_arguments(self, parser) -> None:
-        parser.add_argument("source")
+    supports_progress_bar = True
+    supports_multiprocessing = False
 
-        parser.add_argument(
-            "--no-progress-bar",
-            default=False,
-            action="store_true",
-            help="If set, the progress bar will not be shown",
-        )
+    def add_arguments(self, parser) -> None:
+        super().add_arguments(parser)
+        parser.add_argument("source")
 
         parser.add_argument(
             "--data-only",
@@ -116,7 +127,7 @@ class Command(CryptMixin, BaseCommand):
                         "Found existing user(s), this might indicate a non-empty installation",
                     ),
                 )
-            if Document.objects.count() != 0:
+            if Document.global_objects.count() != 0:
                 self.stdout.write(
                     self.style.WARNING(
                         "Found existing documents(s), this might indicate a non-empty installation",
@@ -143,14 +154,9 @@ class Command(CryptMixin, BaseCommand):
         Loads manifest data from the various JSON files for parsing and loading the database
         """
         main_manifest_path: Path = self.source / "manifest.json"
-
-        with main_manifest_path.open() as infile:
-            self.manifest = json.load(infile)
         self.manifest_paths.append(main_manifest_path)
 
         for file in Path(self.source).glob("**/*-manifest.json"):
-            with file.open() as infile:
-                self.manifest += json.load(infile)
             self.manifest_paths.append(file)
 
     def load_metadata(self) -> None:
@@ -201,7 +207,7 @@ class Command(CryptMixin, BaseCommand):
                 ContentType.objects.all().delete()
                 Permission.objects.all().delete()
                 for manifest_path in self.manifest_paths:
-                    call_command("loaddata", manifest_path)
+                    call_command("loaddata", manifest_path, skip_checks=True)
         except (FieldDoesNotExist, DeserializationError, IntegrityError) as e:
             self.stdout.write(self.style.ERROR("Database import failed"))
             if (
@@ -227,21 +233,24 @@ class Command(CryptMixin, BaseCommand):
 
         self.source = Path(options["source"]).resolve()
         self.data_only: bool = options["data_only"]
-        self.no_progress_bar: bool = options["no_progress_bar"]
         self.passphrase: str | None = options.get("passphrase")
         self.version: str | None = None
         self.salt: str | None = None
         self.manifest_paths = []
-        self.manifest = []
 
+        # Create a temporary directory for extracting a zip file into it, even if supplied source is no zip file to keep code cleaner.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            if is_zipfile(self.source):
+                with ZipFile(self.source) as zf:
+                    zf.extractall(tmp_dir)
+                self.source = Path(tmp_dir)
+            self._run_import()
+
+    def _run_import(self) -> None:
         self.pre_check()
-
         self.load_metadata()
-
         self.load_manifest_files()
-
         self.check_manifest_validity()
-
         self.decrypt_secret_fields()
 
         # see /src/documents/signals/handlers.py
@@ -250,16 +259,19 @@ class Command(CryptMixin, BaseCommand):
                 post_save,
                 receiver=update_filename_and_move_files,
                 sender=Document,
+                weak=False,
             ),
             disable_signal(
                 m2m_changed,
                 receiver=update_filename_and_move_files,
                 sender=Document.tags.through,
+                weak=False,
             ),
             disable_signal(
                 post_save,
                 receiver=update_filename_and_move_files,
                 sender=CustomFieldInstance,
+                weak=False,
             ),
             disable_signal(
                 post_save,
@@ -283,6 +295,9 @@ class Command(CryptMixin, BaseCommand):
                 self._import_files_from_manifest()
             else:
                 self.stdout.write(self.style.NOTICE("Data only import completed"))
+
+            for tmp in getattr(self, "_decrypted_tmp_paths", []):
+                tmp.unlink(missing_ok=True)
 
         self.stdout.write("Updating search index...")
         call_command(
@@ -335,43 +350,86 @@ class Command(CryptMixin, BaseCommand):
                         f"Failed to read from archive file {doc_archive_path}",
                     ) from e
 
+        def check_share_link_bundle_validity(bundle_record: dict) -> None:
+            if EXPORTER_SHARE_LINK_BUNDLE_NAME not in bundle_record:
+                return
+
+            bundle_file = bundle_record[EXPORTER_SHARE_LINK_BUNDLE_NAME]
+            bundle_path: Path = self.source / bundle_file
+            if not bundle_path.exists():
+                raise CommandError(
+                    f'The manifest file refers to "{bundle_file}" which does not '
+                    "appear to be in the source directory.",
+                )
+            try:
+                with bundle_path.open(mode="rb"):
+                    pass
+            except Exception as e:
+                raise CommandError(
+                    f"Failed to read from share link bundle file {bundle_path}",
+                ) from e
+
         self.stdout.write("Checking the manifest")
-        for record in self.manifest:
-            # Only check if the document files exist if this is not data only
-            # We don't care about documents for a data only import
-            if not self.data_only and record["model"] == "documents.document":
-                check_document_validity(record)
+        for manifest_path in self.manifest_paths:
+            for record in iter_manifest_records(manifest_path):
+                # Only check if the document files exist if this is not data only
+                # We don't care about documents for a data only import
+                if self.data_only:
+                    continue
+                if record["model"] == "documents.document":
+                    check_document_validity(record)
+                elif record["model"] == "documents.sharelinkbundle":
+                    check_share_link_bundle_validity(record)
 
     def _import_files_from_manifest(self) -> None:
         settings.ORIGINALS_DIR.mkdir(parents=True, exist_ok=True)
         settings.THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
         settings.ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        settings.SHARE_LINK_BUNDLE_DIR.mkdir(parents=True, exist_ok=True)
 
         self.stdout.write("Copy files into paperless...")
 
-        manifest_documents = list(
-            filter(lambda r: r["model"] == "documents.document", self.manifest),
-        )
+        document_records = [
+            {
+                "pk": record["pk"],
+                EXPORTER_FILE_NAME: record[EXPORTER_FILE_NAME],
+                EXPORTER_THUMBNAIL_NAME: record.get(EXPORTER_THUMBNAIL_NAME),
+                EXPORTER_ARCHIVE_NAME: record.get(EXPORTER_ARCHIVE_NAME),
+            }
+            for manifest_path in self.manifest_paths
+            for record in iter_manifest_records(manifest_path)
+            if record["model"] == "documents.document"
+        ]
+        share_link_bundle_records = [
+            {
+                "pk": record["pk"],
+                EXPORTER_SHARE_LINK_BUNDLE_NAME: record.get(
+                    EXPORTER_SHARE_LINK_BUNDLE_NAME,
+                ),
+            }
+            for manifest_path in self.manifest_paths
+            for record in iter_manifest_records(manifest_path)
+            if record["model"] == "documents.sharelinkbundle"
+            and record.get(EXPORTER_SHARE_LINK_BUNDLE_NAME)
+        ]
 
-        for record in tqdm.tqdm(manifest_documents, disable=self.no_progress_bar):
-            document = Document.objects.get(pk=record["pk"])
+        for record in self.track(document_records, description="Copying files..."):
+            document = Document.global_objects.get(pk=record["pk"])
 
             doc_file = record[EXPORTER_FILE_NAME]
             document_path = self.source / doc_file
 
-            if EXPORTER_THUMBNAIL_NAME in record:
+            if record[EXPORTER_THUMBNAIL_NAME]:
                 thumb_file = record[EXPORTER_THUMBNAIL_NAME]
                 thumbnail_path = (self.source / thumb_file).resolve()
             else:
                 thumbnail_path = None
 
-            if EXPORTER_ARCHIVE_NAME in record:
+            if record[EXPORTER_ARCHIVE_NAME]:
                 archive_file = record[EXPORTER_ARCHIVE_NAME]
                 archive_path = self.source / archive_file
             else:
                 archive_path = None
-
-            document.storage_type = Document.STORAGE_TYPE_UNENCRYPTED
 
             with FileLock(settings.MEDIA_LOCK):
                 if Path(document.source_path).is_file():
@@ -382,22 +440,10 @@ class Command(CryptMixin, BaseCommand):
                 copy_file_with_basic_stats(document_path, document.source_path)
 
                 if thumbnail_path:
-                    if thumbnail_path.suffix in {".png", ".PNG"}:
-                        run_convert(
-                            density=300,
-                            scale="500x5000>",
-                            alpha="remove",
-                            strip=True,
-                            trim=False,
-                            auto_orient=True,
-                            input_file=f"{thumbnail_path}[0]",
-                            output_file=str(document.thumbnail_path),
-                        )
-                    else:
-                        copy_file_with_basic_stats(
-                            thumbnail_path,
-                            document.thumbnail_path,
-                        )
+                    copy_file_with_basic_stats(
+                        thumbnail_path,
+                        document.thumbnail_path,
+                    )
 
                 if archive_path:
                     create_source_path_directory(document.archive_path)
@@ -408,33 +454,63 @@ class Command(CryptMixin, BaseCommand):
 
             document.save()
 
+        for record in self.track(
+            share_link_bundle_records,
+            description="Copying share link bundles...",
+        ):
+            bundle = ShareLinkBundle.objects.get(pk=record["pk"])
+            bundle_file = record[EXPORTER_SHARE_LINK_BUNDLE_NAME]
+            bundle_source_path = (self.source / bundle_file).resolve()
+            bundle_target_path = bundle.absolute_file_path
+            if bundle_target_path is None:
+                raise CommandError(
+                    f"Share link bundle {bundle.pk} does not have a valid file path.",
+                )
+
+            with FileLock(settings.MEDIA_LOCK):
+                bundle_target_path.parent.mkdir(parents=True, exist_ok=True)
+                copy_file_with_basic_stats(
+                    bundle_source_path,
+                    bundle_target_path,
+                )
+
+    def _decrypt_record_if_needed(self, record: dict) -> dict:
+        fields = self.CRYPT_FIELDS_BY_MODEL.get(record.get("model", ""))
+        if fields:
+            for field in fields:
+                if record["fields"].get(field):
+                    record["fields"][field] = self.decrypt_string(
+                        value=record["fields"][field],
+                    )
+        return record
+
     def decrypt_secret_fields(self) -> None:
         """
-        The converse decryption of some fields out of the export before importing to database
+        The converse decryption of some fields out of the export before importing to database.
+        Streams records from each manifest path and writes decrypted content to a temp file.
         """
-        if self.passphrase:
-            # Salt has been loaded from metadata.json at this point, so it cannot be None
-            self.setup_crypto(passphrase=self.passphrase, salt=self.salt)
-
-            had_at_least_one_record = False
-
-            for crypt_config in self.CRYPT_FIELDS:
-                importer_model: str = crypt_config["model_name"]
-                crypt_fields: str = crypt_config["fields"]
-                for record in filter(
-                    lambda x: x["model"] == importer_model,
-                    self.manifest,
-                ):
-                    had_at_least_one_record = True
-                    for field in crypt_fields:
-                        if record["fields"][field]:
-                            record["fields"][field] = self.decrypt_string(
-                                value=record["fields"][field],
-                            )
-
-            if had_at_least_one_record:
-                # It's annoying, but the DB is loaded from the JSON directly
-                # Maybe could change that in the future?
-                (self.source / "manifest.json").write_text(
-                    json.dumps(self.manifest, indent=2, ensure_ascii=False),
-                )
+        if not self.passphrase:
+            return
+        # Salt has been loaded from metadata.json at this point, so it cannot be None
+        self.setup_crypto(passphrase=self.passphrase, salt=self.salt)
+        self._decrypted_tmp_paths: list[Path] = []
+        new_paths: list[Path] = []
+        for manifest_path in self.manifest_paths:
+            tmp = manifest_path.with_name(manifest_path.stem + ".decrypted.json")
+            with tmp.open("w", encoding="utf-8") as out:
+                out.write("[\n")
+                first = True
+                for record in iter_manifest_records(manifest_path):
+                    if not first:
+                        out.write(",\n")
+                    json.dump(
+                        self._decrypt_record_if_needed(record),
+                        out,
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                    first = False
+                out.write("\n]\n")
+            self._decrypted_tmp_paths.append(tmp)
+            new_paths.append(tmp)
+        self.manifest_paths = new_paths

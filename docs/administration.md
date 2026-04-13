@@ -10,16 +10,16 @@ consuming documents at that time.
 
 Options available to any installation of paperless:
 
--   Use the [document exporter](#exporter). The document exporter exports all your documents,
-    thumbnails, metadata, and database contents to a specific folder. You may import your
-    documents and settings into a fresh instance of paperless again or store your
-    documents in another DMS with this export.
+- Use the [document exporter](#exporter). The document exporter exports all your documents,
+  thumbnails, metadata, and database contents to a specific folder. You may import your
+  documents and settings into a fresh instance of paperless again or store your
+  documents in another DMS with this export.
 
-    The document exporter is also able to update an already existing
-    export. Therefore, incremental backups with `rsync` are entirely
-    possible.
+  The document exporter is also able to update an already existing
+  export. Therefore, incremental backups with `rsync` are entirely
+  possible.
 
-    The exporter does not include API tokens and they will need to be re-generated after importing.
+  The exporter does not include API tokens and they will need to be re-generated after importing.
 
 !!! caution
 
@@ -29,28 +29,27 @@ Options available to any installation of paperless:
 
 Options available to docker installations:
 
--   Backup the docker volumes. These usually reside within
-    `/var/lib/docker/volumes` on the host and you need to be root in
-    order to access them.
+- Backup the docker volumes. These usually reside within
+  `/var/lib/docker/volumes` on the host and you need to be root in
+  order to access them.
 
-    Paperless uses 4 volumes:
-
-    -   `paperless_media`: This is where your documents are stored.
-    -   `paperless_data`: This is where auxiliary data is stored. This
-        folder also contains the SQLite database, if you use it.
-    -   `paperless_pgdata`: Exists only if you use PostgreSQL and
-        contains the database.
-    -   `paperless_dbdata`: Exists only if you use MariaDB and contains
-        the database.
+  Paperless uses 4 volumes:
+  - `paperless_media`: This is where your documents are stored.
+  - `paperless_data`: This is where auxiliary data is stored. This
+    folder also contains the SQLite database, if you use it.
+  - `paperless_pgdata`: Exists only if you use PostgreSQL and
+    contains the database.
+  - `paperless_dbdata`: Exists only if you use MariaDB and contains
+    the database.
 
 Options available to bare-metal and non-docker installations:
 
--   Backup the entire paperless folder. This ensures that if your
-    paperless instance crashes at some point or your disk fails, you can
-    simply copy the folder back into place and it works.
+- Backup the entire paperless folder. This ensures that if your
+  paperless instance crashes at some point or your disk fails, you can
+  simply copy the folder back into place and it works.
 
-    When using PostgreSQL or MariaDB, you'll also have to backup the
-    database.
+  When using PostgreSQL or MariaDB, you'll also have to backup the
+  database.
 
 ### Restoring {#migrating-restoring}
 
@@ -61,6 +60,10 @@ Of course, other backup strategies require restoring any volumes, folders and da
 copies you created in the steps above.
 
 ## Updating Paperless {#updating}
+
+!!! warning
+
+    Please review the [migration instructions](migration-v3.md) before upgrading Paperless-ngx to v3.0, it includes some breaking changes that require manual intervention before upgrading.
 
 ### Docker Route {#docker-updating}
 
@@ -177,11 +180,25 @@ following:
     This might not actually do anything. Not every new paperless version
     comes with new database migrations.
 
+4.  Rebuild the search index if needed.
+
+    ```shell-session
+    cd src
+    python3 manage.py document_index reindex --if-needed
+    ```
+
+    This is a no-op if the index is already up to date, so it is safe to
+    run on every upgrade.
+
 ### Database Upgrades
 
-In general, paperless does not require a specific version of PostgreSQL or MariaDB and it is
+Paperless-ngx is compatible with Django-supported versions of PostgreSQL and MariaDB and it is generally
 safe to update them to newer versions. However, you should always take a backup and follow
 the instructions from your database's documentation for how to upgrade between major versions.
+
+!!! note
+
+    As of Paperless-ngx v2.18, the minimum supported version of PostgreSQL is 14.
 
 For PostgreSQL, refer to [Upgrading a PostgreSQL Cluster](https://www.postgresql.org/docs/current/upgrading.html).
 
@@ -306,7 +323,7 @@ in dedicated folders according to their nature: `archive`, `originals`,
 If `-sm` or `--split-manifest` is provided, information about document
 will be placed in individual json files, instead of a single JSON file. The main
 manifest.json will still contain application wide information (e.g. tags, correspondent,
-documenttype, etc)
+document type, etc)
 
 If `-z` or `--zip` is provided, the export will be a zip file
 in the target directory, named according to the current local date or the
@@ -333,7 +350,7 @@ must be provided to import. If this value is lost, the export cannot be imported
 The document importer takes the export produced by the [Document
 exporter](#exporter) and imports it into paperless.
 
-The importer works just like the exporter. You point it at a directory,
+The importer works just like the exporter. You point it at a directory or the generated .zip file,
 and the script does the rest of the work:
 
 ```shell
@@ -350,9 +367,6 @@ document_importer source
 When you use the provided docker compose script, put the export inside
 the `export` folder in your paperless source directory. Specify
 `../export` as the `source`.
-
-Note that .zip files (as can be generated from the exporter) are not supported. You must unzip them into
-the target directory first.
 
 !!! note
 
@@ -449,16 +463,57 @@ the search yields non-existing documents or won't find anything, you
 may need to recreate the index manually.
 
 ```
-document_index {reindex,optimize}
+document_index {reindex,optimize} [--recreate] [--if-needed]
 ```
 
-Specify `reindex` to have the index created from scratch. This may take
-some time.
+Specify `reindex` to rebuild the index from all documents in the database. This
+may take some time.
 
-Specify `optimize` to optimize the index. This updates certain aspects
-of the index and usually makes queries faster and also ensures that the
-autocompletion works properly. This command is regularly invoked by the
+Pass `--recreate` to wipe the existing index before rebuilding. Use this when the
+index is corrupted or you want a fully clean rebuild.
+
+Pass `--if-needed` to skip the rebuild if the index is already up to date (schema
+version and search language match). Safe to run on every startup or upgrade.
+
+Specify `optimize` to optimize the index. This command is regularly invoked by the
 task scheduler.
+
+!!! note
+
+    The `optimize` subcommand is deprecated and is now a no-op. Tantivy manages
+    segment merging automatically; no manual optimization step is needed.
+
+!!! note
+
+    **Docker users:** On every startup, the container runs
+    `document_index reindex --if-needed` automatically. Schema changes, language
+    changes, and missing indexes are all detected and rebuilt before the webserver
+    starts. No manual step is required.
+
+    **Bare metal users:** Run the following command after each upgrade (and after
+    changing `PAPERLESS_SEARCH_LANGUAGE`). It is a no-op if the index is already
+    up to date:
+
+    ```shell-session
+    cd src
+    python3 manage.py document_index reindex --if-needed
+    ```
+
+### Clearing the database read cache
+
+If the database read cache is enabled, **you must run this command** after making any changes to the database outside the application context.
+This includes operations such as restoring a database backup or executing SQL statements like UPDATE, INSERT, DELETE, ALTER, CREATE, or DROP.
+
+Failing to invalidate the cache after such modifications can lead to stale data being served from the cache, and **may cause data corruption** or inconsistent behavior in the application.
+
+Use the following management command to clear the cache:
+
+```
+python3 manage.py invalidate_cachalot
+```
+
+!!! info
+The database read cache is based on Django-Cachalot. You can refer to their [documentation](https://django-cachalot.readthedocs.io/en/latest/quickstart.html#manage-py-command).
 
 ### Managing filenames {#renamer}
 
@@ -488,19 +543,19 @@ collection for issues.
 
 The issues detected by the sanity checker are as follows:
 
--   Missing original files.
--   Missing archive files.
--   Inaccessible original files due to improper permissions.
--   Inaccessible archive files due to improper permissions.
--   Corrupted original documents by comparing their checksum against
-    what is stored in the database.
--   Corrupted archive documents by comparing their checksum against what
-    is stored in the database.
--   Missing thumbnails.
--   Inaccessible thumbnails due to improper permissions.
--   Documents without any content (warning).
--   Orphaned files in the media directory (warning). These are files
-    that are not referenced by any document in paperless.
+- Missing original files.
+- Missing archive files.
+- Inaccessible original files due to improper permissions.
+- Inaccessible archive files due to improper permissions.
+- Corrupted original documents by comparing their checksum against
+  what is stored in the database.
+- Corrupted archive documents by comparing their checksum against what
+  is stored in the database.
+- Missing thumbnails.
+- Inaccessible thumbnails due to improper permissions.
+- Documents without any content (warning).
+- Orphaned files in the media directory (warning). These are files
+  that are not referenced by any document in paperless.
 
 ```
 document_sanity_checker
@@ -563,39 +618,9 @@ document.
     documents, such as encrypted PDF documents. The archiver will skip over
     these documents each time it sees them.
 
-### Managing encryption {#encryption}
-
-!!! warning
-
-    Encryption was removed in [paperless-ng 0.9](changelog.md#paperless-ng-090)
-    because it did not really provide any additional security, the passphrase
-    was stored in a configuration file on the same system as the documents.
-    Furthermore, the entire text content of the documents is stored plain in
-    the database, even if your documents are encrypted. Filenames are not
-    encrypted as well. Finally, the web server provides transparent access to
-    your encrypted documents.
-
-    Consider running paperless on an encrypted filesystem instead, which
-    will then at least provide security against physical hardware theft.
-
-#### Enabling encryption
-
-Enabling encryption is no longer supported.
-
-#### Disabling encryption
-
-Basic usage to disable encryption of your document store:
-
-(Note: If `PAPERLESS_PASSPHRASE` isn't set already, you need to specify
-it here)
-
-```
-decrypt_documents [--passphrase SECR3TP4SSPHRA$E]
-```
-
 ### Detecting duplicates {#fuzzy_duplicate}
 
-Paperless already catches and prevents upload of exactly matching documents,
+Paperless-ngx already catches and warns of exactly matching documents,
 however a new scan of an existing document may not produce an exact bit for bit
 duplicate. But the content should be exact or close, allowing detection.
 

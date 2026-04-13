@@ -22,7 +22,7 @@ class DocumentMetadataOverrides:
     document_type_id: int | None = None
     tag_ids: list[int] | None = None
     storage_path_id: int | None = None
-    created: datetime.datetime | None = None
+    created: datetime.date | None = None
     asn: int | None = None
     owner_id: int | None = None
     view_users: list[int] | None = None
@@ -30,6 +30,9 @@ class DocumentMetadataOverrides:
     change_users: list[int] | None = None
     change_groups: list[int] | None = None
     custom_fields: dict | None = None
+    skip_asn_if_exists: bool = False
+    version_label: str | None = None
+    actor_id: int | None = None
 
     def update(self, other: "DocumentMetadataOverrides") -> "DocumentMetadataOverrides":
         """
@@ -49,6 +52,12 @@ class DocumentMetadataOverrides:
             self.storage_path_id = other.storage_path_id
         if other.owner_id is not None:
             self.owner_id = other.owner_id
+        if other.actor_id is not None:
+            self.actor_id = other.actor_id
+        if other.skip_asn_if_exists:
+            self.skip_asn_if_exists = True
+        if other.version_label is not None:
+            self.version_label = other.version_label
 
         # merge
         if self.tag_ids is None:
@@ -100,6 +109,7 @@ class DocumentMetadataOverrides:
         overrides.storage_path_id = doc.storage_path.id if doc.storage_path else None
         overrides.owner_id = doc.owner.id if doc.owner else None
         overrides.tag_ids = list(doc.tags.values_list("id", flat=True))
+        overrides.created = doc.created
 
         overrides.view_users = list(
             get_users_with_perms(
@@ -114,7 +124,7 @@ class DocumentMetadataOverrides:
             ).values_list("id", flat=True),
         )
         overrides.custom_fields = {
-            custom_field.id: custom_field.value
+            custom_field.field.id: custom_field.value
             for custom_field in doc.custom_fields.all()
         }
 
@@ -156,10 +166,12 @@ class ConsumableDocument:
 
     source: DocumentSource
     original_file: Path
+    root_document_id: int | None = None
+    original_path: Path | None = None
     mailrule_id: int | None = None
     mime_type: str = dataclasses.field(init=False, default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """
         After a dataclass is initialized, this is called to finalize some data
         1. Make sure the original path is an absolute, fully qualified path

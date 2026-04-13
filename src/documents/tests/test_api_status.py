@@ -1,26 +1,57 @@
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from unittest import mock
 
 from celery import states
+from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from documents.models import PaperlessTask
+from documents.permissions import has_system_status_permission
 from paperless import version
 
 
 class TestSystemStatus(APITestCase):
     ENDPOINT = "/api/status/"
 
-    def setUp(self):
+    def setUp(self) -> None:
+        super().setUp()
         self.user = User.objects.create_superuser(
             username="temp_admin",
         )
+        self.tmp_dir = Path(tempfile.mkdtemp())
+        self.override = override_settings(MEDIA_ROOT=self.tmp_dir)
+        self.override.enable()
 
-    def test_system_status(self):
+        # Mock slow network calls so tests don't block on real Redis/Celery timeouts.
+        # Individual tests that care about specific behaviour override these with
+        # their own @mock.patch decorators (which take precedence).
+        redis_patcher = mock.patch(
+            "redis.Redis.execute_command",
+            side_effect=Exception("Redis not available"),
+        )
+        self.mock_redis = redis_patcher.start()
+        self.addCleanup(redis_patcher.stop)
+
+        celery_patcher = mock.patch(
+            "celery.app.control.Inspect.ping",
+            side_effect=Exception("Celery not available"),
+        )
+        self.mock_celery_ping = celery_patcher.start()
+        self.addCleanup(celery_patcher.stop)
+
+    def tearDown(self) -> None:
+        super().tearDown()
+
+        self.override.disable()
+        shutil.rmtree(self.tmp_dir)
+
+    def test_system_status(self) -> None:
         """
         GIVEN:
             - A user is logged in
@@ -46,7 +77,7 @@ class TestSystemStatus(APITestCase):
         self.assertEqual(response.data["tasks"]["redis_status"], "ERROR")
         self.assertIsNotNone(response.data["tasks"]["redis_error"])
 
-    def test_system_status_insufficient_permissions(self):
+    def test_system_status_insufficient_permissions(self) -> None:
         """
         GIVEN:
             - A user is not logged in or does not have permissions
@@ -57,12 +88,35 @@ class TestSystemStatus(APITestCase):
         """
         response = self.client.get(self.ENDPOINT)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response["WWW-Authenticate"], "Token")
         normal_user = User.objects.create_user(username="normal_user")
         self.client.force_login(normal_user)
         response = self.client.get(self.ENDPOINT)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        # test the permission helper function directly for good measure
+        self.assertFalse(has_system_status_permission(None))
 
-    def test_system_status_container_detection(self):
+    def test_system_status_with_system_status_permission(self) -> None:
+        response = self.client.get(self.ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        user = User.objects.create_user(username="status_user")
+        user.user_permissions.add(
+            Permission.objects.get(codename="view_system_status"),
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(self.ENDPOINT)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_system_status_with_bad_basic_auth_challenges(self) -> None:
+        self.client.credentials(HTTP_AUTHORIZATION="Basic invalid")
+        response = self.client.get(self.ENDPOINT)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response["WWW-Authenticate"], 'Basic realm="api"')
+
+    def test_system_status_container_detection(self) -> None:
         """
         GIVEN:
             - The application is running in a containerized environment
@@ -72,16 +126,20 @@ class TestSystemStatus(APITestCase):
             - The response contains the correct install type
         """
         self.client.force_login(self.user)
-        os.environ["PNGX_CONTAINERIZED"] = "1"
-        response = self.client.get(self.ENDPOINT)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["install_type"], "docker")
-        os.environ["KUBERNETES_SERVICE_HOST"] = "http://localhost"
-        response = self.client.get(self.ENDPOINT)
-        self.assertEqual(response.data["install_type"], "kubernetes")
+        with mock.patch.dict(os.environ, {"PNGX_CONTAINERIZED": "1"}, clear=False):
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["install_type"], "docker")
+        with mock.patch.dict(
+            os.environ,
+            {"PNGX_CONTAINERIZED": "1", "KUBERNETES_SERVICE_HOST": "http://localhost"},
+            clear=False,
+        ):
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.data["install_type"], "kubernetes")
 
     @mock.patch("redis.Redis.execute_command")
-    def test_system_status_redis_ping(self, mock_ping):
+    def test_system_status_redis_ping(self, mock_ping) -> None:
         """
         GIVEN:
             - Redies ping returns True
@@ -96,7 +154,7 @@ class TestSystemStatus(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["tasks"]["redis_status"], "OK")
 
-    def test_system_status_redis_no_credentials(self):
+    def test_system_status_redis_no_credentials(self) -> None:
         """
         GIVEN:
             - Redis URL with credentials
@@ -116,7 +174,7 @@ class TestSystemStatus(APITestCase):
                 "redis://localhost:6379",
             )
 
-    def test_system_status_redis_socket(self):
+    def test_system_status_redis_socket(self) -> None:
         """
         GIVEN:
             - Redis URL is socket
@@ -136,7 +194,7 @@ class TestSystemStatus(APITestCase):
             )
 
     @mock.patch("celery.app.control.Inspect.ping")
-    def test_system_status_celery_ping(self, mock_ping):
+    def test_system_status_celery_ping(self, mock_ping) -> None:
         """
         GIVEN:
             - Celery ping returns pong
@@ -151,45 +209,47 @@ class TestSystemStatus(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["tasks"]["celery_status"], "OK")
 
-    @override_settings(INDEX_DIR=Path("/tmp/index"))
-    @mock.patch("whoosh.index.FileIndex.last_modified")
-    def test_system_status_index_ok(self, mock_last_modified):
+    @mock.patch("documents.search.get_backend")
+    def test_system_status_index_ok(self, mock_get_backend) -> None:
         """
         GIVEN:
-            - The index last modified time is set
+            - The index is accessible
         WHEN:
             - The user requests the system status
         THEN:
             - The response contains the correct index status
         """
-        mock_last_modified.return_value = 1707839087
-        self.client.force_login(self.user)
-        response = self.client.get(self.ENDPOINT)
+        mock_get_backend.return_value = mock.MagicMock()
+        # Use the temp dir created in setUp (self.tmp_dir) as a real INDEX_DIR
+        # with a real file so the mtime lookup works
+        sentinel = self.tmp_dir / "sentinel.txt"
+        sentinel.write_text("ok")
+        with self.settings(INDEX_DIR=self.tmp_dir):
+            self.client.force_login(self.user)
+            response = self.client.get(self.ENDPOINT)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["tasks"]["index_status"], "OK")
         self.assertIsNotNone(response.data["tasks"]["index_last_modified"])
 
-    @override_settings(INDEX_DIR=Path("/tmp/index/"))
-    @mock.patch("documents.index.open_index", autospec=True)
-    def test_system_status_index_error(self, mock_open_index):
+    @mock.patch("documents.search.get_backend")
+    def test_system_status_index_error(self, mock_get_backend) -> None:
         """
         GIVEN:
-            - The index is not found
+            - The index cannot be opened
         WHEN:
             - The user requests the system status
         THEN:
             - The response contains the correct index status
         """
-        mock_open_index.return_value = None
-        mock_open_index.side_effect = Exception("Index error")
+        mock_get_backend.side_effect = Exception("Index error")
         self.client.force_login(self.user)
         response = self.client.get(self.ENDPOINT)
-        mock_open_index.assert_called_once()
+        mock_get_backend.assert_called_once()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["tasks"]["index_status"], "ERROR")
         self.assertIsNotNone(response.data["tasks"]["index_error"])
 
-    def test_system_status_classifier_ok(self):
+    def test_system_status_classifier_ok(self) -> None:
         """
         GIVEN:
             - The classifier is found
@@ -209,7 +269,7 @@ class TestSystemStatus(APITestCase):
         self.assertEqual(response.data["tasks"]["classifier_status"], "OK")
         self.assertIsNone(response.data["tasks"]["classifier_error"])
 
-    def test_system_status_classifier_warning(self):
+    def test_system_status_classifier_warning(self) -> None:
         """
         GIVEN:
             - No classifier task is found
@@ -226,7 +286,7 @@ class TestSystemStatus(APITestCase):
             "WARNING",
         )
 
-    def test_system_status_classifier_error(self):
+    def test_system_status_classifier_error(self) -> None:
         """
         GIVEN:
             - An error occurred while loading the classifier
@@ -250,7 +310,7 @@ class TestSystemStatus(APITestCase):
         )
         self.assertIsNotNone(response.data["tasks"]["classifier_error"])
 
-    def test_system_status_sanity_check_ok(self):
+    def test_system_status_sanity_check_ok(self) -> None:
         """
         GIVEN:
             - The sanity check is successful
@@ -270,7 +330,7 @@ class TestSystemStatus(APITestCase):
         self.assertEqual(response.data["tasks"]["sanity_check_status"], "OK")
         self.assertIsNone(response.data["tasks"]["sanity_check_error"])
 
-    def test_system_status_sanity_check_warning(self):
+    def test_system_status_sanity_check_warning(self) -> None:
         """
         GIVEN:
             - No sanity check task is found
@@ -287,7 +347,7 @@ class TestSystemStatus(APITestCase):
             "WARNING",
         )
 
-    def test_system_status_sanity_check_error(self):
+    def test_system_status_sanity_check_error(self) -> None:
         """
         GIVEN:
             - The sanity check failed
@@ -310,3 +370,69 @@ class TestSystemStatus(APITestCase):
             "ERROR",
         )
         self.assertIsNotNone(response.data["tasks"]["sanity_check_error"])
+
+    def test_system_status_ai_disabled(self) -> None:
+        """
+        GIVEN:
+            - The AI feature is disabled
+        WHEN:
+            - The user requests the system status
+        THEN:
+            - The response contains the correct AI status
+        """
+        with override_settings(AI_ENABLED=False):
+            self.client.force_login(self.user)
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["tasks"]["llmindex_status"], "DISABLED")
+            self.assertIsNone(response.data["tasks"]["llmindex_error"])
+
+    def test_system_status_ai_enabled(self) -> None:
+        """
+        GIVEN:
+            - The AI index feature is enabled, but no tasks are found
+            - The AI index feature is enabled and a task is found
+        WHEN:
+            - The user requests the system status
+        THEN:
+            - The response contains the correct AI status
+        """
+        with override_settings(AI_ENABLED=True, LLM_EMBEDDING_BACKEND="openai"):
+            self.client.force_login(self.user)
+
+            # No tasks found
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["tasks"]["llmindex_status"], "WARNING")
+
+            PaperlessTask.objects.create(
+                type=PaperlessTask.TaskType.SCHEDULED_TASK,
+                status=states.SUCCESS,
+                task_name=PaperlessTask.TaskName.LLMINDEX_UPDATE,
+            )
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["tasks"]["llmindex_status"], "OK")
+            self.assertIsNone(response.data["tasks"]["llmindex_error"])
+
+    def test_system_status_ai_error(self) -> None:
+        """
+        GIVEN:
+            - The AI index feature is enabled and a task is found with an error
+        WHEN:
+            - The user requests the system status
+        THEN:
+            - The response contains the correct AI status
+        """
+        with override_settings(AI_ENABLED=True, LLM_EMBEDDING_BACKEND="openai"):
+            PaperlessTask.objects.create(
+                type=PaperlessTask.TaskType.SCHEDULED_TASK,
+                status=states.FAILURE,
+                task_name=PaperlessTask.TaskName.LLMINDEX_UPDATE,
+                result="AI index update failed",
+            )
+            self.client.force_login(self.user)
+            response = self.client.get(self.ENDPOINT)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["tasks"]["llmindex_status"], "ERROR")
+            self.assertIsNotNone(response.data["tasks"]["llmindex_error"])

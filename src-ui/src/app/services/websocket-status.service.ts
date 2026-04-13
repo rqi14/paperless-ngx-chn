@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core'
+import { Injectable, inject } from '@angular/core'
 import { Subject } from 'rxjs'
 import { environment } from 'src/environments/environment'
 import { User } from '../data/user'
+import { WebsocketDocumentUpdatedMessage } from '../data/websocket-document-updated-message'
 import { WebsocketDocumentsDeletedMessage } from '../data/websocket-documents-deleted-message'
 import { WebsocketProgressMessage } from '../data/websocket-progress-message'
 import { SettingsService } from './settings.service'
@@ -9,6 +10,7 @@ import { SettingsService } from './settings.service'
 export enum WebsocketStatusType {
   STATUS_UPDATE = 'status_update',
   DOCUMENTS_DELETED = 'documents_deleted',
+  DOCUMENT_UPDATED = 'document_updated',
 }
 
 // see ProgressStatusOptions in src/documents/plugins/helpers.py
@@ -89,20 +91,31 @@ export class FileStatus {
   }
 }
 
+export enum UploadState {
+  Idle = 'idle',
+  Uploading = 'uploading',
+  Processing = 'processing',
+  Failed = 'failed',
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class WebsocketStatusService {
-  constructor(private settingsService: SettingsService) {}
+  private readonly settingsService = inject(SettingsService)
 
   private statusWebSocket: WebSocket
 
   private consumerStatus: FileStatus[] = []
 
-  private documentDetectedSubject = new Subject<FileStatus>()
-  private documentConsumptionFinishedSubject = new Subject<FileStatus>()
-  private documentConsumptionFailedSubject = new Subject<FileStatus>()
-  private documentDeletedSubject = new Subject<boolean>()
+  private readonly documentDetectedSubject = new Subject<FileStatus>()
+  private readonly documentConsumptionFinishedSubject =
+    new Subject<FileStatus>()
+  private readonly documentConsumptionFailedSubject = new Subject<FileStatus>()
+  private readonly documentDeletedSubject = new Subject<boolean>()
+  private readonly documentUpdatedSubject =
+    new Subject<WebsocketDocumentUpdatedMessage>()
+  private readonly connectionStatusSubject = new Subject<boolean>()
 
   private get(taskId: string, filename?: string) {
     let status =
@@ -153,18 +166,36 @@ export class WebsocketStatusService {
     this.statusWebSocket = new WebSocket(
       `${environment.webSocketProtocol}//${environment.webSocketHost}${environment.webSocketBaseUrl}status/`
     )
+    this.statusWebSocket.onopen = () => {
+      this.connectionStatusSubject.next(true)
+    }
+    this.statusWebSocket.onclose = () => {
+      this.connectionStatusSubject.next(false)
+    }
+    this.statusWebSocket.onerror = () => {
+      this.connectionStatusSubject.next(false)
+    }
     this.statusWebSocket.onmessage = (ev: MessageEvent) => {
       const {
         type,
         data: messageData,
       }: {
         type: WebsocketStatusType
-        data: WebsocketProgressMessage | WebsocketDocumentsDeletedMessage
+        data:
+          | WebsocketProgressMessage
+          | WebsocketDocumentsDeletedMessage
+          | WebsocketDocumentUpdatedMessage
       } = JSON.parse(ev.data)
 
       switch (type) {
         case WebsocketStatusType.DOCUMENTS_DELETED:
           this.documentDeletedSubject.next(true)
+          break
+
+        case WebsocketStatusType.DOCUMENT_UPDATED:
+          this.handleDocumentUpdated(
+            messageData as WebsocketDocumentUpdatedMessage
+          )
           break
 
         case WebsocketStatusType.STATUS_UPDATE:
@@ -174,7 +205,11 @@ export class WebsocketStatusService {
     }
   }
 
-  private canViewMessage(messageData: WebsocketProgressMessage): boolean {
+  private canViewMessage(messageData: {
+    owner_id?: number
+    users_can_view?: number[]
+    groups_can_view?: number[]
+  }): boolean {
     // see paperless.consumers.StatusConsumer._can_view
     const user: User = this.settingsService.currentUser
     return (
@@ -234,6 +269,15 @@ export class WebsocketStatusService {
     }
   }
 
+  handleDocumentUpdated(messageData: WebsocketDocumentUpdatedMessage) {
+    // fallback if backend didn't restrict message
+    if (!this.canViewMessage(messageData)) {
+      return
+    }
+
+    this.documentUpdatedSubject.next(messageData)
+  }
+
   fail(status: FileStatus, message: string) {
     status.message = message
     status.phase = FileStatusPhase.FAILED
@@ -285,5 +329,17 @@ export class WebsocketStatusService {
 
   onDocumentDeleted() {
     return this.documentDeletedSubject
+  }
+
+  onDocumentUpdated() {
+    return this.documentUpdatedSubject
+  }
+
+  onConnectionStatus() {
+    return this.connectionStatusSubject.asObservable()
+  }
+
+  isConnected(): boolean {
+    return this.statusWebSocket?.readyState === WebSocket.OPEN
   }
 }

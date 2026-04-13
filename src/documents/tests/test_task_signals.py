@@ -2,12 +2,15 @@ import uuid
 from unittest import mock
 
 import celery
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from documents.data_models import ConsumableDocument
 from documents.data_models import DocumentMetadataOverrides
 from documents.data_models import DocumentSource
+from documents.models import Document
 from documents.models import PaperlessTask
+from documents.signals.handlers import add_to_index
 from documents.signals.handlers import before_task_publish_handler
 from documents.signals.handlers import task_failure_handler
 from documents.signals.handlers import task_postrun_handler
@@ -18,7 +21,16 @@ from documents.tests.utils import DirectoriesMixin
 
 @mock.patch("documents.consumer.magic.from_file", fake_magic_from_file)
 class TestTaskSignalHandler(DirectoriesMixin, TestCase):
-    def util_call_before_task_publish_handler(self, headers_to_use, body_to_use):
+    @classmethod
+    def setUpTestData(cls) -> None:
+        super().setUpTestData()
+        cls.user = get_user_model().objects.create_user(username="testuser")
+
+    def util_call_before_task_publish_handler(
+        self,
+        headers_to_use,
+        body_to_use,
+    ) -> None:
         """
         Simple utility to call the pre-run handle and ensure it created a single task
         instance
@@ -29,7 +41,7 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
 
         self.assertEqual(PaperlessTask.objects.all().count(), 1)
 
-    def test_before_task_publish_handler_consume(self):
+    def test_before_task_publish_handler_consume(self) -> None:
         """
         GIVEN:
             - A celery task is started via the consume folder
@@ -51,7 +63,7 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
                 ),
                 DocumentMetadataOverrides(
                     title="Hello world",
-                    owner_id=1,
+                    owner_id=self.user.id,
                 ),
             ),
             # kwargs
@@ -69,10 +81,10 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
         self.assertEqual(headers["id"], task.task_id)
         self.assertEqual("hello-999.pdf", task.task_file_name)
         self.assertEqual(PaperlessTask.TaskName.CONSUME_FILE, task.task_name)
-        self.assertEqual(1, task.owner_id)
+        self.assertEqual(self.user.id, task.owner_id)
         self.assertEqual(celery.states.PENDING, task.status)
 
-    def test_task_prerun_handler(self):
+    def test_task_prerun_handler(self) -> None:
         """
         GIVEN:
             - A celery task is started via the consume folder
@@ -112,7 +124,7 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
 
         self.assertEqual(celery.states.STARTED, task.status)
 
-    def test_task_postrun_handler(self):
+    def test_task_postrun_handler(self) -> None:
         """
         GIVEN:
             - A celery task is started via the consume folder
@@ -154,7 +166,7 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
 
         self.assertEqual(celery.states.SUCCESS, task.status)
 
-    def test_task_failure_handler(self):
+    def test_task_failure_handler(self) -> None:
         """
         GIVEN:
             - A celery task is started via the consume folder
@@ -194,3 +206,45 @@ class TestTaskSignalHandler(DirectoriesMixin, TestCase):
         task = PaperlessTask.objects.get()
 
         self.assertEqual(celery.states.FAILURE, task.status)
+
+    def test_add_to_index_indexes_root_once_for_root_documents(self) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+        )
+
+        with mock.patch("documents.search.get_backend") as mock_get_backend:
+            mock_backend = mock.MagicMock()
+            mock_get_backend.return_value = mock_backend
+            add_to_index(sender=None, document=root)
+
+        mock_backend.add_or_update.assert_called_once_with(root, effective_content="")
+
+    def test_add_to_index_reindexes_root_for_version_documents(self) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+        )
+        version = Document.objects.create(
+            title="version",
+            checksum="version",
+            mime_type="application/pdf",
+            root_document=root,
+        )
+
+        with mock.patch("documents.search.get_backend") as mock_get_backend:
+            mock_backend = mock.MagicMock()
+            mock_get_backend.return_value = mock_backend
+            add_to_index(sender=None, document=version)
+
+        self.assertEqual(mock_backend.add_or_update.call_count, 1)
+        self.assertEqual(
+            mock_backend.add_or_update.call_args_list[0].args[0].id,
+            version.id,
+        )
+        self.assertEqual(
+            mock_backend.add_or_update.call_args_list[0].kwargs,
+            {"effective_content": version.content},
+        )

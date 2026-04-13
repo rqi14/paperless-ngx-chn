@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from allauth.account import views as allauth_account_views
 from allauth.mfa.base import views as allauth_mfa_views
 from allauth.socialaccount import views as allauth_social_account_views
@@ -13,7 +11,6 @@ from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import RedirectView
-from django.views.static import serve
 from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
@@ -21,18 +18,26 @@ from rest_framework.routers import DefaultRouter
 from documents.views import BulkDownloadView
 from documents.views import BulkEditObjectsView
 from documents.views import BulkEditView
+from documents.views import ChatStreamingView
 from documents.views import CorrespondentViewSet
 from documents.views import CustomFieldViewSet
+from documents.views import DeleteDocumentsView
 from documents.views import DocumentTypeViewSet
+from documents.views import EditPdfDocumentsView
 from documents.views import GlobalSearchView
 from documents.views import IndexView
 from documents.views import LogViewSet
+from documents.views import MergeDocumentsView
 from documents.views import PostDocumentView
 from documents.views import RemoteVersionView
+from documents.views import RemovePasswordDocumentsView
+from documents.views import ReprocessDocumentsView
+from documents.views import RotateDocumentsView
 from documents.views import SavedViewViewSet
 from documents.views import SearchAutoCompleteView
 from documents.views import SelectionDataView
 from documents.views import SharedLinkView
+from documents.views import ShareLinkBundleViewSet
 from documents.views import ShareLinkViewSet
 from documents.views import StatisticsView
 from documents.views import StoragePathViewSet
@@ -45,6 +50,7 @@ from documents.views import UnifiedSearchViewSet
 from documents.views import WorkflowActionViewSet
 from documents.views import WorkflowTriggerViewSet
 from documents.views import WorkflowViewSet
+from documents.views import serve_logo
 from paperless.consumers import StatusConsumer
 from paperless.views import ApplicationConfigurationViewSet
 from paperless.views import DisconnectSocialAccountView
@@ -59,6 +65,7 @@ from paperless.views import UserViewSet
 from paperless_mail.views import MailAccountViewSet
 from paperless_mail.views import MailRuleViewSet
 from paperless_mail.views import OauthCallbackView
+from paperless_mail.views import ProcessedMailViewSet
 
 api_router = DefaultRouter()
 api_router.register(r"correspondents", CorrespondentViewSet)
@@ -73,12 +80,14 @@ api_router.register(r"users", UserViewSet, basename="users")
 api_router.register(r"groups", GroupViewSet, basename="groups")
 api_router.register(r"mail_accounts", MailAccountViewSet)
 api_router.register(r"mail_rules", MailRuleViewSet)
+api_router.register(r"share_link_bundles", ShareLinkBundleViewSet)
 api_router.register(r"share_links", ShareLinkViewSet)
 api_router.register(r"workflow_triggers", WorkflowTriggerViewSet)
 api_router.register(r"workflow_actions", WorkflowActionViewSet)
 api_router.register(r"workflows", WorkflowViewSet)
 api_router.register(r"custom_fields", CustomFieldViewSet)
 api_router.register(r"config", ApplicationConfigurationViewSet)
+api_router.register(r"processed_mail", ProcessedMailViewSet)
 
 
 urlpatterns = [
@@ -130,6 +139,36 @@ urlpatterns = [
                                 name="bulk_edit",
                             ),
                             re_path(
+                                "^delete/",
+                                DeleteDocumentsView.as_view(),
+                                name="delete_documents",
+                            ),
+                            re_path(
+                                "^reprocess/",
+                                ReprocessDocumentsView.as_view(),
+                                name="reprocess_documents",
+                            ),
+                            re_path(
+                                "^rotate/",
+                                RotateDocumentsView.as_view(),
+                                name="rotate_documents",
+                            ),
+                            re_path(
+                                "^merge/",
+                                MergeDocumentsView.as_view(),
+                                name="merge_documents",
+                            ),
+                            re_path(
+                                "^edit_pdf/",
+                                EditPdfDocumentsView.as_view(),
+                                name="edit_pdf_documents",
+                            ),
+                            re_path(
+                                "^remove_password/",
+                                RemovePasswordDocumentsView.as_view(),
+                                name="remove_password_documents",
+                            ),
+                            re_path(
                                 "^bulk_download/",
                                 BulkDownloadView.as_view(),
                                 name="bulk_download",
@@ -138,6 +177,11 @@ urlpatterns = [
                                 "^selection_data/",
                                 SelectionDataView.as_view(),
                                 name="selection_data",
+                            ),
+                            re_path(
+                                "^chat/",
+                                ChatStreamingView.as_view(),
+                                name="chat_streaming_view",
                             ),
                         ],
                     ),
@@ -222,6 +266,7 @@ urlpatterns = [
                         ],
                     ),
                 ),
+                re_path("^auth/headless/", include("allauth.headless.urls")),
                 re_path(
                     "^$",  # Redirect to the API swagger view
                     RedirectView.as_view(url="schema/view/"),
@@ -267,11 +312,7 @@ urlpatterns = [
         # TODO: with localization, this is even worse! :/
     ),
     # App logo
-    re_path(
-        r"^logo(?P<path>.*)$",
-        serve,
-        kwargs={"document_root": Path(settings.MEDIA_ROOT) / "logo"},
-    ),
+    re_path(r"^logo(?:/(?P<filename>.+))?/?$", serve_logo, name="app_logo"),
     # allauth
     path(
         "accounts/",
@@ -363,7 +404,7 @@ urlpatterns = [
 
 
 websocket_urlpatterns = [
-    path(settings.BASE_URL.lstrip("/") + "ws/status/", StatusConsumer.as_asgi()),
+    path("ws/status/", StatusConsumer.as_asgi()),
 ]
 
 # Text in each page's <h1> (and above login form).

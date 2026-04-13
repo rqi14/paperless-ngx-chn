@@ -16,6 +16,7 @@ import {
 } from '@ng-bootstrap/ng-bootstrap'
 import { NgSelectModule } from '@ng-select/ng-select'
 import { NgxBootstrapIconsModule, allIcons } from 'ngx-bootstrap-icons'
+import { provideUiTour } from 'ngx-ui-tour-ng-bootstrap'
 import { of, throwError } from 'rxjs'
 import { routes } from 'src/app/app-routing.module'
 import {
@@ -28,13 +29,18 @@ import { IfOwnerDirective } from 'src/app/directives/if-owner.directive'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { PermissionsGuard } from 'src/app/guards/permissions.guard'
 import { CustomDatePipe } from 'src/app/pipes/custom-date.pipe'
-import { SafeHtmlPipe } from 'src/app/pipes/safehtml.pipe'
-import { PermissionsService } from 'src/app/services/permissions.service'
+import {
+  PermissionAction,
+  PermissionType,
+  PermissionsService,
+} from 'src/app/services/permissions.service'
 import { GroupService } from 'src/app/services/rest/group.service'
+import { SavedViewService } from 'src/app/services/rest/saved-view.service'
 import { UserService } from 'src/app/services/rest/user.service'
 import { SettingsService } from 'src/app/services/settings.service'
 import { SystemStatusService } from 'src/app/services/system-status.service'
 import { Toast, ToastService } from 'src/app/services/toast.service'
+import * as navUtils from 'src/app/utils/navigation'
 import { ConfirmButtonComponent } from '../../common/confirm-button/confirm-button.component'
 import { ConfirmDialogComponent } from '../../common/confirm-dialog/confirm-dialog.component'
 import { CheckComponent } from '../../common/input/check/check.component'
@@ -59,6 +65,43 @@ const groups = [
   { id: 2, name: 'group2' },
 ]
 
+const status: SystemStatus = {
+  pngx_version: '2.4.3',
+  server_os: 'macOS-14.1.1-arm64-arm-64bit',
+  install_type: InstallType.BareMetal,
+  storage: { total: 494384795648, available: 13573525504 },
+  database: {
+    type: 'sqlite',
+    url: '/paperless-ngx/data/db.sqlite3',
+    status: SystemStatusItemStatus.ERROR,
+    error: null,
+    migration_status: {
+      latest_migration: 'socialaccount.0006_alter_socialaccount_extra_data',
+      unapplied_migrations: [],
+    },
+  },
+  tasks: {
+    redis_url: 'redis://localhost:6379',
+    redis_status: SystemStatusItemStatus.ERROR,
+    redis_error: 'Error 61 connecting to localhost:6379. Connection refused.',
+    celery_status: SystemStatusItemStatus.ERROR,
+    celery_url: 'celery@localhost',
+    celery_error: 'Error connecting to celery@localhost',
+    index_status: SystemStatusItemStatus.OK,
+    index_last_modified: new Date().toISOString(),
+    index_error: null,
+    classifier_status: SystemStatusItemStatus.OK,
+    classifier_last_trained: new Date().toISOString(),
+    classifier_error: null,
+    sanity_check_status: SystemStatusItemStatus.ERROR,
+    sanity_check_last_run: new Date().toISOString(),
+    sanity_check_error: 'Error running sanity check.',
+    llmindex_status: SystemStatusItemStatus.DISABLED,
+    llmindex_last_modified: new Date().toISOString(),
+    llmindex_error: null,
+  },
+}
+
 describe('SettingsComponent', () => {
   let component: SettingsComponent
   let fixture: ComponentFixture<SettingsComponent>
@@ -72,6 +115,7 @@ describe('SettingsComponent', () => {
   let groupService: GroupService
   let modalService: NgbModal
   let systemStatusService: SystemStatusService
+  let savedViewsService: SavedViewService
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
@@ -92,7 +136,6 @@ describe('SettingsComponent', () => {
         ConfirmDialogComponent,
         CheckComponent,
         ColorComponent,
-        SafeHtmlPipe,
         SelectComponent,
         TextComponent,
         NumberComponent,
@@ -109,6 +152,7 @@ describe('SettingsComponent', () => {
         PermissionsGuard,
         provideHttpClient(withInterceptorsFromDi()),
         provideHttpClientTesting(),
+        provideUiTour(),
       ],
     }).compileComponents()
 
@@ -122,6 +166,7 @@ describe('SettingsComponent', () => {
     permissionsService = TestBed.inject(PermissionsService)
     modalService = TestBed.inject(NgbModal)
     systemStatusService = TestBed.inject(SystemStatusService)
+    savedViewsService = TestBed.inject(SavedViewService)
     jest.spyOn(permissionsService, 'currentUserCan').mockReturnValue(true)
     jest
       .spyOn(permissionsService, 'currentUserHasObjectPermissions')
@@ -162,9 +207,9 @@ describe('SettingsComponent', () => {
     const navigateSpy = jest.spyOn(router, 'navigate')
     const tabButtons = fixture.debugElement.queryAll(By.directive(NgbNavLink))
     tabButtons[1].nativeElement.dispatchEvent(new MouseEvent('click'))
-    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'permissions'])
+    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'documents'])
     tabButtons[2].nativeElement.dispatchEvent(new MouseEvent('click'))
-    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'notifications'])
+    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'permissions'])
 
     const initSpy = jest.spyOn(component, 'initialize')
     component.isDirty = true // mock dirty
@@ -174,8 +219,8 @@ describe('SettingsComponent', () => {
     expect(initSpy).not.toHaveBeenCalled()
 
     navigateSpy.mockResolvedValueOnce(true) // nav accepted even though dirty
-    tabButtons[1].nativeElement.dispatchEvent(new MouseEvent('click'))
-    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'notifications'])
+    tabButtons[2].nativeElement.dispatchEvent(new MouseEvent('click'))
+    expect(navigateSpy).toHaveBeenCalledWith(['settings', 'permissions'])
     expect(initSpy).toHaveBeenCalled()
   })
 
@@ -187,7 +232,7 @@ describe('SettingsComponent', () => {
     activatedRoute.snapshot.fragment = '#notifications'
     const scrollSpy = jest.spyOn(viewportScroller, 'scrollToAnchor')
     component.ngOnInit()
-    expect(component.activeNavID).toEqual(3) // Notifications
+    expect(component.activeNavID).toEqual(4) // Notifications
     component.ngAfterViewInit()
     expect(scrollSpy).toHaveBeenCalledWith('#notifications')
   })
@@ -212,7 +257,7 @@ describe('SettingsComponent', () => {
     expect(toastErrorSpy).toHaveBeenCalled()
     expect(storeSpy).toHaveBeenCalled()
     expect(appearanceSettingsSpy).not.toHaveBeenCalled()
-    expect(setSpy).toHaveBeenCalledTimes(29)
+    expect(setSpy).toHaveBeenCalledTimes(32)
 
     // succeed
     storeSpy.mockReturnValueOnce(of(true))
@@ -222,6 +267,9 @@ describe('SettingsComponent', () => {
   })
 
   it('should offer reload if settings changes require', () => {
+    const reloadSpy = jest
+      .spyOn(navUtils, 'locationReload')
+      .mockImplementation(() => {})
     completeSetup()
     let toast: Toast
     toastService.getToasts().subscribe((t) => (toast = t[0]))
@@ -238,6 +286,7 @@ describe('SettingsComponent', () => {
 
     expect(toast.actionName).toEqual('Reload now')
     toast.action()
+    expect(reloadSpy).toHaveBeenCalled()
   })
 
   it('should allow setting theme color, visually apply change immediately but not save', () => {
@@ -266,7 +315,7 @@ describe('SettingsComponent', () => {
       )
     completeSetup(userService)
     fixture.detectChanges()
-    expect(toastErrorSpy).toBeCalled()
+    expect(toastErrorSpy).toHaveBeenCalled()
   })
 
   it('should show errors on load if load groups failure', () => {
@@ -278,46 +327,18 @@ describe('SettingsComponent', () => {
       )
     completeSetup(groupService)
     fixture.detectChanges()
-    expect(toastErrorSpy).toBeCalled()
+    expect(toastErrorSpy).toHaveBeenCalled()
   })
 
   it('should load system status on initialize, show errors if needed', () => {
-    const status: SystemStatus = {
-      pngx_version: '2.4.3',
-      server_os: 'macOS-14.1.1-arm64-arm-64bit',
-      install_type: InstallType.BareMetal,
-      storage: { total: 494384795648, available: 13573525504 },
-      database: {
-        type: 'sqlite',
-        url: '/paperless-ngx/data/db.sqlite3',
-        status: SystemStatusItemStatus.ERROR,
-        error: null,
-        migration_status: {
-          latest_migration: 'socialaccount.0006_alter_socialaccount_extra_data',
-          unapplied_migrations: [],
-        },
-      },
-      tasks: {
-        redis_url: 'redis://localhost:6379',
-        redis_status: SystemStatusItemStatus.ERROR,
-        redis_error:
-          'Error 61 connecting to localhost:6379. Connection refused.',
-        celery_status: SystemStatusItemStatus.ERROR,
-        celery_url: 'celery@localhost',
-        celery_error: 'Error connecting to celery@localhost',
-        index_status: SystemStatusItemStatus.OK,
-        index_last_modified: new Date().toISOString(),
-        index_error: null,
-        classifier_status: SystemStatusItemStatus.OK,
-        classifier_last_trained: new Date().toISOString(),
-        classifier_error: null,
-        sanity_check_status: SystemStatusItemStatus.ERROR,
-        sanity_check_last_run: new Date().toISOString(),
-        sanity_check_error: 'Error running sanity check.',
-      },
-    }
     jest.spyOn(systemStatusService, 'get').mockReturnValue(of(status))
-    jest.spyOn(permissionsService, 'isAdmin').mockReturnValue(true)
+    jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation(
+        (action, type) =>
+          action === PermissionAction.View &&
+          type === PermissionType.SystemStatus
+      )
     completeSetup()
     expect(component['systemStatus']).toEqual(status) // private
     expect(component.systemStatusHasErrors).toBeTruthy()
@@ -332,6 +353,14 @@ describe('SettingsComponent', () => {
 
   it('should open system status dialog', () => {
     const modalOpenSpy = jest.spyOn(modalService, 'open')
+    jest.spyOn(systemStatusService, 'get').mockReturnValue(of(status))
+    jest
+      .spyOn(permissionsService, 'currentUserCan')
+      .mockImplementation(
+        (action, type) =>
+          action === PermissionAction.View &&
+          type === PermissionType.SystemStatus
+      )
     completeSetup()
     component.showSystemStatus()
     expect(modalOpenSpy).toHaveBeenCalledWith(SystemStatusDialogComponent, {
@@ -344,5 +373,33 @@ describe('SettingsComponent', () => {
     component.settingsForm.get('themeColor').setValue('#ff0000')
     component.reset()
     expect(component.settingsForm.get('themeColor').value).toEqual('')
+  })
+
+  it('should trigger maybeRefreshDocumentCounts on settings save', () => {
+    completeSetup()
+    const maybeRefreshSpy = jest.spyOn(
+      savedViewsService,
+      'maybeRefreshDocumentCounts'
+    )
+    settingsService.settingsSaved.emit(true)
+    expect(maybeRefreshSpy).toHaveBeenCalled()
+  })
+
+  it('should support toggling document detail fields', () => {
+    completeSetup()
+    const field = 'storage_path'
+    expect(
+      component.settingsForm.get('documentDetailsHiddenFields').value.length
+    ).toEqual(0)
+    component.toggleDocumentDetailField(field, false)
+    expect(
+      component.settingsForm.get('documentDetailsHiddenFields').value.length
+    ).toEqual(1)
+    expect(component.isDocumentDetailFieldShown(field)).toBeFalsy()
+    component.toggleDocumentDetailField(field, true)
+    expect(
+      component.settingsForm.get('documentDetailsHiddenFields').value.length
+    ).toEqual(0)
+    expect(component.isDocumentDetailFieldShown(field)).toBeTruthy()
   })
 })

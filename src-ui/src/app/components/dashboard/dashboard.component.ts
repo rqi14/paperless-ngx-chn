@@ -5,10 +5,10 @@ import {
   DragDropModule,
   moveItemInArray,
 } from '@angular/cdk/drag-drop'
-import { Component } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { NgxBootstrapIconsModule } from 'ngx-bootstrap-icons'
-import { TourNgBootstrapModule, TourService } from 'ngx-ui-tour-ng-bootstrap'
+import { TourNgBootstrap, TourService } from 'ngx-ui-tour-ng-bootstrap'
 import { SavedView } from 'src/app/data/saved-view'
 import { IfPermissionsDirective } from 'src/app/directives/if-permissions.directive'
 import { SavedViewService } from 'src/app/services/rest/saved-view.service'
@@ -36,19 +36,19 @@ import { WelcomeWidgetComponent } from './widgets/welcome-widget/welcome-widget.
     WelcomeWidgetComponent,
     IfPermissionsDirective,
     DragDropModule,
-    TourNgBootstrapModule,
+    TourNgBootstrap,
     NgxBootstrapIconsModule,
     RouterModule,
   ],
 })
 export class DashboardComponent extends ComponentWithPermissions {
+  settingsService = inject(SettingsService)
+  savedViewService = inject(SavedViewService)
+  private tourService = inject(TourService)
+  private toastService = inject(ToastService)
+
   public dashboardViews: SavedView[] = []
-  constructor(
-    public settingsService: SettingsService,
-    public savedViewService: SavedViewService,
-    private tourService: TourService,
-    private toastService: ToastService
-  ) {
+  constructor() {
     super()
 
     this.savedViewService.listAll().subscribe(() => {

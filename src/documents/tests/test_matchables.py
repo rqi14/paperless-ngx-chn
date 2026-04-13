@@ -25,7 +25,7 @@ class _TestMatchingBase(TestCase):
         no_match: Iterable[str],
         *,
         case_sensitive: bool = False,
-    ):
+    ) -> None:
         for klass in (Tag, Correspondent, DocumentType):
             instance = klass.objects.create(
                 name=str(randint(10000, 99999)),
@@ -48,7 +48,53 @@ class _TestMatchingBase(TestCase):
 
 
 class TestMatching(_TestMatchingBase):
-    def test_match_none(self):
+    def test_matches_uses_latest_version_content_for_root_documents(self) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+            content="root content without token",
+        )
+        Document.objects.create(
+            title="v1",
+            checksum="v1",
+            mime_type="application/pdf",
+            root_document=root,
+            content="latest version contains keyword",
+        )
+        tag = Tag.objects.create(
+            name="tag",
+            match="keyword",
+            matching_algorithm=Tag.MATCH_ANY,
+        )
+
+        self.assertTrue(matching.matches(tag, root))
+
+    def test_matches_does_not_fall_back_to_root_content_when_version_exists(
+        self,
+    ) -> None:
+        root = Document.objects.create(
+            title="root",
+            checksum="root",
+            mime_type="application/pdf",
+            content="root contains keyword",
+        )
+        Document.objects.create(
+            title="v1",
+            checksum="v1",
+            mime_type="application/pdf",
+            root_document=root,
+            content="latest version without token",
+        )
+        tag = Tag.objects.create(
+            name="tag",
+            match="keyword",
+            matching_algorithm=Tag.MATCH_ANY,
+        )
+
+        self.assertFalse(matching.matches(tag, root))
+
+    def test_match_none(self) -> None:
         self._test_matching(
             "",
             "MATCH_NONE",
@@ -59,7 +105,7 @@ class TestMatching(_TestMatchingBase):
             ),
         )
 
-    def test_match_all(self):
+    def test_match_all(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_ALL",
@@ -105,7 +151,7 @@ class TestMatching(_TestMatchingBase):
             ),
         )
 
-    def test_match_any(self):
+    def test_match_any(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_ANY",
@@ -149,7 +195,7 @@ class TestMatching(_TestMatchingBase):
             ("the lazy fox jumped over the brown dogs",),
         )
 
-    def test_match_literal(self):
+    def test_match_literal(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_LITERAL",
@@ -183,7 +229,7 @@ class TestMatching(_TestMatchingBase):
             ),
         )
 
-    def test_match_regex(self):
+    def test_match_regex(self) -> None:
         self._test_matching(
             r"alpha\w+gamma",
             "MATCH_REGEX",
@@ -203,10 +249,26 @@ class TestMatching(_TestMatchingBase):
             ),
         )
 
-    def test_tach_invalid_regex(self):
+    def test_tach_invalid_regex(self) -> None:
         self._test_matching("[", "MATCH_REGEX", [], ["Don't match this"])
 
-    def test_match_fuzzy(self):
+    def test_match_regex_timeout_returns_false(self) -> None:
+        tag = Tag.objects.create(
+            name="slow",
+            match=r"(a+)+$",
+            matching_algorithm=Tag.MATCH_REGEX,
+        )
+        document = Document(content=("a" * 5000) + "X")
+
+        with self.assertLogs("paperless.regex", level="WARNING") as cm:
+            self.assertFalse(matching.matches(tag, document))
+
+        self.assertTrue(
+            any("timed out" in message for message in cm.output),
+            f"Expected timeout log, got {cm.output}",
+        )
+
+    def test_match_fuzzy(self) -> None:
         self._test_matching(
             "Springfield, Miss.",
             "MATCH_FUZZY",
@@ -221,7 +283,7 @@ class TestMatching(_TestMatchingBase):
 
 
 class TestCaseSensitiveMatching(_TestMatchingBase):
-    def test_match_all(self):
+    def test_match_all(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_ALL",
@@ -270,7 +332,7 @@ class TestCaseSensitiveMatching(_TestMatchingBase):
             case_sensitive=True,
         )
 
-    def test_match_any(self):
+    def test_match_any(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_ANY",
@@ -325,7 +387,7 @@ class TestCaseSensitiveMatching(_TestMatchingBase):
             case_sensitive=True,
         )
 
-    def test_match_literal(self):
+    def test_match_literal(self) -> None:
         self._test_matching(
             "alpha charlie gamma",
             "MATCH_LITERAL",
@@ -352,7 +414,7 @@ class TestCaseSensitiveMatching(_TestMatchingBase):
             case_sensitive=True,
         )
 
-    def test_match_regex(self):
+    def test_match_regex(self) -> None:
         self._test_matching(
             r"alpha\w+gamma",
             "MATCH_REGEX",
@@ -389,8 +451,11 @@ class TestDocumentConsumptionFinishedSignal(TestCase):
     doing what we expect wrt to tag & correspondent matching.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        from documents.search import reset_backend
+
         TestCase.setUp(self)
+        reset_backend()
         User.objects.create_user(username="test_consumer", password="12345")
         self.doc_contains = Document.objects.create(
             content="I contain the keyword.",
@@ -402,9 +467,12 @@ class TestDocumentConsumptionFinishedSignal(TestCase):
         override_settings(INDEX_DIR=self.index_dir).enable()
 
     def tearDown(self) -> None:
+        from documents.search import reset_backend
+
+        reset_backend()
         shutil.rmtree(self.index_dir, ignore_errors=True)
 
-    def test_tag_applied_any(self):
+    def test_tag_applied_any(self) -> None:
         t1 = Tag.objects.create(
             name="test",
             match="keyword",
@@ -416,7 +484,7 @@ class TestDocumentConsumptionFinishedSignal(TestCase):
         )
         self.assertTrue(list(self.doc_contains.tags.all()) == [t1])
 
-    def test_tag_not_applied(self):
+    def test_tag_not_applied(self) -> None:
         Tag.objects.create(
             name="test",
             match="no-match",
@@ -428,7 +496,7 @@ class TestDocumentConsumptionFinishedSignal(TestCase):
         )
         self.assertTrue(list(self.doc_contains.tags.all()) == [])
 
-    def test_correspondent_applied(self):
+    def test_correspondent_applied(self) -> None:
         correspondent = Correspondent.objects.create(
             name="test",
             match="keyword",
@@ -440,7 +508,7 @@ class TestDocumentConsumptionFinishedSignal(TestCase):
         )
         self.assertTrue(self.doc_contains.correspondent == correspondent)
 
-    def test_correspondent_not_applied(self):
+    def test_correspondent_not_applied(self) -> None:
         Tag.objects.create(
             name="test",
             match="no-match",
