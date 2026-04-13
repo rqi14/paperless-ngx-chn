@@ -2,7 +2,6 @@ import datetime
 from datetime import timedelta
 from unittest import mock
 
-import pytest
 from dateutil.relativedelta import relativedelta
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import Permission
@@ -89,6 +88,65 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
         self.assertEqual(response.data["count"], 0)
         self.assertEqual(len(results), 0)
         self.assertCountEqual(response.data["all"], [])
+
+    def test_search_custom_field_ordering(self):
+        custom_field = CustomField.objects.create(
+            name="Sortable field",
+            data_type=CustomField.FieldDataType.INT,
+        )
+        d1 = Document.objects.create(
+            title="first",
+            content="match",
+            checksum="A1",
+        )
+        d2 = Document.objects.create(
+            title="second",
+            content="match",
+            checksum="B2",
+        )
+        d3 = Document.objects.create(
+            title="third",
+            content="match",
+            checksum="C3",
+        )
+        CustomFieldInstance.objects.create(
+            document=d1,
+            field=custom_field,
+            value_int=30,
+        )
+        CustomFieldInstance.objects.create(
+            document=d2,
+            field=custom_field,
+            value_int=10,
+        )
+        CustomFieldInstance.objects.create(
+            document=d3,
+            field=custom_field,
+            value_int=20,
+        )
+
+        with AsyncWriter(index.open_index()) as writer:
+            index.update_document(writer, d1)
+            index.update_document(writer, d2)
+            index.update_document(writer, d3)
+
+        response = self.client.get(
+            f"/api/documents/?query=match&ordering=custom_field_{custom_field.pk}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [doc["id"] for doc in response.data["results"]],
+            [d2.id, d3.id, d1.id],
+        )
+
+        response = self.client.get(
+            f"/api/documents/?query=match&ordering=-custom_field_{custom_field.pk}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [doc["id"] for doc in response.data["results"]],
+            [d1.id, d3.id, d2.id],
+        )
 
     def test_search_multi_page(self):
         with AsyncWriter(index.open_index()) as writer:
@@ -623,8 +681,7 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0], b"auto")
 
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_search_spelling_correction(self):
+    def test_search_spelling_suggestion(self):
         with AsyncWriter(index.open_index()) as writer:
             for i in range(55):
                 doc = Document.objects.create(
@@ -635,15 +692,69 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
                 )
                 index.update_document(writer, doc)
 
-        response = self.client.get("/api/search/?query=thing")
+        response = self.client.get("/api/documents/?query=thing")
         correction = response.data["corrected_query"]
 
         self.assertEqual(correction, "things")
 
-        response = self.client.get("/api/search/?query=things")
+        response = self.client.get("/api/documents/?query=things")
         correction = response.data["corrected_query"]
 
         self.assertEqual(correction, None)
+
+    def test_search_spelling_suggestion_suppressed_for_private_terms(self):
+        owner = User.objects.create_user("owner")
+        attacker = User.objects.create_user("attacker")
+        attacker.user_permissions.add(
+            Permission.objects.get(codename="view_document"),
+        )
+
+        with AsyncWriter(index.open_index()) as writer:
+            for i in range(55):
+                private_doc = Document.objects.create(
+                    checksum=f"p{i}",
+                    pk=100 + i,
+                    title=f"Private Document {i + 1}",
+                    content=f"treasury document {i + 1}",
+                    owner=owner,
+                )
+                visible_doc = Document.objects.create(
+                    checksum=f"v{i}",
+                    pk=200 + i,
+                    title=f"Visible Document {i + 1}",
+                    content=f"public ledger {i + 1}",
+                    owner=attacker,
+                )
+                index.update_document(writer, private_doc)
+                index.update_document(writer, visible_doc)
+
+        self.client.force_authenticate(user=attacker)
+
+        response = self.client.get("/api/documents/?query=treasurx")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["count"], 0)
+        self.assertIsNone(response.data["corrected_query"])
+
+    @mock.patch(
+        "whoosh.searching.Searcher.correct_query",
+        side_effect=Exception("Test error"),
+    )
+    def test_corrected_query_error(self, mock_correct_query):
+        """
+        GIVEN:
+            - A query that raises an error on correction
+        WHEN:
+            - API request for search with that query
+        THEN:
+            - The error is logged and the search proceeds
+        """
+        with self.assertLogs("paperless.index", level="INFO") as cm:
+            response = self.client.get("/api/documents/?query=2025-06-04")
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            error_str = cm.output[0]
+            expected_str = "Error while correcting query '2025-06-04': Test error"
+            self.assertIn(expected_str, error_str)
 
     def test_search_more_like(self):
         """
@@ -694,6 +805,58 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]["id"], d3.id)
         self.assertEqual(results[1]["id"], d1.id)
+
+    def test_search_more_like_requires_view_permission_on_seed_document(self):
+        """
+        GIVEN:
+            - A user can search documents they own
+            - Another user's private document exists with similar content
+        WHEN:
+            - The user requests more-like-this for the private seed document
+        THEN:
+            - The request is rejected
+        """
+        owner = User.objects.create_user("owner")
+        attacker = User.objects.create_user("attacker")
+        attacker.user_permissions.add(
+            Permission.objects.get(codename="view_document"),
+        )
+
+        private_seed = Document.objects.create(
+            title="private bank statement",
+            content="quarterly treasury bank statement wire transfer",
+            checksum="seed",
+            owner=owner,
+            pk=10,
+        )
+        visible_doc = Document.objects.create(
+            title="attacker-visible match",
+            content="quarterly treasury bank statement wire transfer summary",
+            checksum="visible",
+            owner=attacker,
+            pk=11,
+        )
+        other_doc = Document.objects.create(
+            title="unrelated",
+            content="completely different topic",
+            checksum="other",
+            owner=attacker,
+            pk=12,
+        )
+
+        with AsyncWriter(index.open_index()) as writer:
+            index.update_document(writer, private_seed)
+            index.update_document(writer, visible_doc)
+            index.update_document(writer, other_doc)
+
+        self.client.force_authenticate(user=attacker)
+
+        response = self.client.get(
+            f"/api/documents/?more_like_id={private_seed.id}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.content, b"Insufficient permissions.")
 
     def test_search_filtering(self):
         t = Tag.objects.create(name="tag")
@@ -1212,7 +1375,7 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
                 content_type__app_label="admin",
             ),
         )
-        set_permissions([4, 5], set_permissions=[], owner=user2, merge=False)
+        set_permissions([4, 5], set_permissions={}, owner=user2, merge=False)
 
         with index.open_index_writer() as writer:
             index.update_document(writer, d1)
@@ -1279,6 +1442,83 @@ class TestDocumentSearchApi(DirectoriesMixin, APITestCase):
         self.assertEqual(results["mail_rules"][0]["id"], mail_rule1.id)
         self.assertEqual(results["custom_fields"][0]["id"], custom_field1.id)
         self.assertEqual(results["workflows"][0]["id"], workflow1.id)
+
+    def test_global_search_filters_owned_mail_objects(self):
+        user1 = User.objects.create_user("mail-search-user")
+        user2 = User.objects.create_user("other-mail-search-user")
+        user1.user_permissions.add(
+            Permission.objects.get(codename="view_mailaccount"),
+            Permission.objects.get(codename="view_mailrule"),
+        )
+
+        own_account = MailAccount.objects.create(
+            name="bank owned account",
+            username="owner@example.com",
+            password="secret",
+            imap_server="imap.owner.example.com",
+            imap_port=993,
+            imap_security=MailAccount.ImapSecurity.SSL,
+            character_set="UTF-8",
+            owner=user1,
+        )
+        other_account = MailAccount.objects.create(
+            name="bank other account",
+            username="other@example.com",
+            password="secret",
+            imap_server="imap.other.example.com",
+            imap_port=993,
+            imap_security=MailAccount.ImapSecurity.SSL,
+            character_set="UTF-8",
+            owner=user2,
+        )
+        unowned_account = MailAccount.objects.create(
+            name="bank shared account",
+            username="shared@example.com",
+            password="secret",
+            imap_server="imap.shared.example.com",
+            imap_port=993,
+            imap_security=MailAccount.ImapSecurity.SSL,
+            character_set="UTF-8",
+        )
+        own_rule = MailRule.objects.create(
+            name="bank owned rule",
+            account=own_account,
+            action=MailRule.MailAction.MOVE,
+            owner=user1,
+        )
+        other_rule = MailRule.objects.create(
+            name="bank other rule",
+            account=other_account,
+            action=MailRule.MailAction.MOVE,
+            owner=user2,
+        )
+        unowned_rule = MailRule.objects.create(
+            name="bank shared rule",
+            account=unowned_account,
+            action=MailRule.MailAction.MOVE,
+        )
+
+        self.client.force_authenticate(user1)
+
+        response = self.client.get("/api/search/?query=bank")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertCountEqual(
+            [account["id"] for account in response.data["mail_accounts"]],
+            [own_account.id, unowned_account.id],
+        )
+        self.assertCountEqual(
+            [rule["id"] for rule in response.data["mail_rules"]],
+            [own_rule.id, unowned_rule.id],
+        )
+        self.assertNotIn(
+            other_account.id,
+            [account["id"] for account in response.data["mail_accounts"]],
+        )
+        self.assertNotIn(
+            other_rule.id,
+            [rule["id"] for rule in response.data["mail_rules"]],
+        )
 
     def test_global_search_bad_request(self):
         """

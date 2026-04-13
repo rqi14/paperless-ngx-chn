@@ -95,13 +95,13 @@ first-time setup.
 
 7.  You can now either ...
 
-    -   install redis or
+    -   install Redis or
 
-    -   use the included `scripts/start_services.sh` to use docker to fire
-        up a redis instance (and some other services such as tika,
-        gotenberg and a database server) or
+    -   use the included `scripts/start_services.sh` to use Docker to fire
+        up a Redis instance (and some other services such as Tika,
+        Gotenberg and a database server) or
 
-    -   spin up a bare redis container
+    -   spin up a bare Redis container
 
         ```
         docker run -d -p 6379:6379 --restart unless-stopped redis:latest
@@ -147,7 +147,7 @@ $ ng build --configuration production
 ### Testing
 
 -   Run `pytest` in the `src/` directory to execute all tests. This also
-    generates a HTML coverage report. When runnings test, `paperless.conf`
+    generates a HTML coverage report. When running tests, `paperless.conf`
     is loaded as well. However, the tests rely on the default
     configuration. This is not ideal. But for now, make sure no settings
     except for DEBUG are overridden when testing.
@@ -338,13 +338,13 @@ LANGUAGES = [
 
 ## Building the documentation
 
-The documentation is built using material-mkdocs, see their [documentation](https://squidfunk.github.io/mkdocs-material/reference/).
+The documentation is built using Zensical, see their [documentation](https://zensical.org/docs/).
 If you want to build the documentation locally, this is how you do it:
 
 1.  Build the documentation
 
     ```bash
-    $ uv run mkdocs build --config-file mkdocs.yml
+    $ uv run zensical build
     ```
 
     _alternatively..._
@@ -355,10 +355,10 @@ If you want to build the documentation locally, this is how you do it:
     something.
 
     ```bash
-    $ uv run mkdocs serve
+    $ uv run zensical serve
     ```
 
-## Building the Docker image
+## Building the Docker image {#docker_build}
 
 The docker image is primarily built by the GitHub actions workflow, but
 it can be faster when developing to build and tag an image locally.
@@ -470,9 +470,14 @@ To get started:
 
 2. VS Code will prompt you with "Reopen in container". Do so and wait for the environment to start.
 
-3. Initialize the project by running the task **Project Setup: Run all Init Tasks**. This
+3. In case your host operating system is Windows:
+
+    - The Source Control view in Visual Studio Code might show: "The detected Git repository is potentially unsafe as the folder is owned by someone other than the current user." Use "Manage Unsafe Repositories" to fix this.
+    - Git might have detecteded modifications for all files, because Windows is using CRLF line endings. Run `git checkout .` in the containers terminal to fix this issue.
+
+4. Initialize the project by running the task **Project Setup: Run all Init Tasks**. This
    will initialize the database tables and create a superuser. Then you can compile the front end
    for production or run the frontend in debug mode.
 
-4. The project is ready for debugging, start either run the fullstack debug or individual debug
+5. The project is ready for debugging, start either run the fullstack debug or individual debug
    processes. Yo spin up the project without debugging run the task **Project Start: Run all Services**

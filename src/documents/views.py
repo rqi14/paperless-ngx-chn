@@ -5,19 +5,25 @@ import platform
 import re
 import tempfile
 import zipfile
+from collections import defaultdict
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from time import mktime
+from typing import Literal
 from unicodedata import normalize
 from urllib.parse import quote
 from urllib.parse import urlparse
 
 import httpx
+import magic
 import pathvalidate
 from celery import states
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache
 from django.db import connections
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.recorder import MigrationRecorder
@@ -26,12 +32,12 @@ from django.db.models import Count
 from django.db.models import IntegerField
 from django.db.models import Max
 from django.db.models import Model
-from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import When
 from django.db.models.functions import Length
 from django.db.models.functions import Lower
 from django.db.models.manager import Manager
+from django.http import FileResponse
 from django.http import Http404
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
@@ -43,6 +49,7 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.timezone import make_aware
 from django.utils.translation import get_language
+from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import condition
@@ -52,8 +59,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema_serializer
 from drf_spectacular.utils import extend_schema_view
 from drf_spectacular.utils import inline_serializer
+from guardian.utils import get_group_obj_perms_model
+from guardian.utils import get_user_obj_perms_model
 from langdetect import detect
 from packaging import version as packaging_version
 from redis import Redis
@@ -61,6 +71,8 @@ from rest_framework import parsers
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import OrderingFilter
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import GenericAPIView
@@ -97,6 +109,7 @@ from documents.conditionals import thumbnail_last_modified
 from documents.data_models import ConsumableDocument
 from documents.data_models import DocumentMetadataOverrides
 from documents.data_models import DocumentSource
+from documents.file_handling import format_filename
 from documents.filters import CorrespondentFilterSet
 from documents.filters import CustomFieldFilterSet
 from documents.filters import DocumentFilterSet
@@ -108,6 +121,7 @@ from documents.filters import PaperlessTaskFilterSet
 from documents.filters import ShareLinkFilterSet
 from documents.filters import StoragePathFilterSet
 from documents.filters import TagFilterSet
+from documents.mail import EmailAttachment
 from documents.mail import send_email
 from documents.matching import match_correspondents
 from documents.matching import match_document_types
@@ -115,6 +129,7 @@ from documents.matching import match_storage_paths
 from documents.matching import match_tags
 from documents.models import Correspondent
 from documents.models import CustomField
+from documents.models import CustomFieldInstance
 from documents.models import Document
 from documents.models import DocumentType
 from documents.models import Note
@@ -129,9 +144,13 @@ from documents.models import WorkflowAction
 from documents.models import WorkflowTrigger
 from documents.parsers import get_parser_class_for_mime_type
 from documents.parsers import parse_date_generator
+from documents.permissions import AcknowledgeTasksPermissions
 from documents.permissions import PaperlessAdminPermissions
 from documents.permissions import PaperlessNotePermissions
 from documents.permissions import PaperlessObjectPermissions
+from documents.permissions import ViewDocumentsPermissions
+from documents.permissions import annotate_document_count_for_related_queryset
+from documents.permissions import get_document_count_filter_for_user
 from documents.permissions import get_objects_for_user_owner_aware
 from documents.permissions import has_perms_owner_aware
 from documents.permissions import set_permissions_for_object
@@ -145,6 +164,8 @@ from documents.serialisers import CustomFieldSerializer
 from documents.serialisers import DocumentListSerializer
 from documents.serialisers import DocumentSerializer
 from documents.serialisers import DocumentTypeSerializer
+from documents.serialisers import EmailSerializer
+from documents.serialisers import NotesSerializer
 from documents.serialisers import PostDocumentSerializer
 from documents.serialisers import RunTaskViewSerializer
 from documents.serialisers import SavedViewSerializer
@@ -166,11 +187,13 @@ from documents.tasks import empty_trash
 from documents.tasks import index_optimize
 from documents.tasks import sanity_check
 from documents.tasks import train_classifier
-from documents.templating.filepath import validate_filepath_template_and_render
+from documents.tasks import update_document_parent_tags
+from documents.utils import get_boolean
 from paperless import version
 from paperless.celery import app as celery_app
 from paperless.config import GeneralConfig
 from paperless.db import GnuPG
+from paperless.models import ApplicationConfiguration
 from paperless.serialisers import GroupSerializer
 from paperless.serialisers import UserSerializer
 from paperless.views import StandardPagination
@@ -235,42 +258,152 @@ class PassUserMixin(GenericAPIView):
 
     def get_serializer(self, *args, **kwargs):
         kwargs.setdefault("user", self.request.user)
+        try:
+            full_perms = get_boolean(
+                str(self.request.query_params.get("full_perms", "false")),
+            )
+        except ValueError:
+            full_perms = False
         kwargs.setdefault(
             "full_perms",
-            self.request.query_params.get("full_perms", False),
+            full_perms,
         )
         return super().get_serializer(*args, **kwargs)
 
 
-class PermissionsAwareDocumentCountMixin(PassUserMixin):
+class BulkPermissionMixin:
+    """
+    Prefetch Django-Guardian permissions for a list before serialization, to avoid N+1 queries.
+    """
+
+    def _get_object_perms(
+        self,
+        objects: list,
+        perm_codenames: list[str],
+        actor: Literal["users", "groups"],
+    ) -> dict[int, dict[str, list[int]]]:
+        """
+        Collect object-level permissions for either users or groups.
+        """
+        model = self.queryset.model
+        obj_perm_model = (
+            get_user_obj_perms_model(model)
+            if actor == "users"
+            else get_group_obj_perms_model(model)
+        )
+        id_field = "user_id" if actor == "users" else "group_id"
+        ctype = ContentType.objects.get_for_model(model)
+        object_pks = [obj.pk for obj in objects]
+
+        perms_qs = obj_perm_model.objects.filter(
+            content_type=ctype,
+            object_pk__in=object_pks,
+            permission__codename__in=perm_codenames,
+        ).values_list("object_pk", id_field, "permission__codename")
+
+        perms: dict[int, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+        for object_pk, actor_id, codename in perms_qs:
+            perms[int(object_pk)][codename].append(actor_id)
+
+        # Ensure that all objects have all codenames, even if empty
+        for pk in object_pks:
+            for codename in perm_codenames:
+                perms[pk][codename]
+
+        return perms
+
+    def get_serializer_context(self):
+        """
+        Get all permissions of the current list of objects at once and pass them to the serializer.
+        This avoid fetching permissions object by object in database.
+        """
+        context = super().get_serializer_context()
+        try:
+            full_perms = get_boolean(
+                str(self.request.query_params.get("full_perms", "false")),
+            )
+        except ValueError:
+            full_perms = False
+
+        if not full_perms:
+            return context
+
+        # Check which objects are being paginated
+        page = getattr(self, "paginator", None)
+        if page and hasattr(page, "page"):
+            queryset = page.page.object_list
+        elif hasattr(self, "page"):
+            queryset = self.page
+        else:
+            queryset = self.filter_queryset(self.get_queryset())
+
+        model_name = self.queryset.model.__name__.lower()
+        permission_name_view = f"view_{model_name}"
+        permission_name_change = f"change_{model_name}"
+
+        user_perms = self._get_object_perms(
+            objects=queryset,
+            perm_codenames=[permission_name_view, permission_name_change],
+            actor="users",
+        )
+        group_perms = self._get_object_perms(
+            objects=queryset,
+            perm_codenames=[permission_name_view, permission_name_change],
+            actor="groups",
+        )
+
+        context["users_view_perms"] = {
+            pk: user_perms[pk][permission_name_view] for pk in user_perms
+        }
+        context["users_change_perms"] = {
+            pk: user_perms[pk][permission_name_change] for pk in user_perms
+        }
+        context["groups_view_perms"] = {
+            pk: group_perms[pk][permission_name_view] for pk in group_perms
+        }
+        context["groups_change_perms"] = {
+            pk: group_perms[pk][permission_name_change] for pk in group_perms
+        }
+
+        return context
+
+
+class PermissionsAwareDocumentCountMixin(BulkPermissionMixin, PassUserMixin):
     """
     Mixin to add document count to queryset, permissions-aware if needed
     """
 
+    # Default is simple relation path, override for through-table/count specialization.
+    document_count_through = None
+    document_count_source_field = None
+
+    def get_document_count_filter(self):
+        request = getattr(self, "request", None)
+        user = getattr(request, "user", None) if request else None
+        return get_document_count_filter_for_user(user)
+
     def get_queryset(self):
-        filter = (
-            Q(documents__deleted_at__isnull=True)
-            if self.request.user is None or self.request.user.is_superuser
-            else (
-                Q(
-                    documents__deleted_at__isnull=True,
-                    documents__id__in=get_objects_for_user_owner_aware(
-                        self.request.user,
-                        "documents.view_document",
-                        Document,
-                    ).values_list("id", flat=True),
-                )
+        base_qs = super().get_queryset()
+
+        # Use optimized through-table counting when configured.
+        if self.document_count_through:
+            user = getattr(getattr(self, "request", None), "user", None)
+            return annotate_document_count_for_related_queryset(
+                base_qs,
+                through_model=self.document_count_through,
+                related_object_field=self.document_count_source_field,
+                user=user,
             )
-        )
-        return (
-            super()
-            .get_queryset()
-            .annotate(document_count=Count("documents", filter=filter))
+
+        # Fallback: simple Count on relation with permission filter.
+        filter = self.get_document_count_filter()
+        return base_qs.annotate(
+            document_count=Count("documents", filter=filter),
         )
 
 
 @extend_schema_view(**generate_object_with_permissions_schema(CorrespondentSerializer))
-class CorrespondentViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
+class CorrespondentViewSet(PermissionsAwareDocumentCountMixin, ModelViewSet):
     model = Correspondent
 
     queryset = Correspondent.objects.select_related("owner").order_by(Lower("name"))
@@ -307,8 +440,10 @@ class CorrespondentViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
 
 
 @extend_schema_view(**generate_object_with_permissions_schema(TagSerializer))
-class TagViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
+class TagViewSet(PermissionsAwareDocumentCountMixin, ModelViewSet):
     model = Tag
+    document_count_through = Document.tags.through
+    document_count_source_field = "tag_id"
 
     queryset = Tag.objects.select_related("owner").order_by(
         Lower("name"),
@@ -330,9 +465,64 @@ class TagViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
     filterset_class = TagFilterSet
     ordering_fields = ("color", "name", "matching_algorithm", "match", "document_count")
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["document_count_filter"] = self.get_document_count_filter()
+        if hasattr(self, "_children_map"):
+            context["children_map"] = self._children_map
+        return context
+
+    def list(self, request, *args, **kwargs):
+        """
+        Build a children map once to avoid per-parent queries in the serializer.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        ordering = OrderingFilter().get_ordering(request, queryset, self) or (
+            Lower("name"),
+        )
+        queryset = queryset.order_by(*ordering)
+
+        all_tags = list(queryset)
+        descendant_pks = {pk for tag in all_tags for pk in tag.get_descendants_pks()}
+
+        if descendant_pks:
+            user = getattr(getattr(self, "request", None), "user", None)
+            children_source = list(
+                annotate_document_count_for_related_queryset(
+                    Tag.objects.filter(
+                        pk__in=descendant_pks | {t.pk for t in all_tags},
+                    ).select_related("owner"),
+                    through_model=self.document_count_through,
+                    related_object_field=self.document_count_source_field,
+                    user=user,
+                ).order_by(*ordering),
+            )
+        else:
+            children_source = all_tags
+
+        children_map = {}
+        for tag in children_source:
+            children_map.setdefault(tag.tn_parent_id, []).append(tag)
+        self._children_map = children_map
+
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        response = self.get_paginated_response(serializer.data)
+        if descendant_pks:
+            # Include children in the "all" field, if needed
+            response.data["all"] = [tag.pk for tag in children_source]
+        return response
+
+    def perform_update(self, serializer):
+        old_parent = self.get_object().get_parent()
+        tag = serializer.save()
+        new_parent = tag.get_parent()
+        if new_parent and old_parent != new_parent:
+            update_document_parent_tags(tag, new_parent)
+
 
 @extend_schema_view(**generate_object_with_permissions_schema(DocumentTypeSerializer))
-class DocumentTypeViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
+class DocumentTypeViewSet(PermissionsAwareDocumentCountMixin, ModelViewSet):
     model = DocumentType
 
     queryset = DocumentType.objects.select_related("owner").order_by(Lower("name"))
@@ -347,6 +537,14 @@ class DocumentTypeViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
     )
     filterset_class = DocumentTypeFilterSet
     ordering_fields = ("name", "matching_algorithm", "match", "document_count")
+
+
+@extend_schema_serializer(
+    component_name="EmailDocumentRequest",
+    exclude_fields=("documents",),
+)
+class EmailDocumentDetailSchema(EmailSerializer):
+    pass
 
 
 @extend_schema_view(
@@ -433,27 +631,24 @@ class DocumentTypeViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
     ),
     notes=extend_schema(
         description="View, add, or delete notes for the document",
-        responses={
-            200: {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "integer"},
-                        "note": {"type": "string"},
-                        "created": {"type": "string", "format": "date-time"},
-                        "user": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "integer"},
-                                "username": {"type": "string"},
-                                "first_name": {"type": "string"},
-                                "last_name": {"type": "string"},
-                            },
-                        },
-                    },
-                },
+        methods=["GET", "POST", "DELETE"],
+        request=inline_serializer(
+            name="NoteCreateRequest",
+            fields={
+                "note": serializers.CharField(),
             },
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Note ID to delete (used only for DELETE requests)",
+            ),
+        ],
+        responses={
+            200: NotesSerializer(many=True),
             400: None,
             403: None,
             404: None,
@@ -519,6 +714,36 @@ class DocumentTypeViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
             404: None,
         },
     ),
+    email_document=extend_schema(
+        description="Email the document to one or more recipients as an attachment.",
+        request=EmailDocumentDetailSchema,
+        responses={
+            200: inline_serializer(
+                name="EmailDocumentResponse",
+                fields={"message": serializers.CharField()},
+            ),
+            400: None,
+            403: None,
+            404: None,
+            500: None,
+        },
+        deprecated=True,
+    ),
+    email_documents=extend_schema(
+        operation_id="email_documents",
+        description="Email one or more documents as attachments to one or more recipients.",
+        request=EmailSerializer,
+        responses={
+            200: inline_serializer(
+                name="EmailDocumentsResponse",
+                fields={"message": serializers.CharField()},
+            ),
+            400: None,
+            403: None,
+            404: None,
+            500: None,
+        },
+    ),
 )
 class DocumentViewSet(
     PassUserMixin,
@@ -546,6 +771,7 @@ class DocumentViewSet(
         "title",
         "correspondent__name",
         "document_type__name",
+        "storage_path__name",
         "created",
         "modified",
         "added",
@@ -572,9 +798,15 @@ class DocumentViewSet(
         kwargs.setdefault("context", self.get_serializer_context())
         kwargs.setdefault("fields", fields)
         kwargs.setdefault("truncate_content", truncate_content.lower() in ["true", "1"])
+        try:
+            full_perms = get_boolean(
+                str(self.request.query_params.get("full_perms", "false")),
+            )
+        except ValueError:
+            full_perms = False
         kwargs.setdefault(
             "full_perms",
-            self.request.query_params.get("full_perms", False),
+            full_perms,
         )
         return super().get_serializer(*args, **kwargs)
 
@@ -630,7 +862,7 @@ class DocumentViewSet(
         )
 
     def get_metadata(self, file, mime_type):
-        if not os.path.isfile(file):
+        if not Path(file).is_file():
             return None
 
         parser_class = get_parser_class_for_mime_type(mime_type)
@@ -648,8 +880,8 @@ class DocumentViewSet(
             return []
 
     def get_filesize(self, filename):
-        if os.path.isfile(filename):
-            return os.stat(filename).st_size
+        if Path(filename).is_file():
+            return Path(filename).stat().st_size
         else:
             return None
 
@@ -808,6 +1040,7 @@ class DocumentViewSet(
         methods=["get", "post", "delete"],
         detail=True,
         permission_classes=[PaperlessNotePermissions],
+        pagination_class=None,
         filter_backends=[],
     )
     def notes(self, request, pk=None):
@@ -891,7 +1124,7 @@ class DocumentViewSet(
             ):
                 return HttpResponseForbidden("Insufficient permissions to delete notes")
 
-            note = Note.objects.get(id=int(request.GET.get("id")))
+            note = Note.objects.get(id=int(request.GET.get("id")), document=doc)
             if settings.AUDIT_LOG_ENABLED:
                 LogEntry.objects.log_create(
                     instance=doc,
@@ -1008,61 +1241,92 @@ class DocumentViewSet(
 
         return Response(sorted(entries, key=lambda x: x["timestamp"], reverse=True))
 
-    @action(methods=["post"], detail=True)
-    def email(self, request, pk=None):
-        try:
-            doc = Document.objects.select_related("owner").get(pk=pk)
+    @action(
+        methods=["post"],
+        detail=True,
+        url_path="email",
+        permission_classes=[IsAuthenticated, ViewDocumentsPermissions],
+    )
+    # TODO: deprecated as of 2.19, remove in future release
+    def email_document(self, request, pk=None):
+        request_data = request.data.copy()
+        request_data.setlist("documents", [pk])
+        return self.email_documents(request, data=request_data)
+
+    @action(
+        methods=["post"],
+        detail=False,
+        url_path="email",
+        serializer_class=EmailSerializer,
+        permission_classes=[IsAuthenticated, ViewDocumentsPermissions],
+    )
+    def email_documents(self, request, data=None):
+        serializer = EmailSerializer(data=data or request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated_data = serializer.validated_data
+        document_ids = validated_data.get("documents")
+        addresses = validated_data.get("addresses").split(",")
+        addresses = [addr.strip() for addr in addresses]
+        subject = validated_data.get("subject")
+        message = validated_data.get("message")
+        use_archive_version = validated_data.get("use_archive_version", True)
+
+        documents = Document.objects.select_related("owner").filter(pk__in=document_ids)
+        for document in documents:
             if request.user is not None and not has_perms_owner_aware(
                 request.user,
                 "view_document",
-                doc,
+                document,
             ):
                 return HttpResponseForbidden("Insufficient permissions")
-        except Document.DoesNotExist:
-            raise Http404
 
         try:
-            if (
-                "addresses" not in request.data
-                or "subject" not in request.data
-                or "message" not in request.data
-            ):
-                return HttpResponseBadRequest("Missing required fields")
-
-            use_archive_version = request.data.get("use_archive_version", True)
-
-            addresses = request.data.get("addresses").split(",")
-            if not all(
-                re.match(r"[^@]+@[^@]+\.[^@]+", address.strip())
-                for address in addresses
-            ):
-                return HttpResponseBadRequest("Invalid email address found")
-
-            send_email(
-                subject=request.data.get("subject"),
-                body=request.data.get("message"),
-                to=addresses,
-                attachment=(
+            attachments: list[EmailAttachment] = []
+            for doc in documents:
+                attachment_path = (
                     doc.archive_path
                     if use_archive_version and doc.has_archive_version
                     else doc.source_path
-                ),
-                attachment_mime_type=doc.mime_type,
+                )
+                attachments.append(
+                    EmailAttachment(
+                        path=attachment_path,
+                        mime_type=doc.mime_type,
+                        friendly_name=doc.get_public_filename(
+                            archive=use_archive_version and doc.has_archive_version,
+                        ),
+                    ),
+                )
+
+            send_email(
+                subject=subject,
+                body=message,
+                to=addresses,
+                attachments=attachments,
             )
+
             logger.debug(
-                f"Sent document {doc.id} via email to {addresses}",
+                f"Sent documents {[doc.id for doc in documents]} via email to {addresses}",
             )
             return Response({"message": "Email sent"})
         except Exception as e:
-            logger.warning(f"An error occurred emailing document: {e!s}")
+            logger.warning(f"An error occurred emailing documents: {e!s}")
             return HttpResponseServerError(
-                "Error emailing document, check logs for more detail.",
+                "Error emailing documents, check logs for more detail.",
             )
 
 
 @extend_schema_view(
     list=extend_schema(
+        description="Document views including search",
         parameters=[
+            OpenApiParameter(
+                name="query",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Advanced search query string",
+            ),
             OpenApiParameter(
                 name="full_perms",
                 type=OpenApiTypes.BOOL,
@@ -1077,6 +1341,12 @@ class DocumentViewSet(
         ],
         responses={
             200: DocumentSerializer(many=True, all_fields=True),
+        },
+    ),
+    next_asn=extend_schema(
+        description="Get the next available Archive Serial Number (ASN) for a new document",
+        responses={
+            200: OpenApiTypes.INT,
         },
     ),
 )
@@ -1101,11 +1371,28 @@ class UnifiedSearchViewSet(DocumentViewSet):
         filtered_queryset = super().filter_queryset(queryset)
 
         if self._is_search_request():
-            from documents import index
-
             if "query" in self.request.query_params:
+                from documents import index
+
                 query_class = index.DelayedFullTextQuery
             elif "more_like_id" in self.request.query_params:
+                try:
+                    more_like_doc_id = int(self.request.query_params["more_like_id"])
+                    more_like_doc = Document.objects.select_related("owner").get(
+                        pk=more_like_doc_id,
+                    )
+                except (TypeError, ValueError, Document.DoesNotExist):
+                    raise PermissionDenied(_("Invalid more_like_id"))
+
+                if not has_perms_owner_aware(
+                    self.request.user,
+                    "view_document",
+                    more_like_doc,
+                ):
+                    raise PermissionDenied(_("Insufficient permissions."))
+
+                from documents import index
+
                 query_class = index.DelayedMoreLikeThisQuery
             else:
                 raise ValueError
@@ -1126,9 +1413,23 @@ class UnifiedSearchViewSet(DocumentViewSet):
             try:
                 with index.open_index_searcher() as s:
                     self.searcher = s
-                    return super().list(request)
+                    queryset = self.filter_queryset(self.get_queryset())
+                    page = self.paginate_queryset(queryset)
+
+                    serializer = self.get_serializer(page, many=True)
+                    response = self.get_paginated_response(serializer.data)
+
+                    response.data["corrected_query"] = (
+                        queryset.suggested_correction
+                        if hasattr(queryset, "suggested_correction")
+                        else None
+                    )
+
+                    return response
             except NotFound:
                 raise
+            except PermissionDenied as e:
+                return HttpResponseForbidden(str(e.detail))
             except Exception as e:
                 logger.warning(f"An error occurred listing search results: {e!s}")
                 return HttpResponseBadRequest(
@@ -1165,6 +1466,13 @@ class UnifiedSearchViewSet(DocumentViewSet):
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.PATH,
             ),
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Return only the last N entries from the log file",
+                required=False,
+            ),
         ],
         responses={
             (200, "application/json"): serializers.ListSerializer(
@@ -1177,31 +1485,51 @@ class UnifiedSearchViewSet(DocumentViewSet):
 class LogViewSet(ViewSet):
     permission_classes = (IsAuthenticated, PaperlessAdminPermissions)
 
-    log_files = ["paperless", "mail", "celery"]
+    ALLOWED_LOG_FILES = {
+        "paperless": "paperless.log",
+        "mail": "mail.log",
+        "celery": "celery.log",
+    }
 
-    def get_log_filename(self, log):
-        return os.path.join(settings.LOGGING_DIR, f"{log}.log")
+    def get_log_file(self, log_key: str) -> Path:
+        return Path(settings.LOGGING_DIR) / self.ALLOWED_LOG_FILES[log_key]
 
     def retrieve(self, request, *args, **kwargs):
-        log_file = kwargs.get("pk")
-        if log_file not in self.log_files:
+        log_key = kwargs.get("pk")
+        if log_key not in self.ALLOWED_LOG_FILES:
             raise Http404
 
-        filename = self.get_log_filename(log_file)
+        log_file = self.get_log_file(log_key)
 
-        if not os.path.isfile(filename):
+        if not log_file.is_file():
             raise Http404
 
-        with open(filename) as f:
-            lines = [line.rstrip() for line in f.readlines()]
+        limit_param = request.query_params.get("limit")
+        if limit_param is not None:
+            try:
+                limit = int(limit_param)
+            except (TypeError, ValueError):
+                raise ValidationError({"limit": "Must be a positive integer"})
+            if limit < 1:
+                raise ValidationError({"limit": "Must be a positive integer"})
+        else:
+            limit = None
+
+        with log_file.open() as f:
+            if limit is None:
+                lines = [line.rstrip() for line in f.readlines()]
+            else:
+                lines = [line.rstrip() for line in deque(f, maxlen=limit)]
 
         return Response(lines)
 
     def list(self, request, *args, **kwargs):
-        exist = [
-            log for log in self.log_files if os.path.isfile(self.get_log_filename(log))
+        existing_logs = [
+            log_key
+            for log_key in self.ALLOWED_LOG_FILES
+            if self.get_log_file(log_key).is_file()
         ]
-        return Response(exist)
+        return Response(existing_logs)
 
 
 class SavedViewViewSet(ModelViewSet, PassUserMixin):
@@ -1257,6 +1585,7 @@ class BulkEditView(PassUserMixin):
         "delete_pages": "checksum",
         "split": None,
         "merge": None,
+        "edit_pdf": "checksum",
         "reprocess": "checksum",
     }
 
@@ -1275,6 +1604,7 @@ class BulkEditView(PassUserMixin):
         if method in [
             bulk_edit.split,
             bulk_edit.merge,
+            bulk_edit.edit_pdf,
         ]:
             parameters["user"] = user
 
@@ -1294,27 +1624,36 @@ class BulkEditView(PassUserMixin):
 
             # check ownership for methods that change original document
             if (
-                has_perms
-                and method
-                in [
-                    bulk_edit.set_permissions,
-                    bulk_edit.delete,
-                    bulk_edit.rotate,
-                    bulk_edit.delete_pages,
-                ]
-            ) or (
-                method in [bulk_edit.merge, bulk_edit.split]
-                and parameters["delete_originals"]
+                (
+                    has_perms
+                    and method
+                    in [
+                        bulk_edit.set_permissions,
+                        bulk_edit.delete,
+                        bulk_edit.rotate,
+                        bulk_edit.delete_pages,
+                        bulk_edit.edit_pdf,
+                    ]
+                )
+                or (
+                    method in [bulk_edit.merge, bulk_edit.split]
+                    and parameters["delete_originals"]
+                )
+                or (method == bulk_edit.edit_pdf and parameters["update_document"])
             ):
                 has_perms = user_is_owner_of_all_documents
 
             # check global add permissions for methods that create documents
             if (
                 has_perms
-                and method in [bulk_edit.split, bulk_edit.merge]
-                and not user.has_perm(
-                    "documents.add_document",
+                and (
+                    method in [bulk_edit.split, bulk_edit.merge]
+                    or (
+                        method == bulk_edit.edit_pdf
+                        and not parameters["update_document"]
+                    )
                 )
+                and not user.has_perm("documents.add_document")
             ):
                 has_perms = False
 
@@ -1352,7 +1691,6 @@ class BulkEditView(PassUserMixin):
                     )
                 }
 
-            # TODO: parameter validation
             result = method(documents, **parameters)
 
             if settings.AUDIT_LOG_ENABLED and modified_field:
@@ -1409,6 +1747,8 @@ class PostDocumentView(GenericAPIView):
     parser_classes = (parsers.MultiPartParser,)
 
     def post(self, request, *args, **kwargs):
+        if not request.user.has_perm("documents.add_document"):
+            return HttpResponseForbidden("Insufficient permissions")
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -1420,7 +1760,7 @@ class PostDocumentView(GenericAPIView):
         title = serializer.validated_data.get("title")
         created = serializer.validated_data.get("created")
         archive_serial_number = serializer.validated_data.get("archive_serial_number")
-        custom_field_ids = serializer.validated_data.get("custom_fields")
+        cf = serializer.validated_data.get("custom_fields")
         from_webui = serializer.validated_data.get("from_webui")
 
         t = int(mktime(datetime.now().timetuple()))
@@ -1439,6 +1779,11 @@ class PostDocumentView(GenericAPIView):
             source=DocumentSource.WebUI if from_webui else DocumentSource.ApiUpload,
             original_file=temp_file_path,
         )
+        custom_fields = None
+        if isinstance(cf, dict) and cf:
+            custom_fields = cf
+        elif isinstance(cf, list) and cf:
+            custom_fields = dict.fromkeys(cf, None)
         input_doc_overrides = DocumentMetadataOverrides(
             filename=doc_name,
             title=title,
@@ -1449,10 +1794,7 @@ class PostDocumentView(GenericAPIView):
             created=created,
             asn=archive_serial_number,
             owner_id=request.user.id,
-            # TODO: set values
-            custom_fields={cf_id: None for cf_id in custom_field_ids}
-            if custom_field_ids
-            else None,
+            custom_fields=custom_fields,
         )
 
         async_task = consume_file.delay(
@@ -1530,6 +1872,13 @@ class SelectionDataView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         ids = serializer.validated_data.get("documents")
+        permitted_documents = get_objects_for_user_owner_aware(
+            request.user,
+            "documents.view_document",
+            Document,
+        )
+        if permitted_documents.filter(pk__in=ids).count() != len(ids):
+            return HttpResponseForbidden("Insufficient permissions")
 
         correspondents = Correspondent.objects.annotate(
             document_count=Count(
@@ -1624,7 +1973,7 @@ class SearchAutoCompleteView(GenericAPIView):
         user = self.request.user if hasattr(self.request, "user") else None
 
         if "term" in request.query_params:
-            term = request.query_params["term"]
+            term = request.query_params["term"].strip()
         else:
             return HttpResponseBadRequest("Term required")
 
@@ -1784,13 +2133,21 @@ class GlobalSearchView(PassUserMixin):
         )
         groups = groups[:OBJECT_LIMIT]
         mail_rules = (
-            MailRule.objects.filter(name__icontains=query)
+            get_objects_for_user_owner_aware(
+                request.user,
+                "view_mailrule",
+                MailRule,
+            ).filter(name__icontains=query)
             if request.user.has_perm("paperless_mail.view_mailrule")
             else []
         )
         mail_rules = mail_rules[:OBJECT_LIMIT]
         mail_accounts = (
-            MailAccount.objects.filter(name__icontains=query)
+            get_objects_for_user_owner_aware(
+                request.user,
+                "view_mailaccount",
+                MailAccount,
+            ).filter(name__icontains=query)
             if request.user.has_perm("paperless_mail.view_mailaccount")
             else []
         )
@@ -2035,7 +2392,7 @@ class BulkDownloadView(GenericAPIView):
                 strategy.add_document(document)
 
         # TODO(stumpylog): Investigate using FileResponse here
-        with open(temp.name, "rb") as f:
+        with Path(temp.name).open("rb") as f:
             response = HttpResponse(f, content_type="application/zip")
             response["Content-Disposition"] = '{}; filename="{}"'.format(
                 "attachment",
@@ -2046,7 +2403,7 @@ class BulkDownloadView(GenericAPIView):
 
 
 @extend_schema_view(**generate_object_with_permissions_schema(StoragePathSerializer))
-class StoragePathViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
+class StoragePathViewSet(PermissionsAwareDocumentCountMixin, ModelViewSet):
     model = StoragePath
 
     queryset = StoragePath.objects.select_related("owner").order_by(
@@ -2081,7 +2438,7 @@ class StoragePathViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
         # perform the deletion so renaming/moving can happen
         response = super().destroy(request, *args, **kwargs)
 
-        if len(doc_ids):
+        if doc_ids:
             bulk_edit.bulk_update_documents.delay(doc_ids)
 
         return response
@@ -2091,13 +2448,16 @@ class StoragePathViewSet(ModelViewSet, PermissionsAwareDocumentCountMixin):
         """
         Test storage path against a document
         """
-        serializer = StoragePathTestSerializer(data=request.data)
+        serializer = StoragePathTestSerializer(
+            data=request.data,
+            context={"request": request},
+        )
         serializer.is_valid(raise_exception=True)
 
         document = serializer.validated_data.get("document")
         path = serializer.validated_data.get("path")
 
-        result = validate_filepath_template_and_render(path, document)
+        result = format_filename(document, path)
         return Response(result)
 
 
@@ -2126,6 +2486,8 @@ class UiSettingsView(GenericAPIView):
         ui_settings["trash_delay"] = settings.EMPTY_TRASH_DELAY
 
         general_config = GeneralConfig()
+
+        ui_settings["version"] = version.__full_version_str__
 
         ui_settings["app_title"] = settings.APP_TITLE
         if general_config.app_title is not None and len(general_config.app_title) > 0:
@@ -2194,31 +2556,34 @@ class UiSettingsView(GenericAPIView):
     ),
 )
 class RemoteVersionView(GenericAPIView):
+    cache_key = "remote_version_view_latest_release"
+
     def get(self, request, format=None):
-        remote_version = "0.0.0"
-        is_greater_than_current = False
         current_version = packaging_version.parse(version.__full_version_str__)
-        try:
-            resp = httpx.get(
-                "https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest",
-                headers={"Accept": "application/json"},
-            )
-            resp.raise_for_status()
+        remote_version = cache.get(self.cache_key)
+        if remote_version is None:
             try:
+                resp = httpx.get(
+                    "https://api.github.com/repos/paperless-ngx/paperless-ngx/releases/latest",
+                    headers={"Accept": "application/json"},
+                )
+                resp.raise_for_status()
                 data = resp.json()
                 remote_version = data["tag_name"]
                 # Some early tags used ngx-x.y.z
                 remote_version = remote_version.removeprefix("ngx-")
             except ValueError as e:
                 logger.debug(f"An error occurred parsing remote version json: {e}")
-        except httpx.HTTPError as e:
-            logger.debug(f"An error occurred checking for available updates: {e}")
+            except httpx.HTTPError as e:
+                logger.debug(f"An error occurred checking for available updates: {e}")
+
+            if remote_version:
+                cache.set(self.cache_key, remote_version, 60 * 15)
+            else:
+                remote_version = "0.0.0"
 
         is_greater_than_current = (
-            packaging_version.parse(
-                remote_version,
-            )
-            > current_version
+            packaging_version.parse(remote_version) > current_version
         )
 
         return Response(
@@ -2256,6 +2621,17 @@ class RemoteVersionView(GenericAPIView):
         },
     ),
 )
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="task_id",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Filter tasks by Celery UUID",
+        ),
+    ],
+)
 class TasksViewSet(ReadOnlyModelViewSet):
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
     serializer_class = TasksViewSerializer
@@ -2285,7 +2661,11 @@ class TasksViewSet(ReadOnlyModelViewSet):
             queryset = PaperlessTask.objects.filter(task_id=task_id)
         return queryset
 
-    @action(methods=["post"], detail=False)
+    @action(
+        methods=["post"],
+        detail=False,
+        permission_classes=[IsAuthenticated, AcknowledgeTasksPermissions],
+    )
     def acknowledge(self, request):
         serializer = AcknowledgeTasksViewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -2431,7 +2811,7 @@ class BulkEditObjectsView(PassUserMixin):
         objs = object_class.objects.select_related("owner").filter(pk__in=object_ids)
 
         if not user.is_superuser:
-            model_name = object_class._meta.verbose_name
+            model_name = object_class._meta.model_name
             perm = (
                 f"documents.change_{model_name}"
                 if operation == "set_permissions"
@@ -2492,6 +2872,13 @@ class WorkflowTriggerViewSet(ModelViewSet):
 
     queryset = WorkflowTrigger.objects.all()
 
+    def partial_update(self, request, *args, **kwargs):
+        if "id" in request.data and str(request.data["id"]) != str(kwargs["pk"]):
+            return HttpResponseBadRequest(
+                "ID in body does not match URL",
+            )
+        return super().partial_update(request, *args, **kwargs)
+
 
 class WorkflowActionViewSet(ModelViewSet):
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
@@ -2509,6 +2896,13 @@ class WorkflowActionViewSet(ModelViewSet):
         "assign_change_groups",
         "assign_custom_fields",
     )
+
+    def partial_update(self, request, *args, **kwargs):
+        if "id" in request.data and str(request.data["id"]) != str(kwargs["pk"]):
+            return HttpResponseBadRequest(
+                "ID in body does not match URL",
+            )
+        return super().partial_update(request, *args, **kwargs)
 
 
 class WorkflowViewSet(ModelViewSet):
@@ -2529,7 +2923,7 @@ class WorkflowViewSet(ModelViewSet):
     )
 
 
-class CustomFieldViewSet(ModelViewSet):
+class CustomFieldViewSet(PermissionsAwareDocumentCountMixin, ModelViewSet):
     permission_classes = (IsAuthenticated, PaperlessObjectPermissions)
 
     serializer_class = CustomFieldSerializer
@@ -2541,34 +2935,10 @@ class CustomFieldViewSet(ModelViewSet):
     filterset_class = CustomFieldFilterSet
 
     model = CustomField
+    document_count_through = CustomFieldInstance
+    document_count_source_field = "field_id"
 
     queryset = CustomField.objects.all().order_by("-created")
-
-    def get_queryset(self):
-        filter = (
-            Q(fields__document__deleted_at__isnull=True)
-            if self.request.user is None or self.request.user.is_superuser
-            else (
-                Q(
-                    fields__document__deleted_at__isnull=True,
-                    fields__document__id__in=get_objects_for_user_owner_aware(
-                        self.request.user,
-                        "documents.view_document",
-                        Document,
-                    ).values_list("id", flat=True),
-                )
-            )
-        )
-        return (
-            super()
-            .get_queryset()
-            .annotate(
-                document_count=Count(
-                    "fields",
-                    filter=filter,
-                ),
-            )
-        )
 
 
 @extend_schema_view(
@@ -2660,7 +3030,7 @@ class SystemStatusView(PassUserMixin):
             install_type = "docker"
 
         db_conn = connections["default"]
-        db_url = db_conn.settings_dict["NAME"]
+        db_url = str(db_conn.settings_dict["NAME"])
         db_error = None
 
         try:
@@ -2732,6 +3102,11 @@ class SystemStatusView(PassUserMixin):
         last_trained_task = (
             PaperlessTask.objects.filter(
                 task_name=PaperlessTask.TaskName.TRAIN_CLASSIFIER,
+                status__in=[
+                    states.SUCCESS,
+                    states.FAILURE,
+                    states.REVOKED,
+                ],  # ignore running tasks
             )
             .order_by("-date_done")
             .first()
@@ -2741,7 +3116,7 @@ class SystemStatusView(PassUserMixin):
         if last_trained_task is None:
             classifier_status = "WARNING"
             classifier_error = "No classifier training tasks found"
-        elif last_trained_task and last_trained_task.status == states.FAILURE:
+        elif last_trained_task and last_trained_task.status != states.SUCCESS:
             classifier_status = "ERROR"
             classifier_error = last_trained_task.result
         classifier_last_trained = (
@@ -2751,6 +3126,11 @@ class SystemStatusView(PassUserMixin):
         last_sanity_check = (
             PaperlessTask.objects.filter(
                 task_name=PaperlessTask.TaskName.CHECK_SANITY,
+                status__in=[
+                    states.SUCCESS,
+                    states.FAILURE,
+                    states.REVOKED,
+                ],  # ignore running tasks
             )
             .order_by("-date_done")
             .first()
@@ -2760,7 +3140,7 @@ class SystemStatusView(PassUserMixin):
         if last_sanity_check is None:
             sanity_check_status = "WARNING"
             sanity_check_error = "No sanity check tasks found"
-        elif last_sanity_check and last_sanity_check.status == states.FAILURE:
+        elif last_sanity_check and last_sanity_check.status != states.SUCCESS:
             sanity_check_status = "ERROR"
             sanity_check_error = last_sanity_check.result
         sanity_check_last_run = (
@@ -2845,3 +3225,25 @@ class TrashView(ListModelMixin, PassUserMixin):
                 doc_ids = [doc.id for doc in docs]
             empty_trash(doc_ids=doc_ids)
         return Response({"result": "OK", "doc_ids": doc_ids})
+
+
+def serve_logo(request, filename=None):
+    """
+    Serves the configured logo file with Content-Disposition: attachment.
+    Prevents inline execution of SVGs. See GHSA-6p53-hqqw-8j62
+    """
+    config = ApplicationConfiguration.objects.first()
+    app_logo = config.app_logo
+
+    if not app_logo:
+        raise Http404("No logo configured")
+
+    path = app_logo.path
+    content_type = magic.from_file(path, mime=True) or "application/octet-stream"
+
+    return FileResponse(
+        app_logo.open("rb"),
+        content_type=content_type,
+        filename=app_logo.name,
+        as_attachment=True,
+    )

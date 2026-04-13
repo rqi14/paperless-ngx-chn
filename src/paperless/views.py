@@ -1,5 +1,5 @@
-import os
 from collections import OrderedDict
+from pathlib import Path
 
 from allauth.mfa import signals
 from allauth.mfa.adapter import get_adapter as get_mfa_adapter
@@ -11,8 +11,9 @@ from allauth.socialaccount.adapter import get_adapter
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db.models.functions import Lower
-from django.http import HttpResponse
+from django.http import FileResponse
 from django.http import HttpResponseBadRequest
 from django.http import HttpResponseForbidden
 from django.http import HttpResponseNotFound
@@ -24,6 +25,8 @@ from drf_spectacular.utils import extend_schema_view
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import BooleanField
 from rest_framework.filters import OrderingFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -87,24 +90,22 @@ class StandardPagination(PageNumberPagination):
         response_schema["properties"]["all"] = {
             "type": "array",
             "example": "[1, 2, 3]",
+            "items": {"type": "integer"},
         }
         return response_schema
 
 
 class FaviconView(View):
-    def get(self, request, *args, **kwargs):  # pragma: no cover
-        favicon = os.path.join(
-            os.path.dirname(__file__),
-            "static",
-            "paperless",
-            "img",
-            "favicon.ico",
-        )
-        with open(favicon, "rb") as f:
-            return HttpResponse(f, content_type="image/x-icon")
+    def get(self, request, *args, **kwargs):
+        try:
+            path = Path(staticfiles_storage.path("paperless/img/favicon.ico"))
+            return FileResponse(path.open("rb"), content_type="image/x-icon")
+        except FileNotFoundError:
+            return HttpResponseNotFound("favicon.ico not found")
 
 
 class UserViewSet(ModelViewSet):
+    _BOOL_NOT_PROVIDED = object()
     model = User
 
     queryset = User.objects.exclude(
@@ -118,25 +119,74 @@ class UserViewSet(ModelViewSet):
     filterset_class = UserFilterSet
     ordering_fields = ("username",)
 
+    @staticmethod
+    def _parse_requested_bool(data, key: str):
+        if key not in data:
+            return UserViewSet._BOOL_NOT_PROVIDED
+        try:
+            return BooleanField().to_internal_value(data.get(key))
+        except ValidationError:
+            # Let serializer validation report invalid values as 400 responses
+            return UserViewSet._BOOL_NOT_PROVIDED
+
     def create(self, request, *args, **kwargs):
-        if not request.user.is_superuser and request.data.get("is_superuser") is True:
-            return HttpResponseForbidden(
-                "Superuser status can only be granted by a superuser",
-            )
+        requested_is_superuser = self._parse_requested_bool(
+            request.data,
+            "is_superuser",
+        )
+        requested_is_staff = self._parse_requested_bool(request.data, "is_staff")
+
+        if not request.user.is_superuser:
+            if requested_is_superuser is True:
+                return HttpResponseForbidden(
+                    "Superuser status can only be granted by a superuser",
+                )
+            if requested_is_staff is True:
+                return HttpResponseForbidden(
+                    "Staff status can only be granted by a superuser",
+                )
+
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         user_to_update: User = self.get_object()
+
+        if not request.user.is_superuser and user_to_update.is_superuser:
+            return HttpResponseForbidden(
+                "Superusers can only be modified by other superusers",
+            )
+
+        requested_is_superuser = self._parse_requested_bool(
+            request.data,
+            "is_superuser",
+        )
+        requested_is_staff = self._parse_requested_bool(request.data, "is_staff")
+
         if (
             not request.user.is_superuser
-            and request.data.get("is_superuser") is not None
-            and request.data.get("is_superuser") != user_to_update.is_superuser
+            and requested_is_superuser is not self._BOOL_NOT_PROVIDED
+            and requested_is_superuser != user_to_update.is_superuser
         ):
             return HttpResponseForbidden(
                 "Superuser status can only be changed by a superuser",
             )
+        if (
+            not request.user.is_superuser
+            and requested_is_staff is not self._BOOL_NOT_PROVIDED
+            and requested_is_staff != user_to_update.is_staff
+        ):
+            return HttpResponseForbidden(
+                "Staff status can only be changed by a superuser",
+            )
         return super().update(request, *args, **kwargs)
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiTypes.BOOL,
+            404: OpenApiTypes.STR,
+        },
+    )
     @action(detail=True, methods=["post"])
     def deactivate_totp(self, request, pk=None):
         request_user = request.user
@@ -188,10 +238,10 @@ class ProfileView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = self.request.user if hasattr(self.request, "user") else None
 
-        if len(serializer.validated_data.get("password").replace("*", "")) > 0:
-            user.set_password(serializer.validated_data.get("password"))
+        password = serializer.validated_data.pop("password", None)
+        if password and password.replace("*", ""):
+            user.set_password(password)
             user.save()
-        serializer.validated_data.pop("password")
 
         for key, value in serializer.validated_data.items():
             setattr(user, key, value)
@@ -344,6 +394,10 @@ class ApplicationConfigurationViewSet(ModelViewSet):
 
     serializer_class = ApplicationConfigurationSerializer
     permission_classes = (IsAuthenticated, DjangoModelPermissions)
+
+    @extend_schema(exclude=True)
+    def create(self, request, *args, **kwargs):
+        return Response(status=405)  # Not Allowed
 
 
 @extend_schema_view(

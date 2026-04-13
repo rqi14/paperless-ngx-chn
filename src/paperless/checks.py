@@ -3,6 +3,7 @@ import os
 import pwd
 import shutil
 import stat
+from pathlib import Path
 
 from django.conf import settings
 from django.core.checks import Error
@@ -19,26 +20,23 @@ writeable_hint = (
 )
 
 
-def path_check(var, directory):
-    messages = []
+def path_check(var, directory: Path) -> list[Error]:
+    messages: list[Error] = []
     if directory:
-        if not os.path.isdir(directory):
+        if not directory.is_dir():
             messages.append(
                 Error(exists_message.format(var), exists_hint.format(directory)),
             )
         else:
-            test_file = os.path.join(
-                directory,
-                f"__paperless_write_test_{os.getpid()}__",
-            )
+            test_file: Path = directory / f"__paperless_write_test_{os.getpid()}__"
             try:
-                with open(test_file, "w"):
+                with test_file.open("w"):
                     pass
             except PermissionError:
-                dir_stat = os.stat(directory)
-                dir_mode = stat.filemode(dir_stat.st_mode)
-                dir_owner = pwd.getpwuid(dir_stat.st_uid).pw_name
-                dir_group = grp.getgrgid(dir_stat.st_gid).gr_name
+                dir_stat: os.stat_result = Path(directory).stat()
+                dir_mode: str = stat.filemode(dir_stat.st_mode)
+                dir_owner: str = pwd.getpwuid(dir_stat.st_uid).pw_name
+                dir_group: str = grp.getgrgid(dir_stat.st_gid).gr_name
                 messages.append(
                     Error(
                         writeable_message.format(var),
@@ -48,14 +46,18 @@ def path_check(var, directory):
                     ),
                 )
             finally:
-                if os.path.isfile(test_file):
-                    os.remove(test_file)
+                try:
+                    if test_file.is_file():
+                        test_file.unlink()
+                except (PermissionError, OSError):
+                    # Skip cleanup if we can't access the file — expected in permission tests
+                    pass
 
     return messages
 
 
 @register()
-def paths_check(app_configs, **kwargs):
+def paths_check(app_configs, **kwargs) -> list[Error]:
     """
     Check the various paths for existence, readability and writeability
     """
@@ -210,33 +212,5 @@ def audit_log_check(app_configs, **kwargs):
                 ("auditlog table was found but audit log is disabled."),
             ),
         )
-
-    return result
-
-
-@register()
-def check_postgres_version(app_configs, **kwargs):
-    """
-    Django 5.2 removed PostgreSQL 13 support and thus it will be removed in
-    a future Paperless-ngx version. This check can be removed eventually.
-    See https://docs.djangoproject.com/en/5.2/releases/5.2/#dropped-support-for-postgresql-13
-    """
-    db_conn = connections["default"]
-    result = []
-    if db_conn.vendor == "postgresql":
-        try:
-            with db_conn.cursor() as cursor:
-                cursor.execute("SHOW server_version;")
-                version = cursor.fetchone()[0]
-                if version.startswith("13"):
-                    return [
-                        Warning(
-                            "PostgreSQL 13 is deprecated and will not be supported in a future Paperless-ngx release.",
-                            hint="Upgrade to PostgreSQL 14 or newer.",
-                        ),
-                    ]
-        except Exception:  # pragma: no cover
-            # Don't block checks on version query failure
-            pass
 
     return result

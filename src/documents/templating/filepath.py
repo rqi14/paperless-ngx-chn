@@ -2,19 +2,16 @@ import logging
 import os
 import re
 from collections.abc import Iterable
-from datetime import datetime
 from pathlib import PurePath
 
 import pathvalidate
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 from django.utils.text import slugify as django_slugify
 from jinja2 import StrictUndefined
 from jinja2 import Template
 from jinja2 import TemplateSyntaxError
 from jinja2 import UndefinedError
 from jinja2 import make_logging_undefined
-from jinja2.sandbox import SandboxedEnvironment
 from jinja2.sandbox import SecurityError
 
 from documents.models import Correspondent
@@ -24,37 +21,14 @@ from documents.models import Document
 from documents.models import DocumentType
 from documents.models import StoragePath
 from documents.models import Tag
+from documents.templating.environment import _template_environment
+from documents.templating.filters import format_datetime
+from documents.templating.filters import get_cf_value
+from documents.templating.filters import localize_date
 
 logger = logging.getLogger("paperless.templating")
 
 _LogStrictUndefined = make_logging_undefined(logger, StrictUndefined)
-
-
-class FilePathEnvironment(SandboxedEnvironment):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.undefined_tracker = None
-
-    def is_safe_callable(self, obj):
-        # Block access to .save() and .delete() methods
-        if callable(obj) and getattr(obj, "__name__", None) in (
-            "save",
-            "delete",
-            "update",
-        ):
-            return False
-        # Call the parent method for other cases
-        return super().is_safe_callable(obj)
-
-
-_template_environment = FilePathEnvironment(
-    trim_blocks=True,
-    lstrip_blocks=True,
-    keep_trailing_newline=False,
-    autoescape=False,
-    extensions=["jinja2.ext.loopcontrols"],
-    undefined=_LogStrictUndefined,
-)
 
 
 class FilePathTemplate(Template):
@@ -78,30 +52,59 @@ class FilePathTemplate(Template):
         return clean_filepath(original_render)
 
 
-def get_cf_value(
-    custom_field_data: dict[str, dict[str, str]],
-    name: str,
-    default: str | None = None,
-) -> str | None:
-    if name in custom_field_data and custom_field_data[name]["value"] is not None:
-        return custom_field_data[name]["value"]
-    elif default is not None:
-        return default
-    return None
+class PlaceholderString(str):
+    """
+    String subclass used as a sentinel for empty metadata values inside templates.
 
+    - Renders as \"-none-\" to preserve existing filename cleaning logic.
+    - Compares equal to either \"-none-\" or \"none\" so templates can check for either.
+    - Evaluates to False so {% if correspondent %} behaves intuitively.
+    """
+
+    def __new__(cls, value: str = "-none-"):
+        return super().__new__(cls, value)
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, str) and other == "none":
+            other = "-none-"
+        return super().__eq__(other)
+
+    def __ne__(self, other) -> bool:
+        return not self.__eq__(other)
+
+
+NO_VALUE_PLACEHOLDER = PlaceholderString("-none-")
+
+
+class MatchingModelContext:
+    """
+    Safe template context for related objects.
+
+    Keeps legacy behavior where including the object ina template yields the related object's
+    name as a string, while still exposing limited attributes.
+    """
+
+    def __init__(self, *, id: int, name: str, path: str | None = None):
+        self.id = id
+        self.name = name
+        self.path = path
+
+    def __str__(self) -> str:
+        return self.name
+
+
+_template_environment.undefined = _LogStrictUndefined
 
 _template_environment.filters["get_cf_value"] = get_cf_value
-
-
-def format_datetime(value: str | datetime, format: str) -> str:
-    if isinstance(value, str):
-        value = parse_date(value)
-    return value.strftime(format=format)
-
 
 _template_environment.filters["datetime"] = format_datetime
 
 _template_environment.filters["slugify"] = django_slugify
+
+_template_environment.filters["localize_date"] = localize_date
 
 
 def create_dummy_document():
@@ -169,7 +172,7 @@ def get_added_date_context(document: Document) -> dict[str, str]:
 def get_basic_metadata_context(
     document: Document,
     *,
-    no_value_default: str,
+    no_value_default: str = NO_VALUE_PLACEHOLDER,
 ) -> dict[str, str]:
     """
     Given a Document, constructs some basic information about it.  If certain values are not set,
@@ -204,6 +207,59 @@ def get_basic_metadata_context(
         if document.original_filename
         else no_value_default,
         "doc_pk": f"{document.pk:07}",
+    }
+
+
+def get_safe_document_context(
+    document: Document,
+    tags: Iterable[Tag],
+) -> dict[str, object]:
+    """
+    Build a document context object to avoid supplying entire model instance.
+    """
+    return {
+        "id": document.pk,
+        "pk": document.pk,
+        "title": document.title,
+        "content": document.content,
+        "page_count": document.page_count,
+        "created": document.created,
+        "added": document.added,
+        "modified": document.modified,
+        "archive_serial_number": document.archive_serial_number,
+        "mime_type": document.mime_type,
+        "checksum": document.checksum,
+        "archive_checksum": document.archive_checksum,
+        "filename": document.filename,
+        "archive_filename": document.archive_filename,
+        "original_filename": document.original_filename,
+        "owner": {"username": document.owner.username, "id": document.owner.id}
+        if document.owner
+        else None,
+        "tags": [{"name": tag.name, "id": tag.id} for tag in tags],
+        "correspondent": (
+            MatchingModelContext(
+                name=document.correspondent.name,
+                id=document.correspondent.id,
+            )
+            if document.correspondent
+            else None
+        ),
+        "document_type": (
+            MatchingModelContext(
+                name=document.document_type.name,
+                id=document.document_type.id,
+            )
+            if document.document_type
+            else None
+        ),
+        "storage_path": MatchingModelContext(
+            name=document.storage_path.name,
+            path=document.storage_path.path,
+            id=document.storage_path.id,
+        )
+        if document.storage_path
+        else None,
     }
 
 
@@ -243,6 +299,7 @@ def get_custom_fields_context(
             CustomField.FieldDataType.MONETARY,
             CustomField.FieldDataType.STRING,
             CustomField.FieldDataType.URL,
+            CustomField.FieldDataType.LONG_TEXT,
         }:
             value = pathvalidate.sanitize_filename(
                 field_instance.value,
@@ -275,6 +332,17 @@ def get_custom_fields_context(
     return field_data
 
 
+def _is_safe_relative_path(value: str) -> bool:
+    if value == "":
+        return True
+
+    path = PurePath(value)
+    if path.is_absolute() or path.drive:
+        return False
+
+    return ".." not in path.parts
+
+
 def validate_filepath_template_and_render(
     template_string: str,
     document: Document | None = None,
@@ -305,8 +373,8 @@ def validate_filepath_template_and_render(
 
     # Build the context dictionary
     context = (
-        {"document": document}
-        | get_basic_metadata_context(document, no_value_default="-none-")
+        {"document": get_safe_document_context(document, tags=tags_list)}
+        | get_basic_metadata_context(document, no_value_default=NO_VALUE_PLACEHOLDER)
         | get_creation_date_context(document)
         | get_added_date_context(document)
         | get_tags_context(tags_list)
@@ -321,6 +389,12 @@ def validate_filepath_template_and_render(
             template_class=FilePathTemplate,
         )
         rendered_template = template.render(context)
+
+        if not _is_safe_relative_path(rendered_template):
+            logger.warning(
+                "Template rendered an unsafe path (absolute or containing traversal).",
+            )
+            return None
 
         # We're good!
         return rendered_template

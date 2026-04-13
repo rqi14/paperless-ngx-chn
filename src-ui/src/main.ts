@@ -51,14 +51,17 @@ import {
   check,
   check2All,
   checkAll,
+  checkCircle,
   checkCircleFill,
   checkLg,
   chevronDoubleLeft,
   chevronDoubleRight,
+  chevronRight,
   clipboard,
   clipboardCheck,
   clipboardCheckFill,
   clipboardFill,
+  clockHistory,
   dash,
   dashCircle,
   diagram3,
@@ -94,6 +97,7 @@ import {
   infoCircle,
   journals,
   link,
+  listNested,
   listTask,
   listUl,
   microsoft,
@@ -110,6 +114,7 @@ import {
   playFill,
   plus,
   plusCircle,
+  printer,
   questionCircle,
   scissors,
   search,
@@ -142,6 +147,7 @@ import { DirtyDocGuard } from './app/guards/dirty-doc.guard'
 import { DirtySavedViewGuard } from './app/guards/dirty-saved-view.guard'
 import { PermissionsGuard } from './app/guards/permissions.guard'
 import { ApiVersionInterceptor } from './app/interceptors/api-version.interceptor'
+import { AuthExpiryInterceptor } from './app/interceptors/auth-expiry.interceptor'
 import { CsrfInterceptor } from './app/interceptors/csrf.interceptor'
 import { DocumentTitlePipe } from './app/pipes/document-title.pipe'
 import { FilterPipe } from './app/pipes/filter.pipe'
@@ -162,6 +168,7 @@ import localeDe from '@angular/common/locales/de'
 import localeEl from '@angular/common/locales/el'
 import localeEnGb from '@angular/common/locales/en-GB'
 import localeEs from '@angular/common/locales/es'
+import localeFa from '@angular/common/locales/fa'
 import localeFi from '@angular/common/locales/fi'
 import localeFr from '@angular/common/locales/fr'
 import localeHu from '@angular/common/locales/hu'
@@ -181,6 +188,7 @@ import localeSr from '@angular/common/locales/sr'
 import localeSv from '@angular/common/locales/sv'
 import localeTr from '@angular/common/locales/tr'
 import localeUk from '@angular/common/locales/uk'
+import localeVi from '@angular/common/locales/vi'
 import localeZh from '@angular/common/locales/zh'
 import localeZhHant from '@angular/common/locales/zh-Hant'
 import { CorrespondentNamePipe } from './app/pipes/correspondent-name.pipe'
@@ -198,6 +206,7 @@ registerLocaleData(localeDe)
 registerLocaleData(localeEl)
 registerLocaleData(localeEnGb)
 registerLocaleData(localeEs)
+registerLocaleData(localeFa)
 registerLocaleData(localeFi)
 registerLocaleData(localeFr)
 registerLocaleData(localeHu)
@@ -217,6 +226,7 @@ registerLocaleData(localeSl)
 registerLocaleData(localeSr)
 registerLocaleData(localeSv)
 registerLocaleData(localeTr)
+registerLocaleData(localeVi)
 registerLocaleData(localeUk)
 registerLocaleData(localeZh)
 registerLocaleData(localeZhHant)
@@ -256,14 +266,17 @@ const icons = {
   check,
   check2All,
   checkAll,
+  checkCircle,
   checkCircleFill,
   checkLg,
   chevronDoubleLeft,
   chevronDoubleRight,
+  chevronRight,
   clipboard,
   clipboardCheck,
   clipboardCheckFill,
   clipboardFill,
+  clockHistory,
   dash,
   dashCircle,
   diagram3,
@@ -299,6 +312,7 @@ const icons = {
   infoCircle,
   journals,
   link,
+  listNested,
   listTask,
   listUl,
   microsoft,
@@ -315,6 +329,7 @@ const icons = {
   playFill,
   plus,
   plusCircle,
+  printer,
   questionCircle,
   scissors,
   search,
@@ -374,6 +389,11 @@ bootstrapApplication(AppComponent, {
     {
       provide: HTTP_INTERCEPTORS,
       useClass: ApiVersionInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: AuthExpiryInterceptor,
       multi: true,
     },
     FilterPipe,

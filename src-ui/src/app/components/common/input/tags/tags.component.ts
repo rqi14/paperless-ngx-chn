@@ -2,6 +2,7 @@ import {
   Component,
   EventEmitter,
   forwardRef,
+  inject,
   Input,
   OnInit,
   Output,
@@ -45,10 +46,10 @@ import { TagComponent } from '../../tag/tag.component'
   ],
 })
 export class TagsComponent implements OnInit, ControlValueAccessor {
-  constructor(
-    private tagService: TagService,
-    private modalService: NgbModal
-  ) {
+  private tagService = inject(TagService)
+  private modalService = inject(NgbModal)
+
+  constructor() {
     this.createTagRef = this.createTag.bind(this)
   }
 
@@ -99,6 +100,9 @@ export class TagsComponent implements OnInit, ControlValueAccessor {
   @Input()
   horizontal: boolean = false
 
+  @Input()
+  multiple: boolean = true
+
   @Output()
   filterDocuments = new EventEmitter<Tag[]>()
 
@@ -123,10 +127,37 @@ export class TagsComponent implements OnInit, ControlValueAccessor {
 
     let index = this.value.indexOf(tagID)
     if (index > -1) {
+      const tag = this.getTag(tagID)
+
+      // remove tag
       let oldValue = this.value
       oldValue.splice(index, 1)
+
+      // remove children
+      oldValue = this.removeChildren(oldValue, tag)
+
       this.value = [...oldValue]
       this.onChange(this.value)
+    }
+  }
+
+  private removeChildren(tagIDs: number[], tag: Tag) {
+    if (tag.children?.length) {
+      const childIDs = tag.children.map((child) => child.id)
+      tagIDs = tagIDs.filter((id) => !childIDs.includes(id))
+      for (const child of tag.children) {
+        tagIDs = this.removeChildren(tagIDs, child)
+      }
+    }
+    return tagIDs
+  }
+
+  public onAdd(tag: Tag) {
+    if (tag.parent) {
+      // add all parents recursively
+      const parent = this.getTag(tag.parent)
+      this.value = [...this.value, parent.id]
+      this.onAdd(parent)
     }
   }
 
@@ -138,7 +169,7 @@ export class TagsComponent implements OnInit, ControlValueAccessor {
     if (name) modal.componentInstance.object = { name: name }
     else if (this.select.searchTerm)
       modal.componentInstance.object = { name: this.select.searchTerm }
-    this.select.searchTerm = null
+    this.select.filter(null)
     this.select.detectChanges()
     return firstValueFrom(
       (modal.componentInstance as TagEditDialogComponent).succeeded.pipe(
@@ -165,6 +196,7 @@ export class TagsComponent implements OnInit, ControlValueAccessor {
 
   addTag(id) {
     this.value = [...this.value, id]
+    this.onAdd(this.getTag(id))
     this.onChange(this.value)
   }
 
@@ -178,5 +210,21 @@ export class TagsComponent implements OnInit, ControlValueAccessor {
     this.filterDocuments.emit(
       this.tags.filter((t) => this.value.includes(t.id))
     )
+  }
+
+  getParentChain(id: number): Tag[] {
+    // Returns ancestors from root → immediate parent for a tag id
+    const chain: Tag[] = []
+    let current = this.getTag(id)
+    const guard = new Set<number>()
+    while (current?.parent) {
+      if (guard.has(current.parent)) break
+      guard.add(current.parent)
+      const parent = this.getTag(current.parent)
+      if (!parent) break
+      chain.unshift(parent)
+      current = parent
+    }
+    return chain
   }
 }

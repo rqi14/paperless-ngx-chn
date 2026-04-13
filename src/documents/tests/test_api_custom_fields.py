@@ -1,9 +1,12 @@
 import json
 from datetime import date
+from unittest import mock
 from unittest.mock import ANY
 
 from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
+from django.test import override_settings
+from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -211,6 +214,7 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
             ],
         )
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_custom_field_select_options_pruned(self):
         """
         GIVEN:
@@ -242,7 +246,7 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
         CustomFieldInstance.objects.create(
             document=doc,
             field=custom_field_select,
-            value_text="abc-123",
+            value_select="def-456",
         )
 
         resp = self.client.patch(
@@ -273,6 +277,52 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
 
         doc.refresh_from_db()
         self.assertEqual(doc.custom_fields.first().value, None)
+
+    @mock.patch("documents.signals.handlers.process_cf_select_update.delay")
+    def test_custom_field_update_offloaded_once(self, mock_delay):
+        """
+        GIVEN:
+            - A select custom field attached to multiple documents
+        WHEN:
+            - The select options are updated
+        THEN:
+            - The async update task is enqueued once
+        """
+        cf_select = CustomField.objects.create(
+            name="Select Field",
+            data_type=CustomField.FieldDataType.SELECT,
+            extra_data={
+                "select_options": [
+                    {"label": "Option 1", "id": "abc-123"},
+                    {"label": "Option 2", "id": "def-456"},
+                ],
+            },
+        )
+
+        documents = [
+            Document.objects.create(
+                title="WOW",
+                content="the content",
+                checksum=f"{i}",
+                mime_type="application/pdf",
+            )
+            for i in range(3)
+        ]
+        for document in documents:
+            CustomFieldInstance.objects.create(
+                document=document,
+                field=cf_select,
+                value_select="def-456",
+            )
+
+        cf_select.extra_data = {
+            "select_options": [
+                {"label": "Option 1", "id": "abc-123"},
+            ],
+        }
+        cf_select.save()
+
+        mock_delay.assert_called_once_with(cf_select)
 
     def test_custom_field_select_old_version(self):
         """
@@ -1197,6 +1247,100 @@ class TestCustomFieldsAPI(DirectoriesMixin, APITestCase):
 
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(doc5.custom_fields.first().value, [1])
+
+    def test_documentlink_patch_requires_change_permission_on_target_documents(self):
+        source_owner = User.objects.create_user(username="source-owner")
+        source_owner.user_permissions.add(
+            Permission.objects.get(codename="change_document"),
+        )
+        other_user = User.objects.create_user(username="other-user")
+
+        source_doc = Document.objects.create(
+            title="Source",
+            checksum="source",
+            mime_type="application/pdf",
+            owner=source_owner,
+        )
+        target_doc = Document.objects.create(
+            title="Target",
+            checksum="target",
+            mime_type="application/pdf",
+            owner=other_user,
+        )
+        custom_field_doclink = CustomField.objects.create(
+            name="Test Custom Field Doc Link",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        self.client.force_authenticate(user=source_owner)
+
+        resp = self.client.patch(
+            f"/api/documents/{source_doc.id}/",
+            data={
+                "custom_fields": [
+                    {
+                        "field": custom_field_doclink.id,
+                        "value": [target_doc.id],
+                    },
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            CustomFieldInstance.objects.filter(field=custom_field_doclink).count(),
+            0,
+        )
+
+    def test_documentlink_patch_allowed_with_change_permission_on_target_documents(
+        self,
+    ):
+        source_owner = User.objects.create_user(username="source-owner")
+        source_owner.user_permissions.add(
+            Permission.objects.get(codename="change_document"),
+        )
+        other_user = User.objects.create_user(username="other-user")
+
+        source_doc = Document.objects.create(
+            title="Source",
+            checksum="source",
+            mime_type="application/pdf",
+            owner=source_owner,
+        )
+        target_doc = Document.objects.create(
+            title="Target",
+            checksum="target",
+            mime_type="application/pdf",
+            owner=other_user,
+        )
+        custom_field_doclink = CustomField.objects.create(
+            name="Test Custom Field Doc Link",
+            data_type=CustomField.FieldDataType.DOCUMENTLINK,
+        )
+
+        assign_perm("change_document", source_owner, target_doc)
+        self.client.force_authenticate(user=source_owner)
+
+        resp = self.client.patch(
+            f"/api/documents/{source_doc.id}/",
+            data={
+                "custom_fields": [
+                    {
+                        "field": custom_field_doclink.id,
+                        "value": [target_doc.id],
+                    },
+                ],
+            },
+            format="json",
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        target_doc.refresh_from_db()
+        self.assertEqual(
+            target_doc.custom_fields.get(field=custom_field_doclink).value,
+            [source_doc.id],
+        )
 
     def test_custom_field_filters(self):
         custom_field_string = CustomField.objects.create(

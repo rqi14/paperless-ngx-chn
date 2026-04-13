@@ -441,6 +441,59 @@ class TestApiAuth(DirectoriesMixin, APITestCase):
         self.assertTrue(checker.has_perm("change_document", doc))
         self.assertIn("change_document", get_perms(group1, doc))
 
+    def test_document_permissions_change_requires_owner(self):
+        owner = User.objects.create_user(username="owner")
+        editor = User.objects.create_user(username="editor")
+        editor.user_permissions.add(
+            *Permission.objects.all(),
+        )
+
+        doc = Document.objects.create(
+            title="Ownered doc",
+            content="sensitive",
+            checksum="abc123",
+            mime_type="application/pdf",
+            owner=owner,
+        )
+
+        assign_perm("view_document", editor, doc)
+        assign_perm("change_document", editor, doc)
+
+        self.client.force_authenticate(editor)
+        response = self.client.patch(
+            f"/api/documents/{doc.pk}/",
+            json.dumps(
+                {
+                    "set_permissions": {
+                        "view": {
+                            "users": [editor.id],
+                            "groups": [],
+                        },
+                        "change": {
+                            "users": None,
+                            "groups": None,
+                        },
+                    },
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(editor)
+        response = self.client.patch(
+            f"/api/documents/{doc.pk}/",
+            json.dumps(
+                {
+                    "owner": editor.id,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_dynamic_permissions_fields(self):
         user1 = User.objects.create_user(username="user1")
         user1.user_permissions.add(*Permission.objects.filter(codename="view_document"))
@@ -648,7 +701,7 @@ class TestApiUser(DirectoriesMixin, APITestCase):
 
         user1 = {
             "username": "testuser",
-            "password": "test",
+            "password": "areallysupersecretpassword235",
             "first_name": "Test",
             "last_name": "User",
         }
@@ -730,7 +783,7 @@ class TestApiUser(DirectoriesMixin, APITestCase):
             f"{self.ENDPOINT}{user1.pk}/",
             data={
                 "first_name": "Updated Name 2",
-                "password": "123xyz",
+                "password": "newreallystrongpassword456",
             },
         )
 
@@ -835,6 +888,19 @@ class TestApiUser(DirectoriesMixin, APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+        response = self.client.post(
+            f"{self.ENDPOINT}",
+            json.dumps(
+                {
+                    "username": "user4",
+                    "is_superuser": "true",
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
         self.client.force_authenticate(user2)
 
         response = self.client.patch(
@@ -866,6 +932,65 @@ class TestApiUser(DirectoriesMixin, APITestCase):
 
         returned_user1 = User.objects.get(pk=user1.pk)
         self.assertEqual(returned_user1.is_superuser, False)
+
+    def test_only_superusers_can_create_or_alter_staff_status(self):
+        """
+        GIVEN:
+            - Existing user account
+        WHEN:
+            - API request is made to add a user account with staff status
+            - API request is made to change staff status
+        THEN:
+            - Only superusers can change staff status
+        """
+
+        user1 = User.objects.create_user(username="user1")
+        user1.user_permissions.add(*Permission.objects.all())
+        user2 = User.objects.create_superuser(username="user2")
+
+        self.client.force_authenticate(user1)
+
+        response = self.client.patch(
+            f"{self.ENDPOINT}{user1.pk}/",
+            json.dumps(
+                {
+                    "is_staff": "true",
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        response = self.client.post(
+            f"{self.ENDPOINT}",
+            json.dumps(
+                {
+                    "username": "user3",
+                    "is_staff": 1,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user2)
+
+        response = self.client.patch(
+            f"{self.ENDPOINT}{user1.pk}/",
+            json.dumps(
+                {
+                    "is_staff": True,
+                },
+            ),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        returned_user1 = User.objects.get(pk=user1.pk)
+        self.assertEqual(returned_user1.is_staff, True)
 
 
 class TestApiGroup(DirectoriesMixin, APITestCase):
@@ -1278,3 +1403,34 @@ class TestBulkEditObjectPermissions(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class TestFullPermissionsFlag(APITestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.admin = User.objects.create_superuser(username="admin")
+
+    def test_full_perms_flag(self):
+        """
+        GIVEN:
+            - API request to list documents
+        WHEN:
+            - full_perms flag is set to true, 1, false, or a random value
+        THEN:
+            - Permissions field is included or excluded accordingly
+        """
+        self.client.force_authenticate(self.admin)
+        Document.objects.create(title="Doc", checksum="xyz", owner=self.admin)
+
+        resp = self.client.get("/api/documents/?full_perms=true")
+        self.assertIn("permissions", resp.data["results"][0])
+
+        resp = self.client.get("/api/documents/?full_perms=1")
+        self.assertIn("permissions", resp.data["results"][0])
+
+        resp = self.client.get("/api/documents/?full_perms=false")
+        self.assertNotIn("permissions", resp.data["results"][0])
+
+        resp = self.client.get("/api/documents/?full_perms=garbage")
+        self.assertNotIn("permissions", resp.data["results"][0])
